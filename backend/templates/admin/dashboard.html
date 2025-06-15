@@ -5,8 +5,17 @@
     <title>Admin Dashboard</title>
 </head>
 <body>
-    <h1>Vítej v administraci</h1>
-    <p>Úspěšně přihlášen jako admin.</p>
-    <a href="{{ url_for('auth.logout') }}">Odhlásit se</a>
+    <h1>👋 Vítej v administraci, {{ user.username }}!</h1>
+
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('admin.dashboard') }}">🏠 Dashboard</a></li>
+            <li><a href="#">📦 Produkty</a></li>
+            <li><a href="#">📁 Kategorie</a></li>
+            <li><a href="{{ url_for('auth.logout') }}">🚪 Odhlásit</a></li>
+        </ul>
+    </nav>
+
+    <p>Zde můžeš spravovat obsah e-shopu.</p>
 </body>
 </html>
