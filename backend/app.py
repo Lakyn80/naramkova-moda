@@ -1,33 +1,34 @@
-# backend/app.py
-
+import os
 from flask import Flask
 from config import Config
 from extensions import db, login_manager, bcrypt
+from admin import admin_bp
+from auth.login_routes import auth_bp
 
-def create_app():
+def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Inicializace rozšíření
+    # ─── Inicializace rozšíření ───────────────────────────────────────────
     db.init_app(app)
     login_manager.init_app(app)
     bcrypt.init_app(app)
 
-    login_manager.login_view = "auth.login"  # budeš-li používat Flask-Login
+    login_manager.login_view = "auth.login"
 
-    # Vytvoření složky pro nahrávání souborů (např. obrázky)
-    import os
-    upload_path = os.path.join(app.root_path, "static", "uploads")
-    os.makedirs(upload_path, exist_ok=True)
-    app.config["UPLOAD_FOLDER"] = upload_path
+    # ─── Cesty ────────────────────────────────────────────────────────────
+    os.makedirs(os.path.join(app.root_path, "static", "uploads"), exist_ok=True)
+    os.makedirs(os.path.join(os.path.dirname(__file__), "instance"), exist_ok=True)
 
-    # Registrace Blueprintů (zatím zakomentováno)
-    # from auth.routes import auth_bp
-    # app.register_blueprint(auth_bp, url_prefix="/auth")
+    # ─── Blueprinty ───────────────────────────────────────────────────────
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
 
-    # Databázové tabulky se vytvoří jen pokud běžíme přímo (ne importujeme)
+    # ─── Databáze ─────────────────────────────────────────────────────────
     with app.app_context():
         db.create_all()
+
+    from user_loader import load_user  # noqa: F401
 
     return app
 
