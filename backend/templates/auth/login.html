@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Přihlášení</title>
+</head>
+<body>
+    <h2>Přihlášení</h2>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul>
+                {% for category, message in messages %}
+                    <li><strong>{{ category }}:</strong> {{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+    <form method="POST">
+        <label>Uživatelské jméno:</label><br>
+        <input type="text" name="username"><br><br>
+
+        <label>Heslo:</label><br>
+        <input type="password" name="password"><br><br>
+
+        <input type="submit" value="Přihlásit">
+    </form>
+</body>
+</html>
