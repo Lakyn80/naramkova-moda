@@ -6,26 +6,26 @@ from . import admin_bp
 from extensions import db
 from admin.models import Product
 
-# ─────────────────────────────────────────────────────────────────────────────
-# DASHBOARD
-# ─────────────────────────────────────────────────────────────────────────────
+# ------------------------------
+# Admin Dashboard
+# ------------------------------
 @admin_bp.route("/dashboard")
 @login_required
 def dashboard():
     return render_template("admin/dashboard.html", user=current_user)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# VÝPIS PRODUKTŮ
-# ─────────────────────────────────────────────────────────────────────────────
+# ------------------------------
+# Výpis produktů
+# ------------------------------
 @admin_bp.route("/admin/products")
 @login_required
 def list_products():
     products = Product.query.all()
     return render_template("admin/products/list.html", products=products)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PŘIDÁNÍ NOVÉHO PRODUKTU
-# ─────────────────────────────────────────────────────────────────────────────
+# ------------------------------
+# Přidání nového produktu
+# ------------------------------
 @admin_bp.route("/admin/products/add", methods=["GET", "POST"])
 @login_required
 def add_product():
@@ -56,9 +56,9 @@ def add_product():
 
     return render_template("admin/products/add.html")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EDITACE PRODUKTU
-# ─────────────────────────────────────────────────────────────────────────────
+# ------------------------------
+# Editace produktu
+# ------------------------------
 @admin_bp.route("/admin/products/edit/<int:product_id>", methods=["GET", "POST"])
 @login_required
 def edit_product(product_id):
@@ -67,15 +67,13 @@ def edit_product(product_id):
     if request.method == "POST":
         product.name = request.form["name"]
         product.description = request.form["description"]
-        price = request.form["price"]
-        image_file = request.files.get("image")
-
         try:
-            product.price_czk = float(price)
+            product.price_czk = float(request.form["price"])
         except ValueError:
             flash("Cena musí být číslo.", "danger")
-            return redirect(url_for("admin.edit_product", product_id=product.id))
+            return redirect(url_for("admin.edit_product", product_id=product_id))
 
+        image_file = request.files.get("image")
         if image_file and image_file.filename != "":
             filename = secure_filename(image_file.filename)
             upload_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
@@ -84,19 +82,18 @@ def edit_product(product_id):
             product.image = filename
 
         db.session.commit()
-        flash("Produkt upraven.", "success")
+        flash("Produkt upraven!", "success")
         return redirect(url_for("admin.list_products"))
 
     return render_template("admin/products/edit.html", product=product)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MAZÁNÍ PRODUKTU
-# ─────────────────────────────────────────────────────────────────────────────
-@admin_bp.route("/admin/products/delete/<int:product_id>", methods=["POST"])
+# ------------------------------
+# Smazání produktu
+# ------------------------------
+@admin_bp.route("/admin/products/delete/<int:product_id>")
 @login_required
 def delete_product(product_id):
     product = Product.query.get_or_404(product_id)
-
     if product.image:
         image_path = os.path.join(current_app.config["UPLOAD_FOLDER"], product.image)
         if os.path.exists(image_path):
