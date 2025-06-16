@@ -1,0 +1,32 @@
+{% extends "shared/layout.html" %}
+
+{% block title %}Přidat produkt{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">📦 Přidat nový produkt</h2>
+
+<form method="POST" enctype="multipart/form-data">
+    <div class="mb-3">
+        <label for="name" class="form-label">Název produktu</label>
+        <input type="text" class="form-control" name="name" id="name" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="description" class="form-label">Popis</label>
+        <textarea class="form-control" name="description" id="description" rows="4"></textarea>
+    </div>
+
+    <div class="mb-3">
+        <label for="price" class="form-label">Cena (Kč)</label>
+        <input type="number" step="0.01" class="form-control" name="price" id="price" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="image" class="form-label">Obrázek produktu</label>
+        <input type="file" class="form-control" name="image" id="image" accept="image/*">
+    </div>
+
+    <button type="submit" class="btn btn-success">💾 Uložit produkt</button>
+    <a href="{{ url_for('admin.list_products') }}" class="btn btn-secondary">Zpět</a>
+</form>
+{% endblock %}

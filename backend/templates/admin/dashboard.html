@@ -1,21 +1,8 @@
-<!DOCTYPE html>
-<html lang="cs">
-<head>
-    <meta charset="UTF-8">
-    <title>Admin Dashboard</title>
-</head>
-<body>
-    <h1>👋 Vítej v administraci, {{ user.username }}!</h1>
+{% extends "shared/layout.html" %}
 
-    <nav>
-        <ul>
-            <li><a href="{{ url_for('admin.dashboard') }}">🏠 Dashboard</a></li>
-            <li><a href="#">📦 Produkty</a></li>
-            <li><a href="#">📁 Kategorie</a></li>
-            <li><a href="{{ url_for('auth.logout') }}">🚪 Odhlásit</a></li>
-        </ul>
-    </nav>
+{% block title %}Dashboard{% endblock %}
 
-    <p>Zde můžeš spravovat obsah e-shopu.</p>
-</body>
-</html>
+{% block content %}
+<h1 class="mb-4">👋 Vítej v administraci, {{ user.username }}!</h1>
+<p class="lead">Zde můžeš spravovat obsah e-shopu – produkty, kategorie a další funkce.</p>
+{% endblock %}

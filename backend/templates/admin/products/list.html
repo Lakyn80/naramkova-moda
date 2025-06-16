@@ -1,0 +1,54 @@
+{% extends "shared/layout.html" %}
+
+{% block title %}Seznam produktů{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">📦 Seznam produktů</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Zavřít"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <table class="table table-bordered table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>ID</th>
+                <th>Název</th>
+                <th>Cena</th>
+                <th>Obrázek</th>
+                <th>Akce</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td>{{ product.id }}</td>
+                <td>{{ product.name }}</td>
+                <td>{{ product.price_czk }} Kč</td>
+                <td>
+                    {% if product.image %}
+                        <img src="{{ url_for('static', filename='uploads/' ~ product.image) }}" alt="obrázek" width="100">
+                    {% else %}
+                        <span class="text-muted">žádný obrázek</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('admin.edit_product', product_id=product.id) }}" class="btn btn-warning btn-sm">✏️ Edit</a>
+                    <a href="{{ url_for('admin.delete_product', product_id=product.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Opravdu smazat produkt?')">🗑️ Smazat</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ url_for('admin.add_product') }}" class="btn btn-success mt-3">➕ Přidat produkt</a>
+</div>
+{% endblock %}
