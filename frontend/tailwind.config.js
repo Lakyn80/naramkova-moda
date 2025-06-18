@@ -7,6 +7,7 @@ export default {
         float: "float 6s ease-in-out infinite",
         "gradient-x": "gradient-x 6s ease infinite",
         shimmer: "shimmer 2s infinite linear",
+        scroll: "scroll 40s linear infinite",
       },
       keyframes: {
         float: {
@@ -28,6 +29,10 @@ export default {
           "100%": {
             backgroundPosition: "100% 0",
           },
+        },
+        scroll: {
+          "0%": { transform: "translateX(0%)" },
+          "100%": { transform: "translateX(-50%)" },
         },
       },
     },

@@ -2,8 +2,8 @@ import React from "react";
 
 export default function Categories() {
   const categories = [
-    "Maminka", "Babička", "Bratr", "Sestra",
-    "Děti", "Svatba", "Jen pro radost",
+    "Maminka", "Babička", "Bratr", "Sestra", "Děti", "Svatba", "Jen pro radost",
+    "Tatínek", "Dědeček", "Kamarádka", "Láska", "Pro děti", "Pro páry", "Výročí", "Přátelství"
   ];
 
   return (
@@ -12,15 +12,28 @@ export default function Categories() {
         <h2 className="text-3xl font-bold text-center mb-8 drop-shadow-sm">
           Kategorie
         </h2>
-        <div className="flex flex-wrap justify-center gap-4">
-          {categories.map((label, index) => (
-            <button
-              key={index}
-              className="bg-white/70 hover:bg-pink-100 shadow-md backdrop-blur-sm rounded-full px-6 py-3 text-sm font-medium text-pink-800 transition-all duration-300"
-            >
-              {label}
-            </button>
-          ))}
+
+        {/* ORLOJ EFEKT */}
+        <div className="overflow-hidden relative">
+          <div className="flex gap-6 animate-scroll whitespace-nowrap">
+            {categories.map((label, index) => (
+              <button
+                key={index}
+                className="bg-white/70 hover:bg-pink-100 shadow-md backdrop-blur-sm rounded-full px-6 py-3 text-sm font-medium text-pink-800 transition-all duration-300"
+              >
+                {label}
+              </button>
+            ))}
+            {/* Druhá kopie pro plynulý loop */}
+            {categories.map((label, index) => (
+              <button
+                key={`copy-${index}`}
+                className="bg-white/70 hover:bg-pink-100 shadow-md backdrop-blur-sm rounded-full px-6 py-3 text-sm font-medium text-pink-800 transition-all duration-300"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </section>
