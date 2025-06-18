@@ -12,7 +12,12 @@ from admin.models import Product, Category
 @admin_bp.route("/dashboard")
 @login_required
 def dashboard():
-    return render_template("admin/dashboard.html", user=current_user)
+    product_count = Product.query.count()
+    category_count = Category.query.count()
+    return render_template("admin/dashboard.html",
+                           user=current_user,
+                           product_count=product_count,
+                           category_count=category_count)
 
 # ------------------------------
 # Výpis produktů
