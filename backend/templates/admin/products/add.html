@@ -22,6 +22,16 @@
     </div>
 
     <div class="mb-3">
+        <label for="category_id" class="form-label">Kategorie</label>
+        <select name="category_id" id="category_id" class="form-select" required>
+            <option value="">-- Vyber kategorii --</option>
+            {% for category in categories %}
+                <option value="{{ category.id }}">{{ category.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="mb-3">
         <label for="image" class="form-label">Obrázek produktu</label>
         <input type="file" class="form-control" name="image" id="image" accept="image/*">
     </div>

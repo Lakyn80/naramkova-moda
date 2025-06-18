@@ -1,0 +1,27 @@
+{% extends "shared/layout.html" %}
+{% block content %}
+<h2>📂 Kategorie</h2>
+<a href="{{ url_for('admin.add_category') }}" class="btn btn-primary mb-3">➕ Přidat kategorii</a>
+
+<table class="table table-striped">
+  <thead>
+    <tr><th>Název</th><th>Popis</th><th>Akce</th></tr>
+  </thead>
+  <tbody>
+    {% for category in categories %}
+    <tr>
+      <td>{{ category.name }}</td>
+      <td>{{ category.description }}</td>
+      <td>
+        <a href="{{ url_for('admin.edit_category', category_id=category.id) }}" class="btn btn-sm btn-warning">✏️ Upravit</a>
+        <form method="POST" action="{{ url_for('admin.delete_category', category_id=category.id) }}" style="display:inline-block;" onsubmit="return confirm('Opravdu chceš smazat tuto kategorii?');">
+          <button type="submit" class="btn btn-sm btn-danger">🗑️ Smazat</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">↩️ Zpět na dashboard</a>
+{% endblock %}

@@ -2,7 +2,9 @@
 
 {% block title %}Dashboard{% endblock %}
 
+
 {% block content %}
 <h1 class="mb-4">👋 Vítej v administraci, {{ user.username }}!</h1>
 <p class="lead">Zde můžeš spravovat obsah e-shopu – produkty, kategorie a další funkce.</p>
+<a href="{{ url_for('admin.list_categories') }}">📂 Kategorie</a>
 {% endblock %}

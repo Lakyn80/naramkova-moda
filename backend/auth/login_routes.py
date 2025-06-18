@@ -13,11 +13,6 @@ def login():
         password = request.form.get("password")
 
         user = User.query.filter_by(username=username).first()
-        print("Zadán uživatel:", username)
-        print("Nalezen:", user)
-        if user:
-            print("Hash v DB:", user.password_hash)
-            print("Zadané heslo odpovídá?", check_password_hash(user.password_hash, password))
 
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
