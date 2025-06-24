@@ -1,4 +1,3 @@
-// src/pages/Shop.jsx
 import React, { useState } from "react";
 import { products, categoryTree } from "../data/products";
 import { Link, useNavigate } from "react-router-dom";
@@ -105,11 +104,12 @@ export default function Shop() {
         </aside>
 
         {/* Pravý panel – Produkty */}
-        <div className="w-3/4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="w-3/4 flex flex-wrap gap-6 items-start">
           {filteredProducts.map((product, index) => (
             <div
               key={index}
-              className="bg-white/60 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden text-center p-4 hover:shadow-2xl transition-all duration-300"
+              className="w-[240px] bg-white/60 backdrop-blur-md rounded-2xl shadow-xl text-center p-4 hover:shadow-2xl transition-all duration-300 flex flex-col justify-between"
+              style={{ minHeight: "420px" }}
             >
               <img
                 src={product.image}
@@ -117,17 +117,14 @@ export default function Shop() {
                 className="w-full h-48 object-cover rounded-xl"
               />
               <Link
-                to={`/shop/${product.name.toLowerCase().replace(/\s+/g, "-")}`}
+                to={`/shop/${product.name.toLowerCase().replace(/\\s+/g, "-")}`}
                 className="block mt-4 text-lg font-semibold text-pink-900 hover:underline"
               >
                 {product.name}
               </Link>
               <p className="text-sm text-pink-700 mt-1">{product.price}</p>
               <button
-                onClick={() => {
-                  addToCart(product);
-                  
-                }}
+                onClick={() => addToCart(product)}
                 className="mt-2 bg-pink-600 hover:bg-pink-700 text-white py-1 px-3 rounded text-sm transition"
               >
                 Přidat do košíku
@@ -136,7 +133,7 @@ export default function Shop() {
           ))}
 
           {filteredProducts.length === 0 && (
-            <div className="col-span-full text-center text-pink-800 font-medium">
+            <div className="text-center text-pink-800 font-medium">
               Nenalezeny žádné produkty pro vybrané filtry.
             </div>
           )}

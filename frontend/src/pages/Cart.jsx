@@ -1,10 +1,17 @@
 // src/pages/Cart.jsx
-import React from "react";
+import React, { useState } from "react";
 import { useCart } from "../context/CartContext";
 import { Link } from "react-router-dom";
 
 export default function Cart() {
-  const { cartItems, removeFromCart } = useCart();
+  const {
+    cartItems,
+    removeFromCart,
+    increaseQuantity,
+    decreaseQuantity,
+  } = useCart();
+
+  const [modalImage, setModalImage] = useState(null);
 
   const total = cartItems.reduce(
     (sum, item) => sum + item.quantity * parseFloat(item.price),
@@ -20,17 +27,36 @@ export default function Cart() {
           <p className="text-center text-pink-600">Košík je prázdný.</p>
         ) : (
           <>
-            <ul className="space-y-4">
+            <ul className="space-y-6">
               {cartItems.map((item, index) => (
                 <li
                   key={index}
-                  className="flex justify-between items-center border-b pb-2"
+                  className="flex items-center justify-between gap-4 border-b pb-2"
                 >
-                  <div>
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-20 h-20 object-cover rounded-lg cursor-pointer"
+                    onClick={() => setModalImage(item.image)}
+                  />
+                  <div className="flex-1">
                     <h3 className="font-semibold">{item.name}</h3>
-                    <p className="text-sm text-pink-700">
-                      {item.quantity} × {item.price} Kč
-                    </p>
+                    <div className="flex items-center gap-2 text-sm text-pink-700 mt-1">
+                      <button
+                        onClick={() => decreaseQuantity(item)}
+                        className="px-2 py-1 bg-pink-100 hover:bg-pink-200 rounded"
+                      >
+                        −
+                      </button>
+                      <span>{item.quantity}</span>
+                      <button
+                        onClick={() => increaseQuantity(item)}
+                        className="px-2 py-1 bg-pink-100 hover:bg-pink-200 rounded"
+                      >
+                        +
+                      </button>
+                      <span>× {item.price} Kč</span>
+                    </div>
                   </div>
                   <button
                     onClick={() => removeFromCart(item)}
@@ -57,6 +83,21 @@ export default function Cart() {
           </>
         )}
       </div>
+
+      {/* Lightbox Modal */}
+      {modalImage && (
+        <div
+          onClick={() => setModalImage(null)}
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center"
+        >
+          <img
+            src={modalImage}
+            alt="Zvětšený produkt"
+            className="max-w-full max-h-full rounded-lg shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </section>
   );
 }
