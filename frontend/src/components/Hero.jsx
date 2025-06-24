@@ -1,5 +1,6 @@
 import React from "react";
 
+
 export default function Hero() {
   return (
     <section
@@ -17,6 +18,7 @@ export default function Hero() {
           Prozkoumat nabídku
         </button>
       </div>
+      
     </section>
   );
 }

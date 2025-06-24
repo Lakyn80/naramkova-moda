@@ -36,6 +36,12 @@ export default function Categories() {
           </div>
         </div>
       </div>
+      <img
+  src="/wave.svg"
+  alt="Wave transition"
+  className="absolute bottom-0 left-0 w-full pointer-events-none opacity-40 z-0"
+/>
+
     </section>
   );
 }
