@@ -1,7 +1,13 @@
 import React from "react";
-
+import { useNavigate } from "react-router-dom";
 
 export default function Hero() {
+  const navigate = useNavigate();
+
+  const handleExploreClick = () => {
+    navigate("/shop");
+  };
+
   return (
     <section
       id="home"
@@ -14,11 +20,13 @@ export default function Hero() {
         <p className="mt-4 text-xl text-pink-800 font-medium">
           Ozdobte se jedinečností ✨
         </p>
-        <button className="mt-8 px-8 py-3 bg-pink-500 text-white font-semibold rounded-full hover:bg-pink-600 shadow-lg transition duration-300">
+        <button
+          onClick={handleExploreClick}
+          className="mt-8 px-8 py-3 bg-pink-500 text-white font-semibold rounded-full hover:bg-pink-600 shadow-lg transition duration-300"
+        >
           Prozkoumat nabídku
         </button>
       </div>
-      
     </section>
   );
 }
