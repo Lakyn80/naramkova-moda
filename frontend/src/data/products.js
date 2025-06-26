@@ -3,7 +3,7 @@ export const products = [
   {
     name: "Náramek Maminka",
     price: "89",
-    image: "/products/maminka.jpg",
+    image: "/public/naramky_1.jpg",
     categories: ["Maminka"],
     description: "Stylový náramek ideální jako dárek pro maminku.",
   },

@@ -8,12 +8,10 @@ export default function Footer() {
         <div className="space-y-2 text-left">
           <p>📧 naramkovamoda@email.cz</p>
           <p>📞 +420 776 47 97 47</p>
-          <p>📱 Distamix</p>
+        
         </div>
         <img src={logo} alt="Logo" className="w-24" />
-        <div>
-          <img src={qr} alt="QR Kód" className="w-24 mx-auto" />
-        </div>
+
       </div>
       <p className="mt-6 text-sm text-gray-400">NÁRAMKOVÁ MÓDA – Ozdobte se jedinečností</p>
     </footer>

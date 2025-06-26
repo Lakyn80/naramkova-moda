@@ -1,34 +1,46 @@
 // src/components/Navbar.jsx
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 
-export default function Navbar({ heroRef, shopRef }) {
+export default function Navbar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isShop = location.pathname === "/shop";
   const { cartItems } = useCart();
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
+  const handleHomeClick = () => {
+    if (location.pathname === "/") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      navigate("/");
+    }
+  };
+
   return (
     <nav className="fixed top-0 left-0 w-full z-50 px-8 py-4 bg-white/10 backdrop-blur-md shadow-lg transition-all duration-300">
       <div className="flex justify-between items-center max-w-7xl mx-auto">
         {/* Logo */}
-        <div className="text-2xl font-bold tracking-wider">
-          <Link to="/" className="flex items-center gap-1">
+        <div className="text-2xl font-bold tracking-wider cursor-pointer" onClick={handleHomeClick}>
+          <div className="flex items-center gap-1">
             <span className="bg-gradient-to-r from-pink-300 via-white to-pink-300 bg-clip-text text-transparent animate-gradient-x">
               Náramková
             </span>
             <span className="text-white">Móda</span>
-          </Link>
+          </div>
         </div>
 
         {/* Navigace */}
         <ul className="flex space-x-6 text-lg font-semibold items-center">
           <li>
-            <Link to="/" className="text-pink-900 hover:text-pink-600 transition">
+            <span
+              onClick={handleHomeClick}
+              className="cursor-pointer text-pink-900 hover:text-pink-600 transition"
+            >
               Domů
-            </Link>
+            </span>
           </li>
           <li>
             <Link to="/shop" className="text-pink-900 hover:text-pink-600 transition">
