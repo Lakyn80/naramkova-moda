@@ -1,4 +1,3 @@
-// src/components/Navbar.jsx
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
@@ -6,13 +5,13 @@ import { useCart } from "../context/CartContext";
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const isShop = location.pathname === "/shop";
+  const isHome = location.pathname === "/";
   const { cartItems } = useCart();
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleHomeClick = () => {
-    if (location.pathname === "/") {
+    if (isHome) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       navigate("/");
@@ -23,7 +22,10 @@ export default function Navbar() {
     <nav className="fixed top-0 left-0 w-full z-50 px-8 py-4 bg-white/10 backdrop-blur-md shadow-lg transition-all duration-300">
       <div className="flex justify-between items-center max-w-7xl mx-auto">
         {/* Logo */}
-        <div className="text-2xl font-bold tracking-wider cursor-pointer" onClick={handleHomeClick}>
+        <div
+          className="text-2xl font-bold tracking-wider cursor-pointer"
+          onClick={handleHomeClick}
+        >
           <div className="flex items-center gap-1">
             <span className="bg-gradient-to-r from-pink-300 via-white to-pink-300 bg-clip-text text-transparent animate-gradient-x">
               Náramková
@@ -42,25 +44,37 @@ export default function Navbar() {
               Domů
             </span>
           </li>
-          <li>
-            <Link to="/shop" className="text-pink-900 hover:text-pink-600 transition">
-              E-shop
-            </Link>
-          </li>
-          {!isShop && (
+
+          {isHome && (
             <>
               <li>
-                <a href="#kategorie" className="text-pink-900 hover:text-pink-600 transition">
+                <a
+                  href="#kategorie"
+                  className="text-pink-900 hover:text-pink-600 transition"
+                >
                   Kategorie
                 </a>
               </li>
               <li>
-                <a href="#galerie" className="text-pink-900 hover:text-pink-600 transition">
+                <a
+                  href="#galerie"
+                  className="text-pink-900 hover:text-pink-600 transition"
+                >
                   Galerie
                 </a>
               </li>
             </>
           )}
+
+          <li>
+            <Link
+              to="/shop"
+              className="text-pink-900 hover:text-pink-600 transition"
+            >
+              E-shop
+            </Link>
+          </li>
+
           <li>
             <Link
               to="/cart"
