@@ -1,12 +1,8 @@
-// src/pages/ProductDetail.jsx
-import React, { useState } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
 import { products } from "../data/products";
 import { useCart } from "../context/CartContext";
-
-// Moderní lightbox
-import Lightbox from "yet-another-react-lightbox";
-import "yet-another-react-lightbox/styles.css";
+import ProductGallery from "../components/ProductGallery";
 
 export default function ProductDetail() {
   const { slug } = useParams();
@@ -15,9 +11,6 @@ export default function ProductDetail() {
   const product = products.find(
     (p) => p.name.toLowerCase().replace(/\s+/g, "-") === slug
   );
-
-  const [photoIndex, setPhotoIndex] = useState(0);
-  const [isOpen, setIsOpen] = useState(false);
 
   if (!product) {
     return (
@@ -28,34 +21,12 @@ export default function ProductDetail() {
   }
 
   const images = product.images || [product.image];
-  const slides = images.map((src) => ({ src }));
 
   return (
     <section className="pt-24 pb-12 px-4 min-h-screen bg-white text-pink-900">
       <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-        {/* Obrázky produktu */}
-        <div className="space-y-4">
-          <img
-            src={images[photoIndex]}
-            alt={product.name}
-            className="w-full h-auto rounded-xl shadow-md cursor-pointer"
-            onClick={() => setIsOpen(true)}
-          />
-
-          <div className="flex gap-2 flex-wrap">
-            {images.map((img, index) => (
-              <img
-                key={index}
-                src={img}
-                alt={`thumbnail-${index}`}
-                onClick={() => setPhotoIndex(index)}
-                className={`h-20 w-20 object-cover rounded cursor-pointer border ${
-                  photoIndex === index ? "border-pink-500" : "border-transparent"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
+        {/* Galerie s obrázky */}
+        <ProductGallery images={images} productName={product.name} />
 
         {/* Popis produktu */}
         <div>
@@ -72,17 +43,6 @@ export default function ProductDetail() {
           </button>
         </div>
       </div>
-
-      {/* Lightbox */}
-      {isOpen && (
-        <Lightbox
-          open={isOpen}
-          close={() => setIsOpen(false)}
-          slides={slides}
-          index={photoIndex}
-          on={{ view: ({ index }) => setPhotoIndex(index) }}
-        />
-      )}
     </section>
   );
 }
