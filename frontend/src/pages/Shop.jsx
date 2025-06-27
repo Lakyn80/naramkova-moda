@@ -1,28 +1,15 @@
 // src/pages/Shop.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { products, categoryTree } from "../data/products";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 
 export default function Shop() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { addToCart } = useCart();
-
   const allSubcategories = Object.values(categoryTree).flat();
   const [selectedCategories, setSelectedCategories] = useState(allSubcategories);
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Vyčte kategorii z URL parametru (např. ?category=Maminka)
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const categoryFromURL = params.get("category");
-    if (categoryFromURL && allSubcategories.includes(categoryFromURL)) {
-      setSelectedCategories([categoryFromURL]);
-    } else {
-      setSelectedCategories(allSubcategories); // výchozí
-    }
-  }, [location.search]);
+  const { addToCart } = useCart();
+  const navigate = useNavigate();
 
   const handleCheckboxChange = (subcategory) => {
     if (selectedCategories.includes(subcategory)) {
@@ -118,14 +105,14 @@ export default function Shop() {
         </aside>
 
         {/* Pravý panel – Produkty */}
-        <div className="w-3/4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="w-3/4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 content-start">
           {filteredProducts.map((product, index) => (
             <div
               key={index}
-              className="bg-white/60 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden text-center p-4 hover:shadow-2xl transition-all duration-300"
+              className="bg-white/60 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden text-center p-4 hover:shadow-2xl transition-all duration-300 h-full flex flex-col justify-between"
             >
               <img
-                src={product.image}
+                src={product.images?.[0] || product.image}
                 alt={product.name}
                 className="w-full h-48 object-cover rounded-xl"
               />
