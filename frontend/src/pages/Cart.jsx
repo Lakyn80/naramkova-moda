@@ -18,7 +18,7 @@ export default function Cart() {
   );
 
   return (
-    <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen bg-white text-pink-900">
+    <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen bg-gradient-to-br from-pink-300 via-white via-30% to-pink-200 text-pink-900">
       <div className="max-w-5xl mx-auto">
         <h2 className="text-2xl sm:text-3xl font-bold mb-8 text-center">Košík</h2>
 
