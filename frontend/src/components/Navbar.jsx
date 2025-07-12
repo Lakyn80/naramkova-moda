@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import logo from "../assets/logo 1.svg";
+import logo from "../assets/logo.jpg";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);

@@ -1,4 +1,3 @@
-// src/pages/Checkout.jsx
 import React, { useState } from "react";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
@@ -26,17 +25,14 @@ export default function Checkout() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    // Zde by se volal backend nebo email endpoint (např. přes fetch nebo axios)
     console.log("Odesláno:", formData, cartItems);
-
     setSubmitted(true);
   };
 
   if (submitted) {
     return (
-      <section className="pt-24 pb-12 px-4 min-h-screen text-center text-pink-900 bg-white">
-        <h2 className="text-3xl font-bold mb-4">Děkujeme za objednávku!</h2>
+      <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen text-center text-pink-900 bg-white">
+        <h2 className="text-2xl sm:text-3xl font-bold mb-4">Děkujeme za objednávku!</h2>
         <p className="mb-6">Brzy se vám ozveme s potvrzením a detaily doručení.</p>
         <button
           onClick={() => navigate("/")}
@@ -49,14 +45,14 @@ export default function Checkout() {
   }
 
   return (
-    <section className="pt-24 pb-12 px-4 min-h-screen bg-white text-pink-900">
+    <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen bg-white text-pink-900">
       <div className="max-w-5xl mx-auto">
-        <h2 className="text-3xl font-bold mb-8 text-center">Pokladna</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold mb-8 text-center">Pokladna</h2>
 
         {cartItems.length === 0 ? (
           <p className="text-center text-pink-600">Košík je prázdný.</p>
         ) : (
-          <div className="grid md:grid-cols-2 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Formulář */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
@@ -103,7 +99,7 @@ export default function Checkout() {
             {/* Shrnutí košíku */}
             <div>
               <h3 className="text-xl font-semibold mb-4">Vaše objednávka:</h3>
-              <ul className="space-y-2 text-pink-800">
+              <ul className="space-y-2 text-pink-800 text-sm">
                 {cartItems.map((item, index) => (
                   <li key={index} className="flex justify-between">
                     <span>

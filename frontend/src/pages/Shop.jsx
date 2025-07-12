@@ -1,4 +1,3 @@
-// src/pages/Shop.jsx
 import React, { useState, useEffect } from "react";
 import { products, categoryTree } from "../data/products";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -47,12 +46,13 @@ export default function Shop() {
   );
 
   return (
-    <section className="pt-24 pb-12 px-4 bg-gradient-to-br from-pink-300 via-white via-30% to-pink-200 min-h-screen">
-      <h2 className="text-3xl font-bold text-center text-pink-900 mb-8">E-shop</h2>
-      <div className="flex max-w-7xl mx-auto gap-8">
+    <section className="pt-24 pb-12 px-3 sm:px-4 bg-gradient-to-br from-pink-300 via-white via-30% to-pink-200 min-h-screen">
+      <h2 className="text-2xl sm:text-3xl font-bold text-center text-pink-900 mb-8">E-shop</h2>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
         {/* Levý panel – Kategorie */}
-        <aside className="w-1/4 bg-white/70 p-4 rounded-2xl shadow">
-          <h3 className="text-xl font-semibold mb-4 text-pink-800">Kategorie</h3>
+        <aside className="bg-white/70 p-4 rounded-2xl shadow lg:col-span-1">
+          <h3 className="text-lg sm:text-xl font-semibold mb-4 text-pink-800">Kategorie</h3>
 
           <input
             type="text"
@@ -62,7 +62,7 @@ export default function Shop() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
 
-          <ul className="space-y-4">
+          <ul className="space-y-4 text-sm sm:text-base">
             {Object.entries(categoryTree).map(([mainCategory, subcats]) => (
               <li key={mainCategory}>
                 <div className="flex justify-between items-center">
@@ -118,7 +118,7 @@ export default function Shop() {
         </aside>
 
         {/* Pravý panel – Produkty */}
-        <div className="w-3/4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 content-start">
+        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 content-start">
           {filteredProducts.map((product, index) => (
             <div
               key={index}

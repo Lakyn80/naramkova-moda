@@ -18,19 +18,18 @@ export default function ProductDetail() {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
-  // 👇 KDYKOLIV SE SLUG ZMĚNÍ, NAJDI NOVÝ PRODUKT
   useEffect(() => {
     const found = products.find(
       (p) => p.name.toLowerCase().replace(/\s+/g, "-") === slug
     );
     setProduct(found);
-    setPhotoIndex(0); // reset na první obrázek
-    setIsOpen(false); // zavři lightbox při přechodu
+    setPhotoIndex(0);
+    setIsOpen(false);
   }, [slug]);
 
   if (!product) {
     return (
-      <section className="pt-24 pb-12 px-4 min-h-screen bg-white text-pink-900">
+      <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen bg-white text-pink-900">
         <div className="text-center text-lg">Produkt nenalezen.</div>
       </section>
     );
@@ -40,28 +39,26 @@ export default function ProductDetail() {
   const slides = images.map((src) => ({ src }));
 
   return (
-    <section className="pt-24 pb-12 px-4 min-h-screen bg-white text-pink-900">
+    <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen bg-white text-pink-900">
       <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
         {/* Obrázky produktu */}
         <div className="space-y-4">
           <img
             src={images[photoIndex]}
             alt={product.name}
-            className="w-full h-[450px] object-cover rounded-xl shadow-md cursor-pointer"
+            className="w-full h-[280px] sm:h-[350px] md:h-[450px] object-cover rounded-xl shadow-md cursor-pointer"
             onClick={() => setIsOpen(true)}
           />
 
-          <div className="flex gap-3 flex-wrap justify-center">
+          <div className="flex gap-3 flex-wrap justify-center sm:justify-start">
             {images.map((img, index) => (
               <img
                 key={index}
                 src={img}
                 alt={`thumbnail-${index}`}
                 onClick={() => setPhotoIndex(index)}
-                className={`h-24 w-24 object-cover rounded cursor-pointer border ${
-                  photoIndex === index
-                    ? "border-pink-500"
-                    : "border-transparent"
+                className={`h-20 w-20 sm:h-24 sm:w-24 object-cover rounded cursor-pointer border ${
+                  photoIndex === index ? "border-pink-500" : "border-transparent"
                 } transition duration-300`}
               />
             ))}
@@ -70,8 +67,8 @@ export default function ProductDetail() {
 
         {/* Popis produktu */}
         <div>
-          <h2 className="text-3xl font-bold">{product.name}</h2>
-          <p className="text-xl text-pink-700 mt-2">{product.price}</p>
+          <h2 className="text-2xl sm:text-3xl font-bold">{product.name}</h2>
+          <p className="text-lg sm:text-xl text-pink-700 mt-2">{product.price}</p>
           <p className="mt-4 text-pink-800">
             {product.description || "Detail produktu zde."}
           </p>

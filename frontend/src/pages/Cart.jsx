@@ -1,4 +1,3 @@
-// src/pages/Cart.jsx
 import React, { useState } from "react";
 import { useCart } from "../context/CartContext";
 import { Link } from "react-router-dom";
@@ -19,9 +18,9 @@ export default function Cart() {
   );
 
   return (
-    <section className="pt-24 pb-12 px-4 min-h-screen bg-white text-pink-900">
+    <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen bg-white text-pink-900">
       <div className="max-w-5xl mx-auto">
-        <h2 className="text-3xl font-bold mb-8 text-center">Košík</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold mb-8 text-center">Košík</h2>
 
         {cartItems.length === 0 ? (
           <p className="text-center text-pink-600">Košík je prázdný.</p>
@@ -31,17 +30,17 @@ export default function Cart() {
               {cartItems.map((item, index) => (
                 <li
                   key={index}
-                  className="flex items-center justify-between gap-4 border-b pb-2"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-2"
                 >
                   <img
                     src={item.image}
                     alt={item.name}
-                    className="w-20 h-20 object-cover rounded-lg cursor-pointer"
+                    className="w-full sm:w-20 sm:h-20 h-auto object-cover rounded-lg cursor-pointer"
                     onClick={() => setModalImage(item.image)}
                   />
                   <div className="flex-1">
-                    <h3 className="font-semibold">{item.name}</h3>
-                    <div className="flex items-center gap-2 text-sm text-pink-700 mt-1">
+                    <h3 className="font-semibold text-lg">{item.name}</h3>
+                    <div className="flex items-center gap-2 text-sm text-pink-700 mt-2 flex-wrap">
                       <button
                         onClick={() => decreaseQuantity(item)}
                         className="px-2 py-1 bg-pink-100 hover:bg-pink-200 rounded"
@@ -60,7 +59,7 @@ export default function Cart() {
                   </div>
                   <button
                     onClick={() => removeFromCart(item)}
-                    className="text-sm text-red-600 hover:underline"
+                    className="text-sm text-red-600 hover:underline self-start sm:self-auto"
                   >
                     Odebrat
                   </button>
@@ -75,7 +74,7 @@ export default function Cart() {
             <div className="mt-6 text-right">
               <Link
                 to="/checkout"
-                className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-6 rounded-md transition"
+                className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-6 rounded-md transition inline-block"
               >
                 Přejít k pokladně
               </Link>
