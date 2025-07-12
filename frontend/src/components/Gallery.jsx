@@ -12,7 +12,7 @@ export default function Gallery() {
   const totalSlides = products.length;
 
   const settings = {
-    dots: false, // vypneme tečky
+    dots: false,
     infinite: true,
     autoplay: true,
     autoplaySpeed: 3000,
@@ -27,30 +27,34 @@ export default function Gallery() {
     ],
   };
 
-  // Výpočet procenta průběhu (pro progress bar)
   const percent = ((activeIndex % totalSlides) / totalSlides) * 100;
 
   return (
-    <section id="galerie" className="py-20 px-4 bg-white">
-      <h2 className="text-3xl font-bold text-center mb-8">Galerie</h2>
+    <section id="galerie" className="py-16 sm:py-20 px-3 sm:px-4 bg-white">
+      <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">Galerie</h2>
       <div className="max-w-6xl mx-auto relative">
         <Slider {...settings}>
           {products.map((product, index) => (
             <div
               key={index}
-              className="p-3 cursor-pointer"
               onClick={() =>
                 navigate(`/shop/${product.name.toLowerCase().replace(/\s+/g, "-")}`)
               }
             >
-              <div className="rounded-xl overflow-hidden shadow-md">
-                <img
-                  src={product.images?.[0]}
-                  alt={product.name}
-                  className="w-full h-[300px] object-cover"
-                />
+              <div className="flex justify-center">
+                <div className="p-3 cursor-pointer w-full max-w-xs">
+                  <div className="rounded-xl overflow-hidden shadow-md">
+                    <img
+                      src={product.images?.[0]}
+                      alt={product.name}
+                      className="w-full h-[280px] sm:h-[300px] object-cover"
+                    />
+                  </div>
+                  <p className="text-center mt-2 text-pink-800 font-semibold text-sm sm:text-base">
+                    {product.name}
+                  </p>
+                </div>
               </div>
-              <p className="text-center mt-2 text-pink-800 font-semibold">{product.name}</p>
             </div>
           ))}
         </Slider>
