@@ -15,18 +15,18 @@ export default function ProductGallery({ images, productName }) {
       <img
         src={images[photoIndex]}
         alt={productName}
-        className="w-full h-[450px] object-cover rounded-xl shadow-md cursor-pointer"
+        className="w-full h-[300px] sm:h-[400px] md:h-[450px] object-cover rounded-xl shadow-md cursor-pointer"
         onClick={() => setIsOpen(true)}
       />
 
-      <div className="flex gap-3 flex-wrap justify-center">
+      <div className="flex gap-3 flex-wrap justify-center sm:justify-start">
         {images.map((img, index) => (
           <img
             key={index}
             src={img}
             alt={`thumbnail-${index}`}
             onClick={() => setPhotoIndex(index)}
-            className={`h-24 w-24 object-cover rounded cursor-pointer border ${
+            className={`h-20 w-20 sm:h-24 sm:w-24 object-cover rounded cursor-pointer border ${
               photoIndex === index ? "border-pink-500" : "border-transparent"
             } transition duration-300`}
           />
