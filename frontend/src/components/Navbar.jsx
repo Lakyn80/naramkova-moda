@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import logo from "../assets/logo 1.svg"; // SVG s průhledným pozadím
 
 export default function Navbar() {
   const location = useLocation();
@@ -21,11 +22,16 @@ export default function Navbar() {
   return (
     <nav className="fixed top-0 left-0 w-full z-50 px-8 py-4 bg-white/10 backdrop-blur-md shadow-lg transition-all duration-300">
       <div className="flex justify-between items-center max-w-7xl mx-auto">
-        {/* Logo */}
+        {/* Logo + Název */}
         <div
-          className="text-2xl font-bold tracking-wider cursor-pointer"
+          className="text-2xl font-bold tracking-wider cursor-pointer flex items-center gap-3"
           onClick={handleHomeClick}
         >
+          <img
+            src={logo}
+            alt="Logo"
+            className="h-14 w-14 object-contain" // ZVĚTŠENO zde
+          />
           <div className="flex items-center gap-1">
             <span className="bg-gradient-to-r from-pink-300 via-white to-pink-300 bg-clip-text text-transparent animate-gradient-x">
               Náramková

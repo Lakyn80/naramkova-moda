@@ -1,15 +1,28 @@
 // src/pages/Shop.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { products, categoryTree } from "../data/products";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 
 export default function Shop() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const urlCategory = params.get("category");
+
   const allSubcategories = Object.values(categoryTree).flat();
-  const [selectedCategories, setSelectedCategories] = useState(allSubcategories);
+
+  const [selectedCategories, setSelectedCategories] = useState(
+    urlCategory && allSubcategories.includes(urlCategory) ? [urlCategory] : allSubcategories
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const { addToCart } = useCart();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (urlCategory && allSubcategories.includes(urlCategory)) {
+      setSelectedCategories([urlCategory]);
+    }
+  }, [urlCategory]);
 
   const handleCheckboxChange = (subcategory) => {
     if (selectedCategories.includes(subcategory)) {

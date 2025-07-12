@@ -1,16 +1,32 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { products } from "../data/products";
 import { useCart } from "../context/CartContext";
-import ProductGallery from "../components/ProductGallery";
+
+// Lightbox a pluginy
+import Lightbox from "yet-another-react-lightbox";
+import "yet-another-react-lightbox/styles.css";
+import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails";
+import "yet-another-react-lightbox/plugins/thumbnails.css";
+import Zoom from "yet-another-react-lightbox/plugins/zoom";
 
 export default function ProductDetail() {
   const { slug } = useParams();
   const { addToCart } = useCart();
 
-  const product = products.find(
-    (p) => p.name.toLowerCase().replace(/\s+/g, "-") === slug
-  );
+  const [product, setProduct] = useState(null);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+
+  // 👇 KDYKOLIV SE SLUG ZMĚNÍ, NAJDI NOVÝ PRODUKT
+  useEffect(() => {
+    const found = products.find(
+      (p) => p.name.toLowerCase().replace(/\s+/g, "-") === slug
+    );
+    setProduct(found);
+    setPhotoIndex(0); // reset na první obrázek
+    setIsOpen(false); // zavři lightbox při přechodu
+  }, [slug]);
 
   if (!product) {
     return (
@@ -21,12 +37,36 @@ export default function ProductDetail() {
   }
 
   const images = product.images || [product.image];
+  const slides = images.map((src) => ({ src }));
 
   return (
     <section className="pt-24 pb-12 px-4 min-h-screen bg-white text-pink-900">
       <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-        {/* Galerie s obrázky */}
-        <ProductGallery images={images} productName={product.name} />
+        {/* Obrázky produktu */}
+        <div className="space-y-4">
+          <img
+            src={images[photoIndex]}
+            alt={product.name}
+            className="w-full h-[450px] object-cover rounded-xl shadow-md cursor-pointer"
+            onClick={() => setIsOpen(true)}
+          />
+
+          <div className="flex gap-3 flex-wrap justify-center">
+            {images.map((img, index) => (
+              <img
+                key={index}
+                src={img}
+                alt={`thumbnail-${index}`}
+                onClick={() => setPhotoIndex(index)}
+                className={`h-24 w-24 object-cover rounded cursor-pointer border ${
+                  photoIndex === index
+                    ? "border-pink-500"
+                    : "border-transparent"
+                } transition duration-300`}
+              />
+            ))}
+          </div>
+        </div>
 
         {/* Popis produktu */}
         <div>
@@ -43,6 +83,18 @@ export default function ProductDetail() {
           </button>
         </div>
       </div>
+
+      {/* Lightbox */}
+      {isOpen && (
+        <Lightbox
+          open={isOpen}
+          close={() => setIsOpen(false)}
+          slides={slides}
+          index={photoIndex}
+          plugins={[Thumbnails, Zoom]}
+          on={{ view: ({ index }) => setPhotoIndex(index) }}
+        />
+      )}
     </section>
   );
 }
