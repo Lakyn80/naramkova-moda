@@ -15,20 +15,20 @@ export default function Categories() {
   };
 
   return (
-    <section id="kategorie" className="relative py-20 px-4 overflow-hidden">
-      <div className="backdrop-blur-sm bg-white/30 rounded-2xl shadow-2xl max-w-5xl mx-auto p-10">
-        <h2 className="text-3xl font-bold text-center mb-8 drop-shadow-sm">
+    <section id="kategorie" className="relative py-16 sm:py-20 px-3 sm:px-4 overflow-hidden">
+      <div className="backdrop-blur-sm bg-white/30 rounded-2xl shadow-2xl max-w-5xl mx-auto p-6 sm:p-10">
+        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 drop-shadow-sm">
           Kategorie
         </h2>
 
         {/* ORLOJ EFEKT */}
         <div className="overflow-hidden relative">
-          <div className="flex gap-6 animate-scroll whitespace-nowrap">
+          <div className="flex gap-3 sm:gap-6 animate-scroll whitespace-nowrap">
             {[...categories, ...categories].map((label, index) => (
               <button
                 key={index}
                 onClick={() => handleClick(label)}
-                className="bg-white/70 hover:bg-pink-100 shadow-md backdrop-blur-sm rounded-full px-6 py-3 text-sm font-medium text-pink-800 transition-all duration-300"
+                className="bg-white/70 hover:bg-pink-100 shadow-md backdrop-blur-sm rounded-full px-4 sm:px-6 py-2 sm:py-3 text-sm font-medium text-pink-800 transition-all duration-300 whitespace-nowrap"
               >
                 {label}
               </button>
