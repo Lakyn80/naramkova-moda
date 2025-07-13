@@ -1,10 +1,11 @@
 import os
+import requests
 from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from . import admin_bp
-from extensions import db
 from admin.models import Product, Category
+from extensions import db
 
 # ------------------------------
 # Admin Dashboard
@@ -20,7 +21,7 @@ def dashboard():
                            category_count=category_count)
 
 # ------------------------------
-# Výpis produktů
+# Výpis produktů (stále přímo z DB)
 # ------------------------------
 @admin_bp.route("/admin/products")
 @login_required
@@ -29,7 +30,7 @@ def list_products():
     return render_template("admin/products/list.html", products=products)
 
 # ------------------------------
-# Přidání nového produktu
+# Přidání nového produktu přes API
 # ------------------------------
 @admin_bp.route("/admin/products/add", methods=["GET", "POST"])
 @login_required
@@ -38,39 +39,40 @@ def add_product():
 
     if request.method == "POST":
         name = request.form["name"]
-        description = request.form["description"]
+        description = request.form.get("description")
         price = request.form["price"]
-        category_id = request.form.get("category_id")  # Nově
+        category_id = request.form.get("category_id")
         image_file = request.files.get("image")
 
-        try:
-            price = float(price)
-        except ValueError:
-            flash("Cena musí být číslo.", "danger")
-            return redirect(request.url)
+        # Data pro API
+        data = {
+            "name": name,
+            "description": description,
+            "price": price,
+            "category_id": category_id or ""
+        }
 
-        filename = None
-        if image_file:
-            filename = secure_filename(image_file.filename)
-            image_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-            image_file.save(image_path)
+        files = {}
+        if image_file and image_file.filename != "":
+            files["image"] = (secure_filename(image_file.filename), image_file.stream)
 
-        new_product = Product(
-            name=name,
-            description=description,
-            price_czk=price,
-            image=filename,
-            category_id=category_id if category_id else None,
+        response = requests.post(
+            url=request.host_url.rstrip("/") + "/api/products/",
+            data=data,
+            files=files
         )
 
-        db.session.add(new_product)
-        db.session.commit()
-        flash("Produkt byl úspěšně přidán.", "success")
-        return redirect(url_for("admin.list_products"))
+        if response.status_code == 201:
+            flash("✅ Produkt byl úspěšně přidán přes API.", "success")
+            return redirect(url_for("admin.list_products"))
+        else:
+            flash("❌ Chyba při přidávání produktu přes API.", "danger")
+            return redirect(request.url)
 
     return render_template("admin/products/add.html", categories=categories)
+
 # ------------------------------
-# Editace produktu
+# Úprava produktu přes API
 # ------------------------------
 @admin_bp.route("/products/edit/<int:product_id>", methods=["GET", "POST"])
 @login_required
@@ -79,38 +81,46 @@ def edit_product(product_id):
     categories = Category.query.all()
 
     if request.method == "POST":
-        product.name = request.form["name"]
-        product.description = request.form["description"]
-        product.price_czk = request.form["price"]
-        product.category_id = request.form.get("category_id") or None
+        data = {
+            "name": request.form["name"],
+            "description": request.form.get("description"),
+            "price": request.form["price"],
+            "category_id": request.form.get("category_id") or ""
+        }
 
+        files = {}
         image_file = request.files.get("image")
         if image_file and image_file.filename != "":
-            filename = secure_filename(image_file.filename)
-            filepath = os.path.join(current_app.root_path, "static/uploads", filename)
-            image_file.save(filepath)
-            product.image = filename
+            files["image"] = (secure_filename(image_file.filename), image_file.stream)
 
-        db.session.commit()
-        flash("✅ Produkt byl úspěšně upraven.", "success")
-        return redirect(url_for("admin.list_products"))
+        response = requests.put(
+            url=request.host_url.rstrip("/") + f"/api/products/{product_id}",
+            data=data,
+            files=files
+        )
+
+        if response.status_code == 200:
+            flash("✅ Produkt byl upraven přes API.", "success")
+            return redirect(url_for("admin.list_products"))
+        else:
+            flash("❌ Chyba při úpravě produktu přes API.", "danger")
+            return redirect(request.url)
 
     return render_template("admin/products/edit.html", product=product, categories=categories)
 
-
 # ------------------------------
-# Smazání produktu
+# Smazání produktu přes API
 # ------------------------------
-@admin_bp.route("/admin/products/delete/<int:product_id>")
+@admin_bp.route("/admin/products/delete/<int:product_id>", methods=["POST"])
 @login_required
 def delete_product(product_id):
-    product = Product.query.get_or_404(product_id)
-    if product.image:
-        image_path = os.path.join(current_app.config["UPLOAD_FOLDER"], product.image)
-        if os.path.exists(image_path):
-            os.remove(image_path)
+    response = requests.delete(
+        url=request.host_url.rstrip("/") + f"/api/products/{product_id}"
+    )
 
-    db.session.delete(product)
-    db.session.commit()
-    flash("Produkt byl smazán.", "success")
+    if response.status_code == 200:
+        flash("🗑️ Produkt byl smazán přes API.", "info")
+    else:
+        flash("❌ Chyba při mazání produktu přes API.", "danger")
+
     return redirect(url_for("admin.list_products"))

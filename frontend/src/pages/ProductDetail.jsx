@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { products } from "../data/products";
 import { useCart } from "../context/CartContext";
-
-// Lightbox a pluginy
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails";
@@ -13,18 +10,27 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom";
 export default function ProductDetail() {
   const { slug } = useParams();
   const { addToCart } = useCart();
-
   const [product, setProduct] = useState(null);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    const found = products.find(
-      (p) => p.name.toLowerCase().replace(/\s+/g, "-") === slug
-    );
-    setProduct(found);
-    setPhotoIndex(0);
-    setIsOpen(false);
+    const fetchProduct = async () => {
+      try {
+        const res = await fetch("/api/products");
+        const data = await res.json();
+        const found = data.find(
+          (p) => p.name.toLowerCase().replace(/\s+/g, "-") === slug
+        );
+        setProduct(found);
+        setPhotoIndex(0);
+        setIsOpen(false);
+      } catch (error) {
+        console.error("Chyba při načítání produktu:", error);
+      }
+    };
+
+    fetchProduct();
   }, [slug]);
 
   if (!product) {
@@ -58,7 +64,9 @@ export default function ProductDetail() {
                 alt={`thumbnail-${index}`}
                 onClick={() => setPhotoIndex(index)}
                 className={`h-20 w-20 sm:h-24 sm:w-24 object-cover rounded cursor-pointer border ${
-                  photoIndex === index ? "border-pink-500" : "border-transparent"
+                  photoIndex === index
+                    ? "border-pink-500"
+                    : "border-transparent"
                 } transition duration-300`}
               />
             ))}
@@ -68,7 +76,9 @@ export default function ProductDetail() {
         {/* Popis produktu */}
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold">{product.name}</h2>
-          <p className="text-lg sm:text-xl text-pink-700 mt-2">{product.price}</p>
+          <p className="text-lg sm:text-xl text-pink-700 mt-2">
+            {product.price} Kč
+          </p>
           <p className="mt-4 text-pink-800">
             {product.description || "Detail produktu zde."}
           </p>

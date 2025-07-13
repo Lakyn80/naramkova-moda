@@ -12,7 +12,7 @@ import Checkout from "./pages/Checkout";
 import { CartProvider } from "./context/CartContext";
 import ScrollToTop from "./components/ScrollToTop";
 
-function App() {
+export default function App() {
   const heroRef = useRef();
   const shopRef = useRef();
 
@@ -22,7 +22,6 @@ function App() {
         <ScrollToTop />
         <div className="bg-gradient-to-br from-pink-600 via-pink-200 via-30% via-white to-pink-300 min-h-screen overflow-hidden text-pink-900">
           <Navbar heroRef={heroRef} shopRef={shopRef} />
-
           <Routes>
             <Route
               path="/"
@@ -39,12 +38,9 @@ function App() {
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
           </Routes>
-
           <Footer />
         </div>
       </Router>
     </CartProvider>
   );
 }
-
-export default App;
