@@ -2,35 +2,47 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 
-// Kategorie – statický strom (pro filtraci)
-const categoryTree = {
-  rodina: ["maminka", "děti", "tatínek", "dědeček", "babička", "bratr", "sestra"],
-  svatba: ["svatba", "pro nevěstu", "pro ženicha", "pro svědky"],
-  dárky: ["jen pro radost", "jméno"],
-  ostatní: ["přátelství", "láska", "výročí", "pro páry", "kamarádka"],
-};
-
-// Převod názvů kategorií z API na interní tagy
+// 🟩 Alias → pod jakým jménem se kategorie filtruje
 const categoryAliases = {
   "pro maminku": "maminka",
-  "pro babičku": "babička",
   "pro tatínka": "tatínek",
+  "pro babičku": "babička",
   "pro dědečka": "dědeček",
   "pro děti": "děti",
-  "pro bratra": "bratr",
   "pro sestru": "sestra",
-  "pro kamarádku": "kamarádka",
-  "pro páry": "pro páry",
+  "pro bratra": "bratr",
+  "kamarádka": "kamarádka",
   "jen pro radost": "jen pro radost",
-  "výročí": "výročí",
   "přátelství": "přátelství",
+  "výročí": "výročí",
   "láska": "láska",
+  "svatba": "svatba",
+  "pro páry": "pro páry",
   "jméno": "jméno",
-  "ostatní": "ostatní",
-  svatba: "svatba",
-  "pro nevěstu": "pro nevěstu",
-  "pro ženicha": "pro ženicha",
-  "pro svědky": "pro svědky",
+  "ostatní": "ostatní"
+};
+
+// 🟦 Alias → skupina (pro rozřazení do hlavních sekcí)
+const categoryGroups = {
+  maminka: "Rodina",
+  tatínek: "Rodina",
+  babička: "Rodina",
+  dědeček: "Rodina",
+  děti: "Rodina",
+  sestra: "Rodina",
+  bratr: "Rodina",
+  svatba: "Svatba",
+  "pro nevěstu": "Svatba",
+  "pro ženicha": "Svatba",
+  "pro svědky": "Svatba",
+  "jen pro radost": "Dárky",
+  jméno: "Dárky",
+  přátelství: "Ostatní",
+  láska: "Ostatní",
+  výročí: "Ostatní",
+  "pro páry": "Ostatní",
+  kamarádka: "Ostatní",
+  ostatní: "Ostatní"
 };
 
 export default function Shop() {
@@ -39,42 +51,64 @@ export default function Shop() {
   const params = new URLSearchParams(location.search);
   const urlCategory = params.get("category");
 
-  const allSubcategories = Object.values(categoryTree).flat();
-  const [selectedCategories, setSelectedCategories] = useState(
-    urlCategory && allSubcategories.includes(urlCategory)
-      ? [urlCategory]
-      : allSubcategories
-  );
-  const [searchTerm, setSearchTerm] = useState("");
+  const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Načtení produktů z API
+  // 🔁 Načtení kategorií z API
   useEffect(() => {
-    fetch("/api/products/")
+    fetch("http://localhost:5000/api/categories/")
+      .then((res) => res.json())
+      .then((data) => {
+        setCategories(data);
+        const all = data.map((cat) => alias(cat.name.toLowerCase()));
+        if (urlCategory && all.includes(urlCategory)) {
+          setSelectedCategories([urlCategory]);
+        } else {
+          setSelectedCategories(all);
+        }
+      })
+      .catch((err) => console.error("Chyba při načítání kategorií:", err));
+  }, [urlCategory]);
+
+  // 🔁 Načtení produktů
+  useEffect(() => {
+    fetch("http://localhost:5000/api/products/")
       .then((res) => res.json())
       .then((data) => setProducts(data))
       .catch((err) => console.error("Chyba načítání produktů:", err));
   }, []);
 
-  // Aplikace URL filtru
-  useEffect(() => {
-    if (urlCategory && allSubcategories.includes(urlCategory)) {
-      setSelectedCategories([urlCategory]);
-    }
-  }, [urlCategory]);
+  // ⛏️ Pomocné funkce
+  const alias = (name) => categoryAliases[name] || name;
+  const group = (alias) => categoryGroups[alias] || "Ostatní";
 
-  // Správa výběru kategorií
-  const toggleCat = (subcat) =>
+  const toggleCat = (cat) =>
     setSelectedCategories((prev) =>
-      prev.includes(subcat) ? prev.filter((c) => c !== subcat) : [...prev, subcat]
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
     );
-  const selectAll = () => setSelectedCategories(allSubcategories);
+
+  const selectAll = () => {
+    const all = categories.map((cat) => alias(cat.name.toLowerCase()));
+    setSelectedCategories(all);
+  };
+
   const deselectAll = () => setSelectedCategories([]);
 
-  // Filtrování produktů
+  // 🗂️ Dynamické seskupení podle skupin
+  const groupedCategories = categories.reduce((acc, cat) => {
+    const aliased = alias(cat.name.toLowerCase());
+    const grp = group(aliased);
+    if (!acc[grp]) acc[grp] = [];
+    acc[grp].push({ ...cat, alias: aliased });
+    return acc;
+  }, {});
+
+  // 🔍 Filtrování produktů
   const filteredProducts = products.filter((p) => {
-    const raw = p.category?.name.toLowerCase().trim() || "";
-    const cat = categoryAliases[raw] || raw;
+    const raw = p.category?.name?.toLowerCase().trim() || "";
+    const cat = alias(raw);
     return (
       selectedCategories.includes(cat) &&
       p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -83,12 +117,11 @@ export default function Shop() {
 
   return (
     <section className="pt-24 pb-12 bg-gradient-to-br from-pink-300 to-pink-200 min-h-screen">
-      {/* pevný wrapper */}
       <div className="mx-auto max-w-7xl px-4">
         <h2 className="text-4xl font-extrabold text-center mb-10">E-shop</h2>
 
         <div className="flex flex-wrap items-start gap-6">
-          {/* Levý panel – filtry */}
+          {/* 📂 Levý panel – KATEGORIE */}
           <aside className="flex-shrink-0 w-64 bg-white/80 p-4 rounded-2xl shadow">
             <h3 className="text-lg font-semibold mb-4">Kategorie</h3>
             <input
@@ -98,45 +131,47 @@ export default function Shop() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+
             <ul className="space-y-4 text-sm">
-              {Object.entries(categoryTree).map(([main, subs]) => (
-                <li key={main}>
+              {Object.entries(groupedCategories).map(([groupName, cats]) => (
+                <li key={groupName}>
                   <div className="flex justify-between items-center">
-                    <strong>{main.toUpperCase()}</strong>
+                    <strong>{groupName.toUpperCase()}</strong>
                     <button
                       onClick={() => {
-                        const allSel = subs.every((s) =>
-                          selectedCategories.includes(s)
+                        const allSelected = cats.every((c) =>
+                          selectedCategories.includes(c.alias)
                         );
-                        if (allSel) {
+                        if (allSelected) {
                           setSelectedCategories((prev) =>
-                            prev.filter((c) => !subs.includes(c))
+                            prev.filter((c) => !cats.map((c) => c.alias).includes(c))
                           );
                         } else {
                           setSelectedCategories((prev) => [
-                            ...new Set([...prev, ...subs]),
+                            ...new Set([
+                              ...prev,
+                              ...cats.map((c) => c.alias)
+                            ])
                           ]);
                         }
                       }}
                       className="text-sm hover:underline"
                     >
-                      {subs.every((s) => selectedCategories.includes(s))
+                      {cats.every((c) => selectedCategories.includes(c.alias))
                         ? "Odebrat"
                         : "Vybrat"}
                     </button>
                   </div>
                   <ul className="ml-4 mt-1 space-y-1">
-                    {subs.map((sub) => (
-                      <li key={sub}>
+                    {cats.map((cat) => (
+                      <li key={cat.id}>
                         <label className="flex items-center space-x-2">
                           <input
                             type="checkbox"
-                            checked={selectedCategories.includes(sub)}
-                            onChange={() => toggleCat(sub)}
+                            checked={selectedCategories.includes(cat.alias)}
+                            onChange={() => toggleCat(cat.alias)}
                           />
-                          <span>
-                            {sub.charAt(0).toUpperCase() + sub.slice(1)}
-                          </span>
+                          <span>{cat.name}</span>
                         </label>
                       </li>
                     ))}
@@ -144,6 +179,7 @@ export default function Shop() {
                 </li>
               ))}
             </ul>
+
             <div className="mt-6 space-y-2">
               <button
                 onClick={selectAll}
@@ -160,7 +196,7 @@ export default function Shop() {
             </div>
           </aside>
 
-          {/* Pravý panel – karty produktů */}
+          {/* 🛍️ Pravý panel – PRODUKTY */}
           <div className="flex flex-wrap items-start gap-6 justify-start">
             {filteredProducts.map((product) => (
               <div

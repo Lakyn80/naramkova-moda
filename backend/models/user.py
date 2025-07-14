@@ -1,4 +1,5 @@
-from extensions import db, login_manager
+# ✅ Tento soubor definuje model User
+from backend.extensions import db, login_manager
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -20,6 +21,7 @@ class User(db.Model, UserMixin):
     def __repr__(self):
         return f"<User {self.username}>"
 
+# ✅ Načítání uživatele pro Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))

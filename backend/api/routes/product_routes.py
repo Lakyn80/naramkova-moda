@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app, url_for
-from extensions import db
-from admin.models import Product, Category, ProductMedia
+from backend.extensions import db
+from backend.admin.models import Product, Category, ProductMedia
 import os
 from werkzeug.utils import secure_filename
 

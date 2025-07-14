@@ -1,17 +1,30 @@
+# ✅ Import základních Flask věcí
 from flask import render_template, request, redirect, url_for, flash
-from flask_login import login_required
-from . import admin_bp
-from extensions import db
-from admin.models import Category
 
-# Výpis všech kategorií
+# ✅ Login required pro přístup do admin sekce
+from flask_login import login_required
+
+# ✅ Blueprint admin_bp pro routy v admin části
+from backend.admin import admin_bp
+
+# ✅ Správný import db z backend.extensions
+from backend.extensions import db
+
+# ✅ Import Category modelu
+from backend.admin.models import Category
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🔍 Výpis všech kategorií
 @admin_bp.route("/categories")
 @login_required
 def list_categories():
-    categories = Category.query.all()
+    categories = Category.query.all()  # Načteme všechny z databáze
     return render_template("admin/categories/list.html", categories=categories)
 
-# Přidání nové kategorie
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ➕ Přidání nové kategorie
 @admin_bp.route("/categories/add", methods=["GET", "POST"])
 @login_required
 def add_category():
@@ -19,6 +32,7 @@ def add_category():
         name = request.form["name"]
         description = request.form.get("description")
 
+        # ✅ Vytvoříme novou instanci Category
         new_category = Category(name=name, description=description)
         db.session.add(new_category)
         db.session.commit()
@@ -28,7 +42,9 @@ def add_category():
 
     return render_template("admin/categories/add.html")
 
-# Úprava kategorie
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 📝 Úprava kategorie
 @admin_bp.route("/categories/edit/<int:category_id>", methods=["GET", "POST"])
 @login_required
 def edit_category(category_id):
@@ -44,7 +60,9 @@ def edit_category(category_id):
 
     return render_template("admin/categories/edit.html", category=category)
 
-# Smazání kategorie
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🗑️ Smazání kategorie
 @admin_bp.route("/categories/delete/<int:category_id>", methods=["POST"])
 @login_required
 def delete_category(category_id):

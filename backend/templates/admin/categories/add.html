@@ -1,18 +1,36 @@
 {% extends "shared/layout.html" %}
+
 {% block content %}
 <h2>➕ Přidat kategorii</h2>
 
+<!-- ✅ Formulář pro přidání nové kategorie -->
 <form method="post">
+  <!-- Název kategorie -->
   <div class="mb-3">
     <label for="name" class="form-label">Název</label>
     <input type="text" class="form-control" id="name" name="name" required>
   </div>
 
+  <!-- Popis kategorie (nepovinné, můžeš později přidat i do modelu) -->
   <div class="mb-3">
     <label for="description" class="form-label">Popis</label>
     <textarea class="form-control" id="description" name="description"></textarea>
   </div>
 
+  <!-- ✅ Skupina kategorie (např. Rodina, Svatba, Dárky...) -->
+  <div class="mb-3">
+    <label for="group" class="form-label">Skupina</label>
+    <select class="form-select" id="group" name="group">
+      <option value="">(Bez skupiny)</option>
+      <option value="Rodina">Rodina</option>
+      <option value="Svatba">Svatba</option>
+      <option value="Dárky">Dárky</option>
+      <option value="Přátelství">Přátelství</option>
+      <option value="Ostatní">Ostatní</option>
+    </select>
+  </div>
+
+  <!-- Tlačítka -->
   <button type="submit" class="btn btn-success">💾 Uložit</button>
   <a href="{{ url_for('admin.list_categories') }}" class="btn btn-secondary">↩️ Zpět</a>
 </form>

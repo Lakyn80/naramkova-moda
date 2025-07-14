@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
-from extensions import db
-from admin.models import Category
+from backend.extensions import db
+from backend.admin.models import Category
 
 api_categories = Blueprint("api_categories", __name__, url_prefix="/api/categories")
 

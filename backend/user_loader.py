@@ -1,6 +1,6 @@
 # backend/user_loader.py
-from extensions import login_manager
-from models.user import User
+from backend.extensions import login_manager
+from backend.models.user import User
 
 @login_manager.user_loader
 def load_user(user_id: str):

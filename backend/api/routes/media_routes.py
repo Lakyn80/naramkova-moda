@@ -1,8 +1,8 @@
 # backend/api/routes/media_routes.py
 
 from flask import Blueprint, jsonify, current_app
-from extensions import db
-from admin.models import ProductMedia
+from backend.extensions import db
+from backend.admin.models import ProductMedia
 import os
 
 api_media = Blueprint("api_media", __name__, url_prefix="/api/media")

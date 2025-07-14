@@ -3,7 +3,7 @@ import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 
 export default function Checkout() {
-  const { cartItems } = useCart();
+  const { cartItems, clearCart } = useCart(); // 🟩 Přidáno: možnost vymazat košík po odeslání
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
@@ -23,10 +23,41 @@ export default function Checkout() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  // 🟩 Hlavní změna – přidání fetch() pro POST /api/orders
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Odesláno:", formData, cartItems);
-    setSubmitted(true);
+
+    const orderData = {
+      name: formData.name,
+      email: formData.email,
+      address: formData.address,
+      note: formData.note,
+      items: cartItems.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+    };
+
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      });
+
+      if (response.ok) {
+        console.log("✅ Objednávka odeslána");
+        setSubmitted(true);
+        clearCart(); // 🟩 Vymazání košíku po odeslání
+      } else {
+        console.error("❌ Chyba při odesílání objednávky");
+      }
+    } catch (error) {
+      console.error("❌ Fetch error:", error);
+    }
   };
 
   if (submitted) {
@@ -53,7 +84,7 @@ export default function Checkout() {
           <p className="text-center text-pink-600">Košík je prázdný.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Formulář */}
+            {/* 🟩 Formulář pro zákazníka */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 type="text"
@@ -96,7 +127,7 @@ export default function Checkout() {
               </button>
             </form>
 
-            {/* Shrnutí košíku */}
+            {/* 🟩 Shrnutí košíku */}
             <div>
               <h3 className="text-xl font-semibold mb-4">Vaše objednávka:</h3>
               <ul className="space-y-2 text-pink-800 text-sm">

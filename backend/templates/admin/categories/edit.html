@@ -1,19 +1,37 @@
 {% extends "shared/layout.html" %}
-{% block content %}
-<h2>✏️ Úprava kategorie</h2>
 
+{% block content %}
+<h2>✏️ Upravit kategorii</h2>
+
+<!-- ✅ Formulář pro úpravu kategorie -->
 <form method="post">
+  <!-- Název kategorie -->
   <div class="mb-3">
     <label for="name" class="form-label">Název</label>
     <input type="text" class="form-control" id="name" name="name" value="{{ category.name }}" required>
   </div>
 
+  <!-- Popis kategorie (pokud se používá) -->
   <div class="mb-3">
     <label for="description" class="form-label">Popis</label>
-    <textarea class="form-control" id="description" name="description">{{ category.description }}</textarea>
+    <textarea class="form-control" id="description" name="description">{{ category.description or '' }}</textarea>
   </div>
 
-  <button type="submit" class="btn btn-success">💾 Uložit změny</button>
+  <!-- ✅ Skupina kategorie -->
+  <div class="mb-3">
+    <label for="group" class="form-label">Skupina</label>
+    <select class="form-select" id="group" name="group">
+      <option value="" {% if not category.group %}selected{% endif %}>(Bez skupiny)</option>
+      <option value="Rodina" {% if category.group == "Rodina" %}selected{% endif %}>Rodina</option>
+      <option value="Svatba" {% if category.group == "Svatba" %}selected{% endif %}>Svatba</option>
+      <option value="Dárky" {% if category.group == "Dárky" %}selected{% endif %}>Dárky</option>
+      <option value="Přátelství" {% if category.group == "Přátelství" %}selected{% endif %}>Přátelství</option>
+      <option value="Ostatní" {% if category.group == "Ostatní" %}selected{% endif %}>Ostatní</option>
+    </select>
+  </div>
+
+  <!-- Tlačítka -->
+  <button type="submit" class="btn btn-primary">💾 Uložit změny</button>
   <a href="{{ url_for('admin.list_categories') }}" class="btn btn-secondary">↩️ Zpět</a>
 </form>
 {% endblock %}
