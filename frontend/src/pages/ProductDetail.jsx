@@ -23,6 +23,8 @@ export default function ProductDetail() {
           (p) => p.name.toLowerCase().replace(/\s+/g, "-") === slug
         );
         setProduct(found);
+        setPhotoIndex(0);
+        setIsOpen(false);
       } catch (err) {
         console.error("Chyba při načítání produktu:", err);
       }
@@ -39,22 +41,22 @@ export default function ProductDetail() {
     );
   }
 
-  // Extrahujeme obrázky
-  const images = product.media
-    .filter((m) => m.type === "image")
-    .map((m) => m.url);
+  // Začlenění hlavní fotky jako první a pak další obrázky
+  const images = [
+    product.image,
+    ...product.media.filter((m) => m.type === "image").map((m) => m.url),
+  ];
   const slides = images.map((src) => ({ src }));
 
   return (
     <section className="pt-24 pb-12 bg-white">
-      {/* container teď drží max šířku a centrování */}
       <div className="container mx-auto max-w-4xl px-4">
         <div className="bg-gray-100 rounded-lg shadow-lg p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
             {/* Obrázky */}
             <div className="space-y-4">
               <img
-                src={images[photoIndex] || product.image}
+                src={images[photoIndex]}
                 alt={product.name}
                 className="w-full h-[280px] sm:h-[350px] md:h-[450px] object-cover rounded-xl shadow-md cursor-pointer"
                 onClick={() => setIsOpen(true)}
@@ -67,8 +69,10 @@ export default function ProductDetail() {
                     alt={`${product.name} ${i + 1}`}
                     onClick={() => setPhotoIndex(i)}
                     className={`h-20 w-20 sm:h-24 sm:w-24 object-cover rounded cursor-pointer border ${
-                      photoIndex === i ? "border-pink-500" : "border-transparent"
-                    } transition`}
+                      photoIndex === i
+                        ? "border-pink-500"
+                        : "border-transparent"
+                    } transition duration-300`}
                   />
                 ))}
               </div>
@@ -76,18 +80,16 @@ export default function ProductDetail() {
 
             {/* Popis */}
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold">
-                {product.name}
-              </h2>
+              <h2 className="text-2xl sm:text-3xl font-bold">{product.name}</h2>
               <p className="text-lg sm:text-xl text-pink-700 mt-2">
                 {product.price.toFixed(2)} Kč
               </p>
               <p className="mt-4 text-pink-800">
-                {product.description}
+                {product.description || "Detail produktu zde."}
               </p>
               <button
                 onClick={() => addToCart(product)}
-                className="mt-6 bg-pink-600 hover:bg-pink-700 text-white py-2 px-4 rounded-lg"
+                className="mt-6 bg-pink-600 hover:bg-pink-700 text-white py-2 px-4 rounded-lg transition"
               >
                 Přidat do košíku
               </button>
