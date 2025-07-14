@@ -1,44 +1,149 @@
 {% extends "shared/layout.html" %}
+{% block title %}Upravit produkt{% endblock %}
+
 {% block content %}
-<h2>✏️ Úprava produktu</h2>
+<div class="container mt-4">
+  <h2 class="mb-4">✏️ Úprava produktu: <strong>{{ product.name }}</strong></h2>
 
-<form method="post" enctype="multipart/form-data">
-  <div class="mb-3">
-    <label for="name" class="form-label">Název</label>
-    <input type="text" class="form-control" id="name" name="name" value="{{ product.name }}" required>
-  </div>
+  <!-- Formulář pro úpravu produktu -->
+  <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+    
+    <!-- 🟢 Název produktu -->
+    <div class="mb-3">
+      <label for="name" class="form-label">Název produktu</label>
+      <input type="text" class="form-control" name="name" id="name" value="{{ product.name }}" required>
+    </div>
 
-  <div class="mb-3">
-    <label for="description" class="form-label">Popis</label>
-    <textarea class="form-control" id="description" name="description">{{ product.description }}</textarea>
-  </div>
+    <!-- 🟢 Popis produktu -->
+    <div class="mb-3">
+      <label for="description" class="form-label">Popis</label>
+      <textarea class="form-control" name="description" id="description" rows="4">{{ product.description }}</textarea>
+    </div>
 
-  <div class="mb-3">
-    <label for="price" class="form-label">Cena (Kč)</label>
-    <input type="number" step="0.01" class="form-control" id="price" name="price" value="{{ product.price_czk }}" required>
-  </div>
+    <!-- 🟢 Cena produktu -->
+    <div class="mb-3">
+      <label for="price" class="form-label">Cena (Kč)</label>
+      <input type="number" step="0.01" class="form-control" name="price" id="price" value="{{ product.price_czk }}" required>
+    </div>
 
-  <div class="mb-3">
-    <label for="category_id" class="form-label">Kategorie</label>
-    <select class="form-select" id="category_id" name="category_id">
-      <option value="">Bez kategorie</option>
-      {% for category in categories %}
-        <option value="{{ category.id }}" {% if product.category_id == category.id %}selected{% endif %}>
-          {{ category.name }}
-        </option>
-      {% endfor %}
-    </select>
-  </div>
+    <!-- 🟢 Kategorie produktu -->
+    <div class="mb-3">
+      <label for="category_id" class="form-label">Kategorie</label>
+      <select name="category_id" id="category_id" class="form-select" required>
+        <option value="">-- Vyber kategorii --</option>
+        {% for category in categories %}
+          <option value="{{ category.id }}" {% if category.id == product.category_id %}selected{% endif %}>
+            {{ category.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
 
-  <div class="mb-3">
-    <label for="image" class="form-label">Obrázek</label>
-    {% if product.image %}
-      <p>Aktuální obrázek: <img src="{{ url_for('static', filename='uploads/' ~ product.image) }}" height="80"></p>
+    <!-- 🟢 Výpočet počtu obrázků a videí pro počítadlo -->
+    {% set image_count = product.media | selectattr('media_type','equalto','image') | list | length %}
+    {% set video_count = product.media | selectattr('media_type','equalto','video') | list | length %}
+
+    <!-- 🟢 Seznam nahraných médií -->
+    {% if product.media %}
+      <div class="mb-3">
+        <label class="form-label">📂 Nahraná média ({{ image_count }} obrázků, {{ video_count }} videí):</label>
+        <div class="row g-3">
+          {% for media in product.media %}
+            <div class="col-6 col-sm-4 col-md-3 text-center position-relative" id="media-{{ media.id }}">
+              {% if media.media_type == 'image' %}
+                <img src="{{ url_for('static', filename='uploads/' ~ media.filename) }}"
+                     class="img-thumbnail w-100"
+                     style="width:150px;height:150px;object-fit:cover;"
+                     alt="Obrázek">
+              {% elif media.media_type == 'video' %}
+                <video class="img-thumbnail w-100"
+                       style="width:150px;height:150px;object-fit:cover;"
+                       controls>
+                  <source src="{{ url_for('static', filename='uploads/' ~ media.filename) }}" type="video/mp4">
+                </video>
+              {% endif %}
+              <!-- 🟢 Tlačítko pro AJAX smazání -->
+              <button class="btn btn-sm btn-danger mt-2 delete-media" data-id="{{ media.id }}">🗑️ Smazat</button>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
     {% endif %}
-    <input type="file" class="form-control" id="image" name="image">
-  </div>
 
-  <button type="submit" class="btn btn-success">💾 Uložit změny</button>
-  <a href="{{ url_for('admin.list_products') }}" class="btn btn-secondary">↩️ Zpět</a>
-</form>
+    <!-- 🟢 Hlavní obrázek – změna -->
+    <div class="mb-3">
+      <label for="image" class="form-label">🖼️ Změnit hlavní obrázek produktu</label>
+      <input type="file" class="form-control" name="image" id="image" accept="image/*">
+      {% if product.image %}
+        <div class="mt-2">
+          <label class="form-label">Aktuální hlavní obrázek:</label><br>
+          <img src="{{ url_for('static', filename='uploads/' ~ product.image) }}"
+               alt="Hlavní obrázek"
+               class="img-thumbnail"
+               style="max-width: 150px; object-fit:cover;">
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- 🟢 Nové soubory – Drag & Drop zóna -->
+    <div class="mb-3">
+      <label for="media" class="form-label">➕ Přidat další obrázky nebo videa</label>
+      <div id="dropzone" class="border border-secondary p-4 rounded bg-light text-center">
+        <p>Přetáhni soubory sem nebo klikni pro výběr</p>
+        <input type="file"
+               name="media"
+               id="media"
+               multiple
+               accept="image/*,video/*"
+               class="form-control mt-2"
+               style="display: inline-block;">
+      </div>
+    </div>
+
+    <!-- 🟢 Akční tlačítka -->
+    <div class="d-flex justify-content-between align-items-center mt-4">
+      <button type="submit" class="btn btn-primary">💾 Uložit změny</button>
+      <a href="{{ url_for('admin.list_products') }}" class="btn btn-secondary">↩️ Zpět</a>
+    </div>
+  </form>
+</div>
+
+<!-- 🟢 JavaScript pro AJAX mazání a Drag & Drop -->
+<script>
+  // AJAX mazání médií bez reloadu
+  document.querySelectorAll(".delete-media").forEach(button => {
+    button.addEventListener("click", function (e) {
+      e.preventDefault();
+      const mediaId = this.getAttribute("data-id");
+      if (!confirm("Opravdu smazat toto médium?")) return;
+
+      fetch(`/api/media/${mediaId}`, { method: "DELETE" })
+        .then(res => {
+          if (res.ok) {
+            document.getElementById(`media-${mediaId}`).remove();
+          } else {
+            alert("❌ Nepodařilo se smazat médium.");
+          }
+        });
+    });
+  });
+
+  // Drag & Drop funkce
+  const dropzone = document.getElementById("dropzone");
+  const input = document.getElementById("media");
+
+  dropzone.addEventListener("click", () => input.click());
+  dropzone.addEventListener("dragover", e => {
+    e.preventDefault();
+    dropzone.classList.add("bg-info-subtle");
+  });
+  dropzone.addEventListener("dragleave", () => {
+    dropzone.classList.remove("bg-info-subtle");
+  });
+  dropzone.addEventListener("drop", e => {
+    e.preventDefault();
+    dropzone.classList.remove("bg-info-subtle");
+    input.files = e.dataTransfer.files;
+  });
+</script>
 {% endblock %}

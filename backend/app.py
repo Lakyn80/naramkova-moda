@@ -6,6 +6,7 @@ from admin import admin_bp
 from auth.login_routes import auth_bp
 from api.routes.product_routes import api_products
 from api.routes.category_routes import api_categories
+from api.routes.media_routes import api_media
 
 
 def create_app() -> Flask:
@@ -29,6 +30,7 @@ def create_app() -> Flask:
     app.register_blueprint(admin_bp)
     app.register_blueprint(api_products)
     app.register_blueprint(api_categories)
+    app.register_blueprint(api_media)
 
     # ─── Import user_loader kvůli Flask-Login ─────────────────────────────
     from user_loader import load_user  # noqa: F401
