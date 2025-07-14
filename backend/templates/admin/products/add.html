@@ -1,5 +1,5 @@
+{# templates/admin/products/add.html #}
 {% extends "shared/layout.html" %}
-
 {% block title %}Přidat produkt{% endblock %}
 
 {% block content %}
@@ -58,7 +58,7 @@
       </select>
     </div>
 
-    <!-- Hlavní obrázek (volitelný) -->
+    <!-- Hlavní obrázek (volitelný) + okamžitý náhled -->
     <div class="mb-3">
       <label for="image" class="form-label">Hlavní obrázek (volitelný)</label>
       <input
@@ -68,20 +68,36 @@
         id="image"
         accept="image/*"
       >
+      <div class="mt-2">
+        <img
+          id="main-preview"
+          src=""
+          alt="Náhled hlavního obrázku"
+          class="img-thumbnail"
+          style="max-width:150px; display:none;"
+        >
+      </div>
       <div class="form-text">Např. úvodní miniatura produktu.</div>
     </div>
 
-    <!-- Další média (obrázky nebo videa) -->
+    <!-- Další média: výběr více souborů + postupné přidávání -->
     <div class="mb-3">
-      <label for="media" class="form-label">Další obrázky nebo videa</label>
-      <input
-        type="file"
-        class="form-control"
-        name="media"
-        id="media"
-        multiple
-        accept="image/*,video/*"
-      >
+      <label class="form-label">Další obrázky nebo videa</label>
+      <div id="media-inputs">
+        <input
+          type="file"
+          class="form-control mb-2"
+          name="media"
+          id="media"
+          multiple
+          accept="image/*,video/*"
+        >
+      </div>
+      <button
+        type="button"
+        id="add-media-btn"
+        class="btn btn-sm btn-outline-secondary mb-2"
+      >+ Přidat další výběr</button>
       <div class="form-text">Můžeš přidat více obrázků nebo videí najednou.</div>
     </div>
 
@@ -96,4 +112,34 @@
     </div>
   </form>
 </div>
+
+<script>
+  // Náhled hlavního obrázku ihned po výběru
+  document.getElementById('image').addEventListener('change', function(e) {
+    const [file] = e.target.files;
+    const preview = document.getElementById('main-preview');
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        preview.src = ev.target.result;
+        preview.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    } else {
+      preview.src = '';
+      preview.style.display = 'none';
+    }
+  });
+
+  // Přidávání dalších inputů pro média
+  document.getElementById('add-media-btn').addEventListener('click', function() {
+    const wrapper = document.getElementById('media-inputs');
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.name = 'media';
+    inp.accept = 'image/*,video/*';
+    inp.className = 'form-control mb-2';
+    wrapper.appendChild(inp);
+  });
+</script>
 {% endblock %}

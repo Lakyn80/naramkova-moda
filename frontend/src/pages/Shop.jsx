@@ -6,7 +6,7 @@ import { useCart } from "../context/CartContext";
 const categoryTree = {
   rodina: ["maminka", "děti", "tatínek", "dědeček", "babička", "bratr", "sestra"],
   svatba: ["svatba", "pro nevěstu", "pro ženicha", "pro svědky"],
-  dárky: ["jen pro radost", "jméno", "ostatní"],
+  dárky: ["jen pro radost", "jméno"],
   ostatní: ["přátelství", "láska", "výročí", "pro páry", "kamarádka"],
 };
 
