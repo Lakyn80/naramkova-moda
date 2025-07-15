@@ -91,3 +91,19 @@ class OrderItem(db.Model):
     price = db.Column(db.Numeric(10, 2), nullable=False)
 
     order_id = db.Column(db.Integer, db.ForeignKey("order.id"), nullable=False)
+    
+    
+# ─── SoldProduct model ──────────────────────────────────────────
+# Reprezentuje prodaný produkt s informacemi o zákazníkovi a platbě
+# Tento model může být použit pro archivaci prodaných produktů   
+class SoldProduct(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    price = db.Column(db.String(20), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    customer_name = db.Column(db.String(100))
+    customer_email = db.Column(db.String(100))
+    customer_address = db.Column(db.Text)
+    note = db.Column(db.Text)
+    payment_type = db.Column(db.String(50))  # např. "dobírka" nebo "karta"
+    sold_at = db.Column(db.DateTime, default=datetime.utcnow)

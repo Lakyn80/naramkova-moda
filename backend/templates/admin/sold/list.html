@@ -1,0 +1,36 @@
+{% extends "shared/layout.html" %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4">🧾 Prodané produkty</h2>
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Název</th>
+        <th>Cena</th>
+        <th>Množství</th>
+        <th>Zákazník</th>
+        <th>Email</th>
+        <th>Adresa</th>
+        <th>Poznámka</th>
+        <th>Typ platby</th>
+        <th>Datum</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in sold_products %}
+      <tr>
+        <td>{{ item.name }}</td>
+        <td>{{ item.price }} Kč</td>
+        <td>{{ item.quantity }}</td>
+        <td>{{ item.customer_name }}</td>
+        <td>{{ item.customer_email }}</td>
+        <td>{{ item.customer_address }}</td>
+        <td>{{ item.note }}</td>
+        <td>{{ item.payment_type }}</td>
+        <td>{{ item.sold_at.strftime('%d.%m.%Y %H:%M') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -23,7 +23,8 @@
 
 <!-- Karty s akcemi -->
 <div class="row">
-  <div class="col-md-4">
+  <!-- 🟦 Produkty -->
+  <div class="col-md-3">
     <div class="card border-primary shadow-sm">
       <div class="card-body text-center">
         <h5 class="card-title">📦 Produkty</h5>
@@ -33,7 +34,8 @@
     </div>
   </div>
 
-  <div class="col-md-4">
+  <!-- 🟪 Kategorie -->
+  <div class="col-md-3">
     <div class="card border-secondary shadow-sm">
       <div class="card-body text-center">
         <h5 class="card-title">📂 Kategorie</h5>
@@ -43,7 +45,19 @@
     </div>
   </div>
 
-  <div class="col-md-4">
+  <!-- 🟨 Prodané produkty -->
+  <div class="col-md-3">
+    <div class="card border-warning shadow-sm">
+      <div class="card-body text-center">
+        <h5 class="card-title">📊 Prodané produkty</h5>
+        <p class="card-text">Přehled objednávek a faktur.</p>
+        <a href="{{ url_for('sold.sold_products') }}" class="btn btn-warning">Zobrazit</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🟩 Nastavení -->
+  <div class="col-md-3">
     <div class="card border-success shadow-sm">
       <div class="card-body text-center">
         <h5 class="card-title">⚙️ Nastavení (brzy)</h5>

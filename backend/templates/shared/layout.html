@@ -27,9 +27,26 @@
             <a class="navbar-brand" href="{{ url_for('admin.dashboard') }}">🛒 Admin</a>
             <div class="collapse navbar-collapse">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.list_products') }}">📦 Produkty</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.list_categories') }}">📂 Kategorie</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">🚪 Odhlásit</a></li>
+
+                    <!-- 📦 Produkty -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.list_products') }}">📦 Produkty</a>
+                    </li>
+
+                    <!-- 📂 Kategorie -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.list_categories') }}">📂 Kategorie</a>
+                    </li>
+
+                    <!-- 📊 Prodané produkty -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('sold.sold_products') }}">📊 Prodané</a>
+                    </li>
+
+                    <!-- 🚪 Odhlásit -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.logout') }}">🚪 Odhlásit</a>
+                    </li>
                 </ul>
             </div>
         </div>
