@@ -1,26 +1,21 @@
+# 📁 backend/admin/models.py
+
 from datetime import datetime
-from backend.extensions import db  # ✅ OPRAVENO – správný import z backendu
+from backend.extensions import db  # ✅ Správný import databázového objektu
 
-
-# ─── Category model ───────────────────────────────────────────────
+# ✅ Kategorie produktů
 class Category(db.Model):
-    """
-    Reprezentuje kategorii produktů.
-    """
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    group = db.Column(db.String(100), nullable=True)  # ✅ Nové pole pro skupinu (Rodina, Svatba...)
+    name = db.Column(db.String(100), nullable=False)  # Název kategorie
+    description = db.Column(db.Text, nullable=True)   # Popis (volitelný)
+    group = db.Column(db.String(100), nullable=True)  # Např. "Rodina", "Dárky", "Svatba"
 
-    products = db.relationship("Product", backref="category", lazy=True)
+    products = db.relationship("Product", backref="category", lazy=True)  # Vztah s produkty
 
     def __repr__(self) -> str:
         return f"<Category {self.name}>"
 
     def to_dict(self):
-        """
-        Vrací data kategorie pro JSON API.
-        """
         return {
             "id": self.id,
             "name": self.name,
@@ -29,46 +24,41 @@ class Category(db.Model):
         }
 
 
-# ─── Product model ────────────────────────────────────────────────
+# ✅ Produkty v e-shopu
 class Product(db.Model):
-    """
-    Reprezentuje produkt v e-shopu.
-    """
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(150), nullable=False, unique=True)
-    description = db.Column(db.Text, nullable=True)
-    price_czk = db.Column(db.Numeric(10, 2), nullable=False)
-    image = db.Column(db.String(255), nullable=True)
+    name = db.Column(db.String(150), nullable=False, unique=True)  # Název produktu
+    description = db.Column(db.Text, nullable=True)                # Popis
+    price_czk = db.Column(db.Numeric(10, 2), nullable=False)       # Cena v Kč
+    image = db.Column(db.String(255), nullable=True)               # Náhledový obrázek
     category_id = db.Column(db.Integer, db.ForeignKey("category.id"), nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Datum vytvoření
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Poslední úprava
 
     media = db.relationship(
         "ProductMedia",
         backref="product",
         lazy=True,
         cascade="all, delete"
-    )
+    )  # Vztah na víc obrázků/videí
 
     def __repr__(self) -> str:
         return f"<Product {self.name}>"
 
 
-# ─── ProductMedia model ──────────────────────────────────────────
+# ✅ Média k produktům – obrázky nebo videa
 class ProductMedia(db.Model):
-    """
-    Jeden obrázek nebo video připojený k produktu.
-    """
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(255), nullable=False)
-    media_type = db.Column(db.String(20), nullable=False)  # "image" nebo "video"
+    filename = db.Column(db.String(255), nullable=False)     # Jméno souboru
+    media_type = db.Column(db.String(20), nullable=False)    # "image" nebo "video"
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
 
     def __repr__(self) -> str:
         return f"<ProductMedia {self.media_type} - {self.filename}>"
 
-# ─── Order model ──────────────────────────────────────────────────
+
+# ✅ Objednávka – základní údaje o zákazníkovi
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     customer_name = db.Column(db.String(120), nullable=False)
@@ -83,27 +73,30 @@ class Order(db.Model):
         return f"<Order #{self.id} – {self.customer_name}>"
 
 
-# ─── OrderItem model ──────────────────────────────────────────────
+# ✅ Položka v objednávce – název, množství a cena
 class OrderItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_name = db.Column(db.String(150), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Numeric(10, 2), nullable=False)
-
     order_id = db.Column(db.Integer, db.ForeignKey("order.id"), nullable=False)
-    
-    
-# ─── SoldProduct model ──────────────────────────────────────────
-# Reprezentuje prodaný produkt s informacemi o zákazníkovi a platbě
-# Tento model může být použit pro archivaci prodaných produktů   
+
+
+# ✅ Prodaný produkt – archiv historie pro reporty a faktury
 class SoldProduct(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.String(20), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
-    customer_name = db.Column(db.String(100))
-    customer_email = db.Column(db.String(100))
-    customer_address = db.Column(db.Text)
-    note = db.Column(db.Text)
-    payment_type = db.Column(db.String(50))  # např. "dobírka" nebo "karta"
-    sold_at = db.Column(db.DateTime, default=datetime.utcnow)
+    original_product_id = db.Column(db.Integer)                    # ID původního produktu (pro referenci)
+    name = db.Column(db.String(100), nullable=False)               # Název produktu
+    description = db.Column(db.Text, nullable=True)                # Popis produktu
+    image = db.Column(db.String(255), nullable=True)               # Náhledový obrázek
+    price = db.Column(db.String(20), nullable=False)               # Cena jako string (kvůli přesnému formátu)
+    quantity = db.Column(db.Integer, nullable=False)               # Počet kusů
+    customer_name = db.Column(db.String(100))                      # Jméno zákazníka
+    customer_email = db.Column(db.String(100))                     # E-mail
+    customer_address = db.Column(db.Text)                          # Adresa
+    note = db.Column(db.Text)                                      # Poznámka
+    payment_type = db.Column(db.String(50))                        # Dobírka / karta
+    sold_at = db.Column(db.DateTime, default=datetime.utcnow)      # Datum prodeje
+
+    def __repr__(self):
+        return f"<SoldProduct {self.name} – {self.customer_name}>"

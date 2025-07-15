@@ -1,4 +1,4 @@
-// src/pages/Checkout.jsx
+// 📁 src/pages/Checkout.jsx
 
 import React, { useState } from "react";
 import { useCart } from "../context/CartContext";
@@ -34,7 +34,9 @@ export default function Checkout() {
       email: formData.email,
       address: formData.address,
       note: formData.note,
+      // 🔧 přidáváme i id každé položky
       items: cartItems.map((item) => ({
+        id: item.id,
         name: item.name,
         quantity: item.quantity,
         price: item.price,

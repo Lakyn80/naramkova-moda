@@ -1,23 +1,54 @@
+# ✅ BACKEND - CLIENT ROUTES
 # 📁 backend/client/routes.py
 
 from flask import Blueprint, request, jsonify
 from backend.extensions import db
-from backend.admin.models import Order, OrderItem, Product, SoldProduct
-from backend.api.utils.email import send_email
+from backend.admin.models import Product, Order, OrderItem, SoldProduct  # ✅ správné modely
+from backend.api.utils.email import send_email                           # ✅ správný import e-mailu
+from datetime import datetime
 
-client_bp = Blueprint("client", __name__)  # Blueprint pro klientské API
+client_bp = Blueprint("client_bp", __name__)
 
-# 🟢 Endpoint pro vytvoření objednávky
+# ------------------------------
+# API: Získání všech produktů
+# ------------------------------
+@client_bp.route("/api/products", methods=["GET"])
+def get_products():
+    products = Product.query.all()
+    result = []
+    for product in products:
+        result.append({
+            "id": product.id,
+            "name": product.name,
+            "description": product.description,
+            "price_czk": float(product.price_czk),
+            "image": product.image,
+            "category": product.category.name if product.category else None,
+            "created_at": product.created_at.isoformat()
+        })
+    return jsonify(result)
+
+
+# ------------------------------
+# API: Vytvoření objednávky
+# ------------------------------
 @client_bp.route("/api/orders", methods=["POST"])
 def create_order():
-    data = request.json
-    name = data.get("name")
-    email = data.get("email")
-    address = data.get("address")
-    note = data.get("note")
-    items = data.get("items", [])
+    data = request.get_json()
 
-    # 🟢 1. Uložení objednávky do databáze
+    # ✅ Získání zákaznických údajů z přesných klíčů z frontendu
+    name = data.get("name")                     # frontend posílá "name"
+    email = data.get("email")                   # frontend posílá "email"
+    address = data.get("address")               # frontend posílá "address"
+    note = data.get("note", "")                 # poznámka je volitelná
+    payment_type = data.get("payment_type", "")  # může být prázdné
+    cart_items = data.get("items", [])          # položky košíku
+
+    # ✅ Validace vstupu – pokud chybí povinná pole, vrátíme chybu
+    if not all([name, email, address]) or not cart_items:
+        return jsonify({"error": "Chybí povinné údaje"}), 400
+
+    # ✅ Vytvoření objednávky
     order = Order(
         customer_name=name,
         customer_email=email,
@@ -25,65 +56,52 @@ def create_order():
         note=note
     )
     db.session.add(order)
-    db.session.flush()  # získáme order.id
+    db.session.flush()  # získáme ID objednávky
 
-    # 🟢 2. Pro každou položku v objednávce
-    for item in items:
-        # 🟢 2a. Uložení položky objednávky
-        order_item = OrderItem(
-            order_id=order.id,
-            product_name=item["name"],
-            quantity=item["quantity"],
-            price=item["price"]
-        )
-        db.session.add(order_item)
+    # ✅ Pro každou položku vytvoříme OrderItem + SoldProduct
+    for item in cart_items:
+        product_name = item.get("name")
+        quantity = item.get("quantity", 1)
+        price = item.get("price")
 
-        # 🟢 2b. Najdi odpovídající produkt
-        product = Product.query.filter_by(name=item["name"]).first()
+        # Najdeme produkt podle názvu (abychom našli i ID pro mazání/sold)
+        product = Product.query.filter_by(name=product_name).first()
         if product:
-            # 🟢 2c. Uložení do databáze prodaných produktů
+            # 🔸 OrderItem
+            order_item = OrderItem(
+                product_name=product.name,
+                quantity=quantity,
+                price=product.price_czk,
+                order=order
+            )
+            db.session.add(order_item)
+
+            # 🔸 SoldProduct
             sold = SoldProduct(
+                original_product_id=product.id,
                 name=product.name,
-                price=product.price,
-                quantity=item["quantity"],
+                description=product.description,
+                image=product.image,
+                price=str(product.price_czk),
+                quantity=quantity,
                 customer_name=name,
                 customer_email=email,
                 customer_address=address,
                 note=note,
-                payment_type="dobírka"  # TODO: později nastavit dynamicky
+                payment_type=payment_type,
+                sold_at=datetime.utcnow()
             )
             db.session.add(sold)
 
-            # 🟢 2d. Odstranění produktu z hlavní tabulky
+            # ❌ Smazání z aktivních produktů
             db.session.delete(product)
 
-    # 🟢 3. Uložení všech změn do databáze
     db.session.commit()
 
-    # 🟢 4. E-mail zákazníkovi
-    customer_message = f"""Děkujeme za objednávku, {name}!
+    # ✅ Odeslání e-mailu
+    try:
+        send_email(email, name, cart_items)
+    except Exception as e:
+        print(f"[CHYBA E-MAILU] {e}")
 
-Adresa:
-{address}
-
-Poznámka: {note or "—"}
-
-Objednané položky:
-""" + "\n".join([f"- {item['name']} × {item['quantity']}" for item in items])
-
-    send_email("Potvrzení objednávky", [email], customer_message)
-
-    # 🟢 5. E-mail adminovi
-    admin_message = f"""📦 Nová objednávka od {name} ({email}):
-
-Adresa:
-{address}
-
-Poznámka: {note or "—"}
-
-Objednávka:
-""" + "\n".join([f"- {item['name']} × {item['quantity']} ks" for item in items])
-
-    send_email("📦 Nová objednávka", ["tvuj@email.cz"], admin_message)
-
-    return jsonify({"message": "Objednávka uložena a potvrzena."}), 200
+    return jsonify({"message": "Objednávka úspěšně vytvořena."}), 201
