@@ -67,3 +67,27 @@ class ProductMedia(db.Model):
 
     def __repr__(self) -> str:
         return f"<ProductMedia {self.media_type} - {self.filename}>"
+
+# ─── Order model ──────────────────────────────────────────────────
+class Order(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    customer_name = db.Column(db.String(120), nullable=False)
+    customer_email = db.Column(db.String(120), nullable=False)
+    customer_address = db.Column(db.Text, nullable=False)
+    note = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    items = db.relationship("OrderItem", backref="order", lazy=True, cascade="all, delete")
+
+    def __repr__(self):
+        return f"<Order #{self.id} – {self.customer_name}>"
+
+
+# ─── OrderItem model ──────────────────────────────────────────────
+class OrderItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    product_name = db.Column(db.String(150), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Numeric(10, 2), nullable=False)
+
+    order_id = db.Column(db.Integer, db.ForeignKey("order.id"), nullable=False)
