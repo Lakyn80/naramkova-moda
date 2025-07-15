@@ -1,10 +1,13 @@
+// src/pages/Checkout.jsx
+
 import React, { useState } from "react";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 
 export default function Checkout() {
-  const { cartItems, clearCart } = useCart(); // 🟩 Přidáno: možnost vymazat košík po odeslání
+  const { cartItems, clearCart } = useCart();
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -23,7 +26,6 @@ export default function Checkout() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // 🟩 Hlavní změna – přidání fetch() pro POST /api/orders
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -42,16 +44,14 @@ export default function Checkout() {
     try {
       const response = await fetch("/api/orders", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orderData),
       });
 
       if (response.ok) {
         console.log("✅ Objednávka odeslána");
-        setSubmitted(true);
-        clearCart(); // 🟩 Vymazání košíku po odeslání
+        clearCart(); // 🟩 vymazání košíku
+        setSubmitted(true); // 🟩 zobrazení děkovací zprávy
       } else {
         console.error("❌ Chyba při odesílání objednávky");
       }
@@ -84,7 +84,6 @@ export default function Checkout() {
           <p className="text-center text-pink-600">Košík je prázdný.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* 🟩 Formulář pro zákazníka */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 type="text"
@@ -127,15 +126,12 @@ export default function Checkout() {
               </button>
             </form>
 
-            {/* 🟩 Shrnutí košíku */}
             <div>
               <h3 className="text-xl font-semibold mb-4">Vaše objednávka:</h3>
               <ul className="space-y-2 text-pink-800 text-sm">
                 {cartItems.map((item, index) => (
                   <li key={index} className="flex justify-between">
-                    <span>
-                      {item.quantity}× {item.name}
-                    </span>
+                    <span>{item.quantity}× {item.name}</span>
                     <span>{(item.quantity * parseFloat(item.price)).toFixed(2)} Kč</span>
                   </li>
                 ))}

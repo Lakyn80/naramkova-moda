@@ -1,11 +1,24 @@
 // src/context/CartContext.jsx
-import React, { createContext, useContext, useState } from "react";
 
+import React, { createContext, useContext, useState, useEffect } from "react";
+
+// 🟩 Vytvoření kontextu pro košík
 const CartContext = createContext();
 
+// 🟩 Poskytovatel CartContextu pro obalení celé aplikace
 export function CartProvider({ children }) {
-  const [cartItems, setCartItems] = useState([]);
+  // 🟩 Inicializace košíku z localStorage
+  const [cartItems, setCartItems] = useState(() => {
+    const stored = localStorage.getItem("cartItems");
+    return stored ? JSON.parse(stored) : [];
+  });
 
+  // 🟩 Ukládání změn do localStorage
+  useEffect(() => {
+    localStorage.setItem("cartItems", JSON.stringify(cartItems));
+  }, [cartItems]);
+
+  // 🟩 Přidání produktu do košíku (nebo navýšení množství)
   const addToCart = (product, quantity = 1) => {
     setCartItems((prev) => {
       const existing = prev.find((item) => item.name === product.name);
@@ -21,10 +34,14 @@ export function CartProvider({ children }) {
     });
   };
 
+  // 🟩 Odebrání produktu z košíku
   const removeFromCart = (product) => {
-    setCartItems((prev) => prev.filter((item) => item.name !== product.name));
+    setCartItems((prev) =>
+      prev.filter((item) => item.name !== product.name)
+    );
   };
 
+  // 🟩 Zvýšení množství
   const increaseQuantity = (product) => {
     setCartItems((prev) =>
       prev.map((item) =>
@@ -35,6 +52,7 @@ export function CartProvider({ children }) {
     );
   };
 
+  // 🟩 Snížení množství, a odstranění, pokud by bylo 0
   const decreaseQuantity = (product) => {
     setCartItems((prev) =>
       prev
@@ -47,13 +65,28 @@ export function CartProvider({ children }) {
     );
   };
 
+  // 🟩 Vymazání celého košíku
+  const clearCart = () => {
+    setCartItems([]); // smazání ze state
+    localStorage.removeItem("cartItems"); // smazání z localStorage
+  };
+
+  // 🟩 Kontextové hodnoty
   return (
     <CartContext.Provider
-      value={{ cartItems, addToCart, removeFromCart, increaseQuantity, decreaseQuantity }}
+      value={{
+        cartItems,
+        addToCart,
+        removeFromCart,
+        increaseQuantity,
+        decreaseQuantity,
+        clearCart,
+      }}
     >
       {children}
     </CartContext.Provider>
   );
 }
 
+// 🟩 Hook pro použití košíku v komponentách
 export const useCart = () => useContext(CartContext);
