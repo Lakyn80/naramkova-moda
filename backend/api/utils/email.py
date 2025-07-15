@@ -1,3 +1,5 @@
+# 📁 backend/api/utils/email.py
+
 from flask_mail import Message
 from backend.extensions import mail
 

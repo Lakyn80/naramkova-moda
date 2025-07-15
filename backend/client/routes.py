@@ -36,15 +36,15 @@ def get_products():
 def create_order():
     data = request.get_json()
 
-    # ✅ Získání zákaznických údajů z přesných klíčů z frontendu
-    name = data.get("name")                     # frontend posílá "name"
-    email = data.get("email")                   # frontend posílá "email"
-    address = data.get("address")               # frontend posílá "address"
-    note = data.get("note", "")                 # poznámka je volitelná
-    payment_type = data.get("payment_type", "")  # může být prázdné
-    cart_items = data.get("items", [])          # položky košíku
+    # ✅ Získání zákaznických údajů z frontendu
+    name = data.get("name")
+    email = data.get("email")
+    address = data.get("address")
+    note = data.get("note", "")
+    payment_type = data.get("payment_type", "")
+    cart_items = data.get("items", [])
 
-    # ✅ Validace vstupu – pokud chybí povinná pole, vrátíme chybu
+    # ✅ Validace vstupu
     if not all([name, email, address]) or not cart_items:
         return jsonify({"error": "Chybí povinné údaje"}), 400
 
@@ -56,18 +56,19 @@ def create_order():
         note=note
     )
     db.session.add(order)
-    db.session.flush()  # získáme ID objednávky
+    db.session.flush()  # získáme ID
 
-    # ✅ Pro každou položku vytvoříme OrderItem + SoldProduct
+    total_price = 0  # součet všech položek
+
+    # ✅ Vytvoření OrderItem + SoldProduct + smazání produktu
     for item in cart_items:
         product_name = item.get("name")
         quantity = item.get("quantity", 1)
-        price = item.get("price")
 
-        # Najdeme produkt podle názvu (abychom našli i ID pro mazání/sold)
         product = Product.query.filter_by(name=product_name).first()
         if product:
-            # 🔸 OrderItem
+            total_price += float(product.price_czk) * quantity
+
             order_item = OrderItem(
                 product_name=product.name,
                 quantity=quantity,
@@ -76,7 +77,6 @@ def create_order():
             )
             db.session.add(order_item)
 
-            # 🔸 SoldProduct
             sold = SoldProduct(
                 original_product_id=product.id,
                 name=product.name,
@@ -93,14 +93,43 @@ def create_order():
             )
             db.session.add(sold)
 
-            # ❌ Smazání z aktivních produktů
             db.session.delete(product)
 
     db.session.commit()
 
-    # ✅ Odeslání e-mailu
+    # ✅ Odeslání e-mailu zákazníkovi
     try:
-        send_email(email, name, cart_items)
+        product_list = "\n".join([
+            f"- {item['quantity']}× {item['name']} za {item['price']} Kč"
+            for item in cart_items
+        ])
+
+        email_body = f"""
+Dobrý den, {name}!
+
+Děkujeme za Vaši objednávku. Níže jsou detaily:
+
+📍 Adresa:
+{address}
+
+📝 Poznámka:
+{note or '—'}
+
+🛒 Položky:
+{product_list}
+
+💰 Celková cena: {total_price:.2f} Kč
+
+S pozdravem,
+Tým Náramkové Módy
+        """.strip()
+
+        send_email(
+            subject="Vaše objednávka",
+            recipients=[email],
+            body=email_body
+        )
+
     except Exception as e:
         print(f"[CHYBA E-MAILU] {e}")
 
