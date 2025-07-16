@@ -1,22 +1,24 @@
 import os
+from dotenv import load_dotenv
 
 basedir = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(basedir, '.env'))  # načte proměnné z backend/.env
 
 class Config:
-    SECRET_KEY = "tajny_klic_zmen_si_ho"
+    SECRET_KEY = os.getenv('SECRET_KEY')
 
-    # ✅ správná cesta k databázi
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'instance', 'database.db')
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        'DATABASE_URL',
+        'sqlite:///' + os.path.join(basedir, 'instance', 'database.db')
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # 📁 složka pro nahrané soubory
-    UPLOAD_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), "static", "uploads")
+    UPLOAD_FOLDER = os.path.join(basedir, "static", "uploads")
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB
 
-    # 📧 nastavení pro Flask-Mail
-    MAIL_SERVER = 'smtp.gmail.com'
-    MAIL_PORT = 587
+    MAIL_SERVER = os.getenv('MAIL_SERVER')
+    MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
     MAIL_USE_TLS = True
-    MAIL_USERNAME = '24112020ek@gmail.com'
-    MAIL_PASSWORD = 'xqpjsqabachnmewc'
-    MAIL_DEFAULT_SENDER = '24112020ek@gmail.com'
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', MAIL_USERNAME)
