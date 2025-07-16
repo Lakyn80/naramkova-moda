@@ -11,7 +11,7 @@ export default function Hero() {
   return (
     <section
       id="home"
-      className="relative min-h-screen flex items-center justify-center px-4 pt-24 pb-10 sm:pt-32 sm:pb-16 overflow-hidden"
+      className="relative min-h-screen flex items-center justify-center px-4 pt-24 pb-10 sm:pt-32 sm:pb-16 overflow-hidden bg-background"
     >
       <div className="backdrop-blur-sm bg-white/20 rounded-2xl p-6 sm:p-10 shadow-2xl w-full max-w-xl md:max-w-3xl text-center animate-float z-10">
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-pink-900 bg-clip-text text-transparent bg-gradient-to-r from-pink-800 via-pink-600 to-pink-800 animate-gradient-x drop-shadow-lg">
