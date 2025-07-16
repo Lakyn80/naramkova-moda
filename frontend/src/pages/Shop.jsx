@@ -56,7 +56,6 @@ export default function Shop() {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 🔁 Načtení kategorií z API
   useEffect(() => {
     fetch("http://localhost:5000/api/categories/")
       .then((res) => res.json())
@@ -72,7 +71,6 @@ export default function Shop() {
       .catch((err) => console.error("Chyba při načítání kategorií:", err));
   }, [urlCategory]);
 
-  // 🔁 Načtení produktů
   useEffect(() => {
     fetch("http://localhost:5000/api/products/")
       .then((res) => res.json())
@@ -80,7 +78,6 @@ export default function Shop() {
       .catch((err) => console.error("Chyba načítání produktů:", err));
   }, []);
 
-  // ⛏️ Pomocné funkce
   const alias = (name) => categoryAliases[name] || name;
   const group = (alias) => categoryGroups[alias] || "Ostatní";
 
@@ -96,7 +93,6 @@ export default function Shop() {
 
   const deselectAll = () => setSelectedCategories([]);
 
-  // 🗂️ Dynamické seskupení podle skupin
   const groupedCategories = categories.reduce((acc, cat) => {
     const aliased = alias(cat.name.toLowerCase());
     const grp = group(aliased);
@@ -105,7 +101,6 @@ export default function Shop() {
     return acc;
   }, {});
 
-  // 🔍 Filtrování produktů
   const filteredProducts = products.filter((p) => {
     const raw = p.category?.name?.toLowerCase().trim() || "";
     const cat = alias(raw);
@@ -120,9 +115,9 @@ export default function Shop() {
       <div className="mx-auto max-w-7xl px-4">
         <h2 className="text-4xl font-extrabold text-center mb-10">E-shop</h2>
 
-        <div className="flex flex-wrap items-start gap-6">
-          {/* 📂 Levý panel – KATEGORIE */}
-          <aside className="flex-shrink-0 w-64 bg-white/80 p-4 rounded-2xl shadow">
+        <div className="flex gap-6 items-start">
+          {/* 📂 Sidebar */}
+          <aside className="w-64 shrink-0 bg-white/80 p-4 rounded-2xl shadow">
             <h3 className="text-lg font-semibold mb-4">Kategorie</h3>
             <input
               type="text"
@@ -196,13 +191,12 @@ export default function Shop() {
             </div>
           </aside>
 
-          {/* 🛍️ Pravý panel – PRODUKTY */}
-          <div className="flex flex-wrap items-start gap-6 justify-start">
+          {/* 🛍️ Produkty */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 flex-1">
             {filteredProducts.map((product) => (
               <div
                 key={product.id}
-                className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col flex-shrink-0"
-                style={{ width: 280 }}
+                className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col"
               >
                 <img
                   src={product.image}
@@ -232,7 +226,7 @@ export default function Shop() {
             ))}
 
             {filteredProducts.length === 0 && (
-              <div className="w-full text-center text-pink-800 font-medium">
+              <div className="w-full text-center text-pink-800 font-medium col-span-full">
                 Nenalezeny žádné produkty pro vybrané filtry.
               </div>
             )}

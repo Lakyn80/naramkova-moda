@@ -3,12 +3,19 @@ export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      // 🟩 Přidáváme sdílenou barvu pozadí
+      colors: {
+        background: "#fbe8f2", // 💗 Jemně růžová – sladěná s galerií a hero
+      },
+
+      // 🔁 Animace beze změn
       animation: {
         float: "float 6s ease-in-out infinite",
         "gradient-x": "gradient-x 6s ease infinite",
         shimmer: "shimmer 2s infinite linear",
         scroll: "scroll 40s linear infinite",
       },
+
       keyframes: {
         float: {
           "0%, 100%": { transform: "translateY(0px)" },
