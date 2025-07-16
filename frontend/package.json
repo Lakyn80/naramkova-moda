@@ -7,13 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "serve -s dist -l $PORT"
   },
   "dependencies": {
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2",
     "react-slick": "^0.30.3",
+    "serve": "^14.2.4",
     "slick-carousel": "^1.8.1",
     "yet-another-react-lightbox": "^3.23.4"
   },
