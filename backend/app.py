@@ -1,4 +1,5 @@
 # 📁 backend/app.py
+
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -23,7 +24,12 @@ def create_app() -> Flask:
     """
     Tovární funkce pro vytvoření Flask aplikace.
     """
-    app = Flask(__name__)
+
+    # 🟢 Explicitně nastavíme instance_path na backend/instance
+    instance_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "instance")
+    app = Flask(__name__, instance_path=instance_path)
+
+    # Načteme konfiguraci
     app.config.from_object(Config)
 
     # ─── Inicializace rozšíření ─────────────────────────────────
@@ -32,7 +38,6 @@ def create_app() -> Flask:
     login_manager.init_app(app)
     bcrypt.init_app(app)
     mail.init_app(app)
-    cors.init_app(app)
 
     # Povolení CORS pro React frontend na localhostu
     cors.init_app(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})

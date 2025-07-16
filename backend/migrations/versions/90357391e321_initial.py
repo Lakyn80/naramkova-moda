@@ -1,8 +1,8 @@
 """Initial
 
-Revision ID: 88937fef54c4
+Revision ID: 90357391e321
 Revises: 
-Create Date: 2025-07-15 19:30:42.355474
+Create Date: 2025-07-16 16:33:59.014715
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '88937fef54c4'
+revision = '90357391e321'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -32,6 +32,22 @@ def upgrade():
     sa.Column('customer_address', sa.Text(), nullable=False),
     sa.Column('note', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('sold_product',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('original_product_id', sa.Integer(), nullable=True),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('image', sa.String(length=255), nullable=True),
+    sa.Column('price', sa.String(length=20), nullable=False),
+    sa.Column('quantity', sa.Integer(), nullable=False),
+    sa.Column('customer_name', sa.String(length=100), nullable=True),
+    sa.Column('customer_email', sa.String(length=100), nullable=True),
+    sa.Column('customer_address', sa.Text(), nullable=True),
+    sa.Column('note', sa.Text(), nullable=True),
+    sa.Column('payment_type', sa.String(length=50), nullable=True),
+    sa.Column('sold_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('user',
@@ -61,8 +77,7 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['category_id'], ['category.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('product_media',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -81,6 +96,7 @@ def downgrade():
     op.drop_table('product')
     op.drop_table('order_item')
     op.drop_table('user')
+    op.drop_table('sold_product')
     op.drop_table('order')
     op.drop_table('category')
     # ### end Alembic commands ###
