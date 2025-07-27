@@ -5,8 +5,8 @@ import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 
 export default function Checkout() {
-  const { cartItems, clearCart } = useCart();
-  const navigate = useNavigate();
+  const { cartItems, clearCart } = useCart(); // 🛒 Získání položek v košíku
+  const navigate = useNavigate(); // 🔁 Navigace po odeslání
 
   const [formData, setFormData] = useState({
     name: "",
@@ -14,18 +14,22 @@ export default function Checkout() {
     address: "",
     note: "",
   });
-  const [submitted, setSubmitted] = useState(false);
 
+  const [submitted, setSubmitted] = useState(false); // ✅ Zobrazení děkovné obrazovky
+
+  // 🧮 Výpočet celkové ceny
   const total = cartItems.reduce(
     (sum, item) => sum + item.quantity * parseFloat(item.price),
     0
   );
 
+  // 🟩 Změna v polích formuláře
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // 🟦 Odeslání objednávky a zpracování platby
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -34,7 +38,6 @@ export default function Checkout() {
       email: formData.email,
       address: formData.address,
       note: formData.note,
-      // 🔧 přidáváme i id každé položky
       items: cartItems.map((item) => ({
         id: item.id,
         name: item.name,
@@ -44,24 +47,53 @@ export default function Checkout() {
     };
 
     try {
-      const response = await fetch("/api/orders", {
+      // 📨 Odeslání objednávky na backend
+      const orderResponse = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orderData),
       });
 
-      if (response.ok) {
-        console.log("✅ Objednávka odeslána");
-        clearCart(); // 🟩 vymazání košíku
-        setSubmitted(true); // 🟩 zobrazení děkovací zprávy
-      } else {
-        console.error("❌ Chyba při odesílání objednávky");
+      if (!orderResponse.ok) {
+        throw new Error("Chyba při vytváření objednávky");
       }
+
+      console.log("✅ Objednávka uložena");
+
+      // 🟧 Příprava dat pro GoPay platbu
+      const payData = {
+        amount: total,
+        order_number: "ORD-" + Date.now(),
+        return_url: window.location.origin + "/thank-you",
+        product_name: "Objednávka náramků",
+        email: formData.email,
+      };
+
+      const payResponse = await fetch("/api/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payData),
+      });
+
+      const payResult = await payResponse.json();
+      const gatewayUrl = payResult.gateway_url || (payResult.json && payResult.json.gateway_url);
+
+      if (payResponse.ok && gatewayUrl) {
+        clearCart(); // 🧹 Vymažeme košík
+        window.location.href = gatewayUrl; // 🔁 Přejdeme na GoPay bránu
+      } else {
+        console.warn("⚠️ GoPay platba se nevytvořila, zůstáváme na stránce.");
+        clearCart();       // 🧹 Vymažeme košík i bez platby
+        setSubmitted(true); // ✅ Zobrazíme děkovnou obrazovku
+      }
+
     } catch (error) {
-      console.error("❌ Fetch error:", error);
+      console.error("❌ Chyba při zpracování objednávky:", error);
+      alert("Nastala chyba při odesílání objednávky. Zkuste to znovu.");
     }
   };
 
+  // 🟨 Potvrzení po objednávce (pokud není redirect)
   if (submitted) {
     return (
       <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen text-center text-pink-900 bg-white">
@@ -86,6 +118,7 @@ export default function Checkout() {
           <p className="text-center text-pink-600">Košík je prázdný.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* 🧾 Formulář */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 type="text"
@@ -128,6 +161,7 @@ export default function Checkout() {
               </button>
             </form>
 
+            {/* 🧾 Shrnutí objednávky */}
             <div>
               <h3 className="text-xl font-semibold mb-4">Vaše objednávka:</h3>
               <ul className="space-y-2 text-pink-800 text-sm">
