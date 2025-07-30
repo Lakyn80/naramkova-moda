@@ -1,8 +1,21 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function Hero() {
   const navigate = useNavigate();
+
+  // ✅ Dynamické vložení <script> pro chat widget
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://tvujweb.cz/chat-widget.js"; // 🔗 URL k widgetu
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      // 🧹 Když by komponenta zmizela, script odstraníme
+      document.body.removeChild(script);
+    };
+  }, []);
 
   const handleExploreClick = () => {
     navigate("/shop");

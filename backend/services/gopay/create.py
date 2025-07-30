@@ -1,4 +1,5 @@
-# backend/services/gopay/create.py
+# 📁 backend/services/gopay/create.py
+
 from .client import create_gopay_client
 import json  # 🟩 potřebné pro dekódování JSON z bytes
 
@@ -32,13 +33,13 @@ def create_payment(data):
         ]
     }
 
+    # 🟦 Vytvoření platby přes GoPay
     response = gopay.create_payment(payment_data)
 
-    # ✅ Bezpečný převod odpovědi na slovník
+    # ✅ Bezpečný převod odpovědi na dict
     try:
         if hasattr(response, "json") and callable(response.json):
             json_data = response.json()
-            # Pokud .json() vrací bytes, dekóduj
             if isinstance(json_data, bytes):
                 return json.loads(json_data.decode("utf-8"))
             return json_data
@@ -49,5 +50,4 @@ def create_payment(data):
         else:
             return {"raw_response": str(response)}
     except Exception as e:
-        # 🟥 Pokud selže převod, vrátíme text chyby
         return {"error": f"Chyba při zpracování odpovědi GoPay: {str(e)}"}

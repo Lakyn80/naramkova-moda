@@ -1,25 +1,24 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+// vite.config.js
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
-export default defineConfig(({ mode }) => {
-  const isDev = mode === 'development';
-
-  return {
-    plugins: [react()],
-    define: {
-      global: 'window', // Fix pro react-image-lightbox
+// ✅ Exportuje widget jako IIFE do global scope
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    lib: {
+      entry: "src/index.jsx",
+      name: "ChatWidget", // ✅ důležité – export jako window.ChatWidget
+      fileName: () => "chat-widget.js",
     },
-    base: '/', // důležité pro Railway nebo Netlify
-    server: {
-      proxy: isDev
-        ? {
-            '/api': {
-              target: 'http://localhost:5000',
-              changeOrigin: true,
-              secure: false,
-            },
-          }
-        : undefined, // proxy není potřeba v produkci
+    rollupOptions: {
+      output: {
+        globals: {
+          react: "React",
+          "react-dom": "ReactDOM",
+        },
+      },
+      external: ["react", "react-dom"],
     },
-  };
+  },
 });

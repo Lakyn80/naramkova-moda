@@ -1,5 +1,3 @@
-# 📁 backend/app.py
-
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -7,10 +5,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from flask import Flask
 from backend.config import Config
 
-# ─── Načtení rozšíření ──────────────────────────────────────────
+# 🧩 Rozšíření
 from backend.extensions import db, login_manager, bcrypt, migrate, cors, mail
 
-# ─── Načtení jednotlivých blueprintů ────────────────────────────
+# 🧩 Blueprints
 from backend.admin import admin_bp
 from backend.auth.login_routes import auth_bp
 from backend.api.routes.product_routes import api_products
@@ -20,53 +18,46 @@ from backend.client import client_bp
 from backend.admin.sold_routes import sold_bp
 from backend.api.routes.payment_routes import payment_bp
 
-
 def create_app() -> Flask:
-    """
-    Tovární funkce pro vytvoření Flask aplikace.
-    """
-
-    # 🟢 Explicitně nastavíme instance_path na backend/instance
     instance_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "instance")
     app = Flask(__name__, instance_path=instance_path)
-
-    # Načteme konfiguraci
     app.config.from_object(Config)
 
-    # ─── Inicializace rozšíření ─────────────────────────────────
+    # ✅ Rozšíření
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     bcrypt.init_app(app)
     mail.init_app(app)
 
-    # Povolení CORS pro React frontend na localhostu
-    cors.init_app(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
+    # ✅ CORS pro všechny relevantní frontend původy
+    cors.init_app(app, resources={
+        r"/api/*": {
+            "origins": [
+                "http://localhost:5173",                       # Lokální vývoj
+                "https://lakyn80.github.io",                  # GitHub Pages
+                "https://naramkova-moda.web.app",             # (budoucí Firebase hosting)
+            ]
+        }
+    })
 
-    # Přesměrování na login, pokud není přihlášený uživatel
     login_manager.login_view = "auth.login"
-
-    # ─── Zajištění složky pro uploady ───────────────────────────
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-    # ─── Registrace všech blueprintů ─────────────────────────────
-    app.register_blueprint(auth_bp)         # Přihlášení (admin)
-    app.register_blueprint(admin_bp)        # Admin rozhraní
-    app.register_blueprint(api_products)    # API pro produkty
-    app.register_blueprint(api_categories)  # API pro kategorie (frontend)
-    app.register_blueprint(api_media)       # API pro obrázky/videa
-    app.register_blueprint(client_bp)       # Klientské API pro objednávky
-    app.register_blueprint(sold_bp)         # Správa prodaných produktů
-    app.register_blueprint(payment_bp)      # API pro platby
-    
+    # ✅ Registrace blueprintů
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(api_products)
+    app.register_blueprint(api_categories)
+    app.register_blueprint(api_media)
+    app.register_blueprint(client_bp)
+    app.register_blueprint(sold_bp)
+    app.register_blueprint(payment_bp)
 
-    # ─── User loader pro Flask-Login ─────────────────────────────
     from backend.user_loader import load_user  # noqa: F401
 
     return app
 
-
-# ─── Spuštění aplikace ───────────────────────────────────────────
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True)

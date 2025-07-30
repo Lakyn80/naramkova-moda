@@ -6,6 +6,7 @@ from backend.extensions import db
 from backend.admin.models import Product, Order, OrderItem, SoldProduct  # ✅ správné modely
 from backend.api.utils.email import send_email                           # ✅ správný import e-mailu
 from datetime import datetime
+from backend.services.gopay.create import create_payment  # ✅ Import funkce
 
 client_bp = Blueprint("client_bp", __name__)
 
@@ -134,3 +135,30 @@ Tým Náramkové Módy
         print(f"[CHYBA E-MAILU] {e}")
 
     return jsonify({"message": "Objednávka úspěšně vytvořena."}), 201
+
+# ------------------------------
+# TEST: GoPay platba nanečisto
+# ------------------------------
+@client_bp.route("/api/test-gopay", methods=["GET"])
+def test_gopay_payment():
+    test_data = {
+        "amount": 123.45,
+        "order_number": "TEST-" + str(datetime.utcnow().timestamp()).replace(".", ""),
+        "return_url": "http://localhost:5173/thank-you",
+        "product_name": "Testovací produkt",
+        "email": "zakaznik@test.cz"
+    }
+
+    result = create_payment(test_data)
+    print("📦 Výsledek GoPay platby:", result)
+
+    if "gw_url" in result or "gateway_url" in result:
+        return jsonify({
+            "message": "Platba byla úspěšně vytvořena",
+            "gateway_url": result.get("gw_url") or result.get("gateway_url")
+        }), 200
+
+    return jsonify({
+        "message": "Chyba při vytváření platby",
+        "error": result
+    }), 500
