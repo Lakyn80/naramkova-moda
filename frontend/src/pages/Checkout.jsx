@@ -1,8 +1,25 @@
 // 📁 src/pages/Checkout.jsx
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
+import QRCode from "qrcode";
+
+// ⚙️ IBAN obchodníka – ideálně nastav v .env jako VITE_IBAN
+const MERCHANT_IBAN = (import.meta.env.VITE_IBAN || "CZ6508000000001234567899").toUpperCase();
+
+// Helper: sestavení SPD 1.0 payloadu pro CZK QR platbu
+function buildSpdPayload({ iban, amount, vs, msg }) {
+  if (!iban) throw new Error("Chybí IBAN.");
+  const normIban = iban.replace(/\s+/g, "").toUpperCase();
+  const parts = ["SPD*1.0", `ACC:${normIban}`, `AM:${Number(amount).toFixed(2)}`, "CC:CZK"];
+  if (vs) parts.push(`X-VS:${String(vs).trim()}`);
+  if (msg) {
+    const safe = String(msg).replace(/[^\x20-\x7E]/g, ""); // ASCII only
+    parts.push(`MSG:${safe.slice(0, 60)}`);
+  }
+  return parts.join("*");
+}
 
 export default function Checkout() {
   const { cartItems, clearCart } = useCart();
@@ -14,11 +31,22 @@ export default function Checkout() {
     address: "",
     note: "",
   });
-  const [submitted, setSubmitted] = useState(false);
 
-  const total = cartItems.reduce(
-    (sum, item) => sum + item.quantity * parseFloat(item.price),
-    0
+  // Fáze: "form" (vyplnění) → "qr" (zobrazení QR) → "submitted" (díky)
+  const [phase, setPhase] = useState("form");
+
+  // Pro QR / platbu
+  const [vs, setVs] = useState(null);          // variabilní symbol (generujeme lokálně)
+  const [qrError, setQrError] = useState("");  // chyba generování QR
+  const canvasRef = useRef(null);
+
+  const total = useMemo(
+    () =>
+      cartItems.reduce(
+        (sum, item) => sum + item.quantity * parseFloat(item.price),
+        0
+      ),
+    [cartItems]
   );
 
   const handleChange = (e) => {
@@ -26,24 +54,55 @@ export default function Checkout() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  // 1) Klik na "Zaplatit QR" – nejdřív vygenerujeme VS a přejdeme do fáze QR
+  const handleShowQr = (e) => {
     e.preventDefault();
+    if (!cartItems.length) return;
 
-    const orderData = {
-      name: formData.name,
-      email: formData.email,
-      address: formData.address,
-      note: formData.note,
-      // 🔧 přidáváme i id každé položky
-      items: cartItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-      })),
-    };
+    // jednoduchý 6místný VS; můžeš nahradit napojením na backend, pokud chceš
+    const newVs = Math.floor(100000 + Math.random() * 900000);
+    setVs(newVs);
+    setPhase("qr");
+  };
 
+  // 2) Po zobrazení QR vygenerujeme grafiku do <canvas>
+  useEffect(() => {
+    if (phase !== "qr") return;
+    (async () => {
+      setQrError("");
+      try {
+        if (!MERCHANT_IBAN || !total || total <= 0 || !vs) return;
+        const payload = buildSpdPayload({
+          iban: MERCHANT_IBAN,
+          amount: total,
+          vs,
+          msg: `Objednavka ${vs}`,
+        });
+        await QRCode.toCanvas(canvasRef.current, payload, { width: 256, margin: 1 });
+      } catch (e) {
+        setQrError(String(e?.message || e));
+      }
+    })();
+  }, [phase, total, vs]);
+
+  // 3) Po zaplacení – uživatel potvrdí a teprve teď pošleme objednávku na backend
+  const handleConfirmPaidAndSubmit = async () => {
     try {
+      const orderData = {
+        name: formData.name,
+        email: formData.email,
+        address: formData.address,
+        note: formData.note,
+        vs,                // posíláme pro spárování (backend může ignorovat)
+        totalCzk: total,   // volitelné
+        items: cartItems.map((item) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+      };
+
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,22 +110,26 @@ export default function Checkout() {
       });
 
       if (response.ok) {
-        console.log("✅ Objednávka odeslána");
-        clearCart(); // 🟩 vymazání košíku
-        setSubmitted(true); // 🟩 zobrazení děkovací zprávy
+        clearCart();
+        setPhase("submitted");
       } else {
         console.error("❌ Chyba při odesílání objednávky");
+        alert("Nepodařilo se odeslat objednávku. Zkuste to prosím znovu.");
       }
     } catch (error) {
       console.error("❌ Fetch error:", error);
+      alert("Došlo k chybě při odesílání. Zkuste to prosím znovu.");
     }
   };
 
-  if (submitted) {
+  // 4) Děkovací obrazovka po odeslání objednávky
+  if (phase === "submitted") {
     return (
       <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen text-center text-pink-900 bg-white">
         <h2 className="text-2xl sm:text-3xl font-bold mb-4">Děkujeme za objednávku!</h2>
-        <p className="mb-6">Brzy se vám ozveme s potvrzením a detaily doručení.</p>
+        <p className="mb-6">
+          Brzy se vám ozveme s potvrzením a detaily doručení.
+        </p>
         <button
           onClick={() => navigate("/")}
           className="bg-pink-600 hover:bg-pink-700 text-white py-2 px-6 rounded-lg text-lg transition"
@@ -77,6 +140,49 @@ export default function Checkout() {
     );
   }
 
+  // 5) Fáze s QR platbou – platební krok PŘED odesláním objednávky
+  if (phase === "qr") {
+    return (
+      <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen bg-white text-pink-900">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-center">Platba objednávky</h2>
+          <p className="text-center text-pink-800 mb-6">
+            Naskenujte QR kód ve své bankovní aplikaci. <br />
+            Částka: <b>{total.toFixed(2)} CZK</b>{vs ? <> · VS: <b>{vs}</b></> : null}
+          </p>
+
+          <div className="flex flex-col items-center gap-4 bg-white rounded-2xl shadow p-6">
+            {qrError ? (
+              <div className="text-red-600">{qrError}</div>
+            ) : (
+              <canvas ref={canvasRef} className="border rounded-lg shadow w-64 h-64" />
+            )}
+
+            <div className="text-sm text-gray-600 text-center">
+              IBAN: <b className="select-all">{MERCHANT_IBAN}</b>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setPhase("form")}
+                className="px-4 py-2 rounded-md border"
+              >
+                Zpět
+              </button>
+              <button
+                onClick={handleConfirmPaidAndSubmit}
+                className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-4 rounded-md transition"
+              >
+                Potvrzuji platbu, odeslat objednávku
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // 6) Výchozí – formulář + souhrn, tlačítko "Zaplatit QR"
   return (
     <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen bg-white text-pink-900">
       <div className="max-w-5xl mx-auto">
@@ -86,7 +192,7 @@ export default function Checkout() {
           <p className="text-center text-pink-600">Košík je prázdný.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleShowQr} className="space-y-4">
               <input
                 type="text"
                 name="name"
@@ -124,7 +230,7 @@ export default function Checkout() {
                 type="submit"
                 className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-6 rounded-md transition"
               >
-                Odeslat objednávku
+                Zaplatit QR
               </button>
             </form>
 
@@ -133,8 +239,12 @@ export default function Checkout() {
               <ul className="space-y-2 text-pink-800 text-sm">
                 {cartItems.map((item, index) => (
                   <li key={index} className="flex justify-between">
-                    <span>{item.quantity}× {item.name}</span>
-                    <span>{(item.quantity * parseFloat(item.price)).toFixed(2)} Kč</span>
+                    <span>
+                      {item.quantity}× {item.name}
+                    </span>
+                    <span>
+                      {(item.quantity * parseFloat(item.price)).toFixed(2)} Kč
+                    </span>
                   </li>
                 ))}
               </ul>

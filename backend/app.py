@@ -17,6 +17,8 @@ from backend.api.routes.category_routes import api_categories
 from backend.api.routes.media_routes import api_media
 from backend.client import client_bp
 from backend.admin.sold_routes import sold_bp
+from backend.api.routes.payment_routes import payment_bp
+
 
 
 def create_app() -> Flask:
@@ -51,6 +53,7 @@ def create_app() -> Flask:
     app.register_blueprint(api_media)       # API pro obrázky/videa
     app.register_blueprint(client_bp)       # Klientské API pro objednávky
     app.register_blueprint(sold_bp)         # Správa prodaných produktů
+    app.register_blueprint(payment_bp)      # API pro platby (QR kódy)
 
     # ─── User loader pro Flask-Login ─────────────────────────────
     from backend.user_loader import load_user  # noqa: F401
