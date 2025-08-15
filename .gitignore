@@ -1,35 +1,78 @@
 # === OBECNÉ ===
 *.log
 *.tmp
-*.DS_Store
 *.swp
 *.swo
+*.pid
+*.seed
+*.bak
+*.old
+
+# Systémové/OS soubory
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# === TAJEMSTVÍ / ENV ===
+# kořenové env soubory (pokud je někdy přidáš)
+.env
+.env.*.local
 
 # === FRONTEND (React/Vite) ===
 frontend/node_modules/
 frontend/dist/
-frontend/.env
 frontend/.vite/
+frontend/.cache/
+frontend/.env
+frontend/.env.*.local
+frontend/*.tsbuildinfo
 
 # === BACKEND (Python/Flask) ===
+# Bytecode a cache
 backend/__pycache__/
-backend/*.pyc
-backend/instance/
-backend/.env
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+backend/.mypy_cache/
+backend/.pytest_cache/
+.mypy_cache/
+.pytest_cache/
+.cache/
+
+# Virtuální prostředí
+.venv/
+venv/
+env/
 backend/.venv/
 backend/venv/
 backend/env/
-backend/.mypy_cache/
-backend/.pytest_cache/
+
+# Instance data / lokální databáze a konfigurace
+backend/instance/
+backend/.env
 backend/database.db
-backend/migrations/  # pokud nechceš trackovat Alembic migrace
+backend/*.db
+*.sqlite
+*.sqlite3
+
+# Uploady (ponecháme placeholder .gitkeep)
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep
+
+# === MIGRACE (TRACKUJEME) ===
+# NEignoruj Alembic migrace – patří do repa:
+# backend/migrations/
+
+# === BUILD/ARTEFAKTY ===
+dist/
+build/
+.coverage
+coverage/
+htmlcov/
 
 # === EDITORY ===
 .vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
-
-# === SYSTEM FILES ===
-Thumbs.db
-ehthumbs.db

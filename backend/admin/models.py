@@ -1,5 +1,4 @@
 # 📁 backend/admin/models.py
-
 from datetime import datetime
 from backend.extensions import db  # ✅ Správný import databázového objektu
 
@@ -58,22 +57,30 @@ class ProductMedia(db.Model):
         return f"<ProductMedia {self.media_type} - {self.filename}>"
 
 
-# ✅ Objednávka – základní údaje o zákazníkovi
+# ✅ Objednávka – rozšířená o VS, total a status (JEN JEDNA DEFINICE!)
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+
+    # Nové pro párování plateb
+    vs = db.Column(db.String(32), unique=True, index=True, nullable=True)        # Variabilní symbol
+    total_czk = db.Column(db.Numeric(10, 2), nullable=True)                      # Celková cena
+    status = db.Column(db.String(32), nullable=False, default="awaiting_payment")  # awaiting_payment|paid|cancelled
+
+    # Původní pole
     customer_name = db.Column(db.String(120), nullable=False)
     customer_email = db.Column(db.String(120), nullable=False)
     customer_address = db.Column(db.Text, nullable=False)
     note = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     items = db.relationship("OrderItem", backref="order", lazy=True, cascade="all, delete")
 
     def __repr__(self):
-        return f"<Order #{self.id} – {self.customer_name}>"
+        return f"<Order #{self.id} – {self.customer_name} – VS:{self.vs}>"
 
 
-# ✅ Položka v objednávce – název, množství a cena
+# ✅ Položka v objednávce – název, množství a cena (ponecháno dle tvého modelu)
 class OrderItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_name = db.Column(db.String(150), nullable=False)
@@ -100,3 +107,16 @@ class SoldProduct(db.Model):
 
     def __repr__(self):
         return f"<SoldProduct {self.name} – {self.customer_name}>"
+
+
+# ✅ Evidence plateb (nový model)
+class Payment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    vs = db.Column(db.String(32), index=True, nullable=False)      # Variabilní symbol z banky
+    amount_czk = db.Column(db.Numeric(10, 2), nullable=False)
+    reference = db.Column(db.String(255), nullable=True)           # Např. poznámka/identifikace z banky
+    status = db.Column(db.String(32), default="received")          # received | matched
+    received_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Payment VS:{self.vs} {self.amount_czk} CZK>"

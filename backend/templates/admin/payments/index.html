@@ -1,0 +1,105 @@
+{% extends "shared/layout.html" %}
+
+{% block title %}💳 Platby{% endblock %}
+
+{% block content %}
+{% set F = filters | default({}) %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">💳 Platby</h1>
+  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin.dashboard') }}">← Zpět do adminu</a>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-md-3">
+    <input name="vs" class="form-control" value="{{ F.get('vs','') }}" placeholder="VS">
+  </div>
+  <div class="col-md-3">
+    <select name="status" class="form-select">
+      {% set st = F.get('status','all') %}
+      <option value="all"     {{ 'selected' if st=='all' else '' }}>Všechny stavy</option>
+      <option value="pending" {{ 'selected' if st=='pending' else '' }}>Čeká na platbu</option>
+      <option value="received"{{ 'selected' if st=='received' else '' }}>Přijato</option>
+      <option value="failed"  {{ 'selected' if st=='failed' else '' }}>Neúspěšné</option>
+    </select>
+  </div>
+  <div class="col-md-2">
+    <input type="date" name="from" class="form-control" value="{{ F.get('from','') }}" placeholder="Od">
+  </div>
+  <div class="col-md-2">
+    <input type="date" name="to" class="form-control" value="{{ F.get('to','') }}" placeholder="Do">
+  </div>
+  <div class="col-md-2">
+    <input type="number" name="limit" class="form-control" min="1" max="1000" value="{{ F.get('limit',100) }}">
+  </div>
+  <div class="col-12">
+    <button class="btn btn-primary">Filtrovat</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin.admin_payments_index') }}">Reset</a>
+  </div>
+</form>
+
+{% if summary %}
+<div class="alert alert-info py-2">
+  <strong>Souhrn:</strong>
+  počet: {{ summary.count }} |
+  suma: {{ "%.2f"|format(summary.total_amount) }} Kč
+</div>
+{% endif %}
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>VS</th>
+      <th>Částka</th>
+      <th>Status</th>
+      <th>Přijato</th>
+      <th>Objednávka</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+      {% set p = r.p %}
+      {% set o = r.o %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td>{{ p.vs }}</td>
+        <td>
+          {% if p.amount_czk is not none %}
+            {{ "%.2f"|format(p.amount_czk) }} Kč
+          {% endif %}
+        </td>
+        <td>
+          {% if p.status == 'pending' %}
+            <span class="badge bg-warning text-dark">Čeká</span>
+          {% elif p.status == 'received' %}
+            <span class="badge bg-success">Přijato</span>
+          {% elif p.status == 'failed' %}
+            <span class="badge bg-danger">Neúspěšné</span>
+          {% else %}
+            <span class="badge bg-secondary">{{ p.status }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if p.received_at %}
+            {{ p.received_at }}
+          {% elif p.created_at %}
+            {{ p.created_at }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>
+          {% if o %}
+            #{{ o.id }} <small class="text-muted">({{ o.status }}, {{ o.total_czk or '' }} Kč)</small>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="text-center text-muted">Nic nenalezeno.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

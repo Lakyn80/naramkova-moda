@@ -10,11 +10,9 @@
             opacity: 1;
             transition: opacity 1s ease-in-out;
         }
-
         .alert.fade-out.hide {
             opacity: 0;
         }
-
         /* Zachování prostoru pro flash zprávy – zabraňuje skákání */
         .flash-placeholder {
             min-height: 70px;
@@ -41,6 +39,11 @@
                     <!-- 📊 Prodané produkty -->
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('sold.sold_products') }}">📊 Prodané</a>
+                    </li>
+
+                    <!-- 💳 Platby -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.admin_payments_index') }}">💳 Platby</a>
                     </li>
 
                     <!-- 🚪 Odhlásit -->
@@ -75,7 +78,7 @@
         setTimeout(() => {
             document.querySelectorAll('.alert.fade-out').forEach(alert => {
                 alert.classList.add('hide');
-                setTimeout(() => alert.remove(), 1000); // po fade-outu odstraní
+                setTimeout(() => alert.remove(), 1000);
             });
         }, 3000);
     </script>
