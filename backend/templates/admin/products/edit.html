@@ -4,7 +4,7 @@
 {% block content %}
 <h1 class="mb-4">✏️ Upravit produkt</h1>
 
-<form method="post" enctype="multipart/form-data">
+<form id="product-edit-form" method="post" enctype="multipart/form-data">
   <div class="mb-3">
     <label class="form-label">Název</label>
     <input type="text" name="name" value="{{ product.name }}" class="form-control" required>
@@ -37,8 +37,7 @@
     {% if product.image %}
       <div class="mb-2">
         <img src="{{ url_for('static', filename='uploads/' ~ product.image) }}"
-             alt="náhled"
-             style="max-height:100px">
+             alt="náhled" style="max-height:100px">
       </div>
     {% endif %}
     <input type="file" name="image" class="form-control" accept="image/*">
@@ -56,12 +55,20 @@
                      style="max-height:100px" controls muted></video>
             {% else %}
               <img src="{{ url_for('static', filename='uploads/' ~ m.filename) }}"
-                   alt="media"
-                   style="max-height:100px">
+                   alt="media" style="max-height:100px">
             {% endif %}
-            <form action="{{ url_for('admin.delete_product_media', media_id=m.id) }}" method="post" class="mt-1">
-              <button type="submit" class="btn btn-sm btn-outline-danger">🗑️ Smazat</button>
-            </form>
+
+            <!-- tlačítko odešle POST na správný endpoint bez vnořeného <form> -->
+            <div class="mt-1">
+              <button type="submit"
+                      class="btn btn-sm btn-outline-danger"
+                      form="product-edit-form"
+                      formaction="{{ url_for('admin.delete_product_media', media_id=m.id) }}"
+                      formmethod="post"
+                      formnovalidate>
+                🗑️ Smazat
+              </button>
+            </div>
           </div>
         {% endfor %}
       </div>
@@ -69,7 +76,9 @@
     <input type="file" name="media" class="form-control" accept="image/*,video/*" multiple>
   </div>
 
-  <button type="submit" class="btn btn-primary">💾 Uložit</button>
-  <a href="{{ url_for('admin.list_products') }}" class="btn btn-secondary">Zpět</a>
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">💾 Uložit</button>
+    <a href="{{ url_for('admin.products') }}" class="btn btn-secondary">Zpět</a>
+  </div>
 </form>
 {% endblock %}

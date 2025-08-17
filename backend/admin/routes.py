@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 
 
 def _file_tuple(fs):
-    """Vrátí (filename, fileobj, mimetype) s fallbackem."""
+    """Vrátí (filename, fileobj, mimetype). ŽÁDNÉ placeholdery ani zásahy do URL (HARD RULES)."""
     fn = secure_filename(fs.filename)
     fobj = getattr(fs, "stream", None) or fs
     ctype = fs.mimetype or "application/octet-stream"
@@ -30,13 +30,26 @@ def dashboard():
     )
 
 
-@admin_bp.route("/products")
+# -----------------------------------------------------------------------------
+# LIST PRODUKTŮ
+#  - Primární endpoint: admin.products  → /admin/products
+#  - Alias endpoint:    admin.list_products → /admin/products/list (kvůli starým odkazům)
+# -----------------------------------------------------------------------------
+@admin_bp.route("/products", endpoint="products")
 @login_required
-def list_products():
+def products_list():
     products = Product.query.all()
     return render_template("admin/products/list.html", products=products)
 
+@admin_bp.route("/products/list", endpoint="list_products")
+@login_required
+def products_list_alias():
+    return redirect(url_for("admin.products"))
 
+
+# -----------------------------------------------------------------------------
+# PŘIDÁNÍ PRODUKTU (proxy přes API)
+# -----------------------------------------------------------------------------
 @admin_bp.route("/products/add", methods=["GET", "POST"])
 @login_required
 def add_product():
@@ -70,7 +83,7 @@ def add_product():
 
         if response.status_code == 201:
             flash("✅ Produkt byl úspěšně přidán přes API.", "success")
-            return redirect(url_for("admin.list_products"))
+            return redirect(url_for("admin.products"))
         else:
             flash("❌ Chyba při přidávání produktu přes API.", "danger")
             return redirect(request.url)
@@ -78,6 +91,9 @@ def add_product():
     return render_template("admin/products/add.html", categories=categories, category_labels=category_labels)
 
 
+# -----------------------------------------------------------------------------
+# ÚPRAVA PRODUKTU (proxy přes API)
+# -----------------------------------------------------------------------------
 @admin_bp.route("/products/edit/<int:product_id>", methods=["GET", "POST"])
 @login_required
 def edit_product(product_id: int):
@@ -112,14 +128,22 @@ def edit_product(product_id: int):
 
         if response.status_code == 200:
             flash("✅ Produkt byl upraven přes API.", "success")
-            return redirect(url_for("admin.list_products"))
+            return redirect(url_for("admin.products"))
         else:
             flash("❌ Chyba při úpravě produktu přes API.", "danger")
             return redirect(request.url)
 
-    return render_template("admin/products/edit.html", product=product, categories=categories, category_labels=category_labels)
+    return render_template(
+        "admin/products/edit.html",
+        product=product,
+        categories=categories,
+        category_labels=category_labels,
+    )
 
 
+# -----------------------------------------------------------------------------
+# SMAZÁNÍ PRODUKTU (proxy přes API)
+# -----------------------------------------------------------------------------
 @admin_bp.route("/products/delete/<int:product_id>", methods=["POST"])
 @login_required
 def delete_product(product_id: int):
@@ -128,11 +152,55 @@ def delete_product(product_id: int):
         response = requests.delete(url=api_url)
     except Exception as e:
         flash(f"❌ Chyba volání API: {e}", "danger")
-        return redirect(url_for("admin.list_products"))
+        return redirect(url_for("admin.products"))
 
     if response.status_code == 200:
         flash("🗑️ Produkt byl smazán přes API.", "info")
     else:
         flash("❌ Chyba při mazání produktu přes API.", "danger")
 
-    return redirect(url_for("admin.list_products"))
+    return redirect(url_for("admin.products"))
+
+
+# -----------------------------------------------------------------------------
+# SMAZÁNÍ JEDNOHO MÉDIA (endpoint: admin.delete_product_media)
+#  - ŽÁDNÉ zásahy do obrázků/URL, žádné placeholdery (HARD RULES)
+#  - Přímé mazání přes DB + soubor (os.remove)
+# -----------------------------------------------------------------------------
+@admin_bp.route(
+    "/products/media/delete/<int:media_id>",
+    methods=["POST"],
+    endpoint="delete_product_media",
+)
+@login_required
+def delete_product_media(media_id: int):
+    media = ProductMedia.query.get(media_id)
+    if not media:
+        flash("❌ Médium neexistuje.", "danger")
+        return redirect(url_for("admin.products"))
+
+    product_id = media.product_id
+    filename = media.filename
+    file_path = os.path.join(current_app.root_path, "static", "uploads", filename)
+
+    # nezasahovat, pokud je to main image produktu
+    is_same_as_main = False
+    product = Product.query.get(media.product_id)
+    if product and product.image and product.image == filename:
+        is_same_as_main = True
+
+    # pokud soubor sdílí více záznamů, nemaž fyzicky
+    shared_count = ProductMedia.query.filter(ProductMedia.filename == filename).count()
+
+    if not is_same_as_main and shared_count <= 1:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception:
+            pass
+
+    db.session.delete(media)
+    db.session.commit()
+
+    flash("🗑️ Fotka/medium bylo smazáno.", "info")
+    return redirect(url_for("admin.edit_product", product_id=product_id))
