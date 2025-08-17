@@ -1,27 +1,32 @@
 {% extends "shared/layout.html" %}
+{% block title %}Kategorie{% endblock %}
+
 {% block content %}
-<h2>📂 Kategorie</h2>
-<a href="{{ url_for('admin.add_category') }}" class="btn btn-primary mb-3">➕ Přidat kategorii</a>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3">Kategorie</h1>
+  <a class="btn btn-primary" href="{{ url_for('admin.add_category') }}">+ Přidat kategorii</a>
+</div>
 
 <table class="table table-striped">
   <thead>
-    <tr><th>Název</th><th>Popis</th><th>Akce</th></tr>
+    <tr>
+      <th>Název</th><th>Kategorie (skupina)</th><th>Popis</th><th>Akce</th>
+    </tr>
   </thead>
   <tbody>
-    {% for category in categories %}
+    {% for c in categories %}
     <tr>
-      <td>{{ category.name }}</td>
-      <td>{{ category.description }}</td>
-      <td>
-        <a href="{{ url_for('admin.edit_category', category_id=category.id) }}" class="btn btn-sm btn-warning">✏️ Upravit</a>
-        <form method="POST" action="{{ url_for('admin.delete_category', category_id=category.id) }}" style="display:inline-block;" onsubmit="return confirm('Opravdu chceš smazat tuto kategorii?');">
-          <button type="submit" class="btn btn-sm btn-danger">🗑️ Smazat</button>
+      <td>{{ c.name }}</td>
+      <td>{{ c.group or "—" }}</td>
+      <td>{{ c.description or "" }}</td>
+      <td class="d-flex gap-2">
+        <a class="btn btn-sm btn-warning" href="{{ url_for('admin.edit_category', category_id=c.id) }}">Upravit</a>
+        <form method="post" action="{{ url_for('admin.delete_category', category_id=c.id) }}" onsubmit="return confirm('Smazat?');">
+          <button class="btn btn-sm btn-danger" type="submit">Smazat</button>
         </form>
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
-
-<a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">↩️ Zpět na dashboard</a>
 {% endblock %}

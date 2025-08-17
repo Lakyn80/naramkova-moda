@@ -1,36 +1,40 @@
-{% extends "shared/layout.html" %}
 
+{% extends "shared/layout.html" %}
 {% block title %}💳 Platby{% endblock %}
 
 {% block content %}
-{% set F = filters | default({}) %}
-
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">💳 Platby</h1>
   <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin.dashboard') }}">← Zpět do adminu</a>
 </div>
 
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="mb-2">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'warning' if category=='danger' else category }} py-2 mb-2">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
 <form method="get" class="row g-2 mb-3">
   <div class="col-md-3">
-    <input name="vs" class="form-control" value="{{ F.get('vs','') }}" placeholder="VS">
+    <input name="vs" class="form-control" value="{{ filters.get('vs','') }}" placeholder="VS">
   </div>
   <div class="col-md-3">
     <select name="status" class="form-select">
-      {% set st = F.get('status','all') %}
+      {% set st = filters.get('status','all') %}
       <option value="all"     {{ 'selected' if st=='all' else '' }}>Všechny stavy</option>
       <option value="pending" {{ 'selected' if st=='pending' else '' }}>Čeká na platbu</option>
       <option value="received"{{ 'selected' if st=='received' else '' }}>Přijato</option>
       <option value="failed"  {{ 'selected' if st=='failed' else '' }}>Neúspěšné</option>
+      <option value="canceled"{{ 'selected' if st=='canceled' else '' }}>Zrušeno</option>
+      <option value="refunded"{{ 'selected' if st=='refunded' else '' }}>Vráceno</option>
     </select>
   </div>
   <div class="col-md-2">
-    <input type="date" name="from" class="form-control" value="{{ F.get('from','') }}" placeholder="Od">
-  </div>
-  <div class="col-md-2">
-    <input type="date" name="to" class="form-control" value="{{ F.get('to','') }}" placeholder="Do">
-  </div>
-  <div class="col-md-2">
-    <input type="number" name="limit" class="form-control" min="1" max="1000" value="{{ F.get('limit',100) }}">
+    <input type="number" name="limit" class="form-control" min="1" max="1000" value="{{ filters.get('limit',100) }}">
   </div>
   <div class="col-12">
     <button class="btn btn-primary">Filtrovat</button>
@@ -49,57 +53,55 @@
 <table class="table table-striped align-middle">
   <thead>
     <tr>
-      <th>ID</th>
-      <th>VS</th>
-      <th>Částka</th>
-      <th>Status</th>
-      <th>Přijato</th>
-      <th>Objednávka</th>
+      <th>ID</th><th>VS</th><th>Částka</th><th>Status</th><th>Přijato</th><th>Objednávka</th><th class="text-end">Akce</th>
     </tr>
   </thead>
   <tbody>
     {% for r in rows %}
-      {% set p = r.p %}
-      {% set o = r.o %}
+      {% set p = r.p %}{% set o = r.o %}
       <tr>
         <td>{{ p.id }}</td>
         <td>{{ p.vs }}</td>
+        <td>{% if p.amount_czk is not none %}{{ "%.2f"|format(p.amount_czk) }} Kč{% endif %}</td>
         <td>
-          {% if p.amount_czk is not none %}
-            {{ "%.2f"|format(p.amount_czk) }} Kč
+          {% if p.status == 'pending' %}<span class="badge bg-warning text-dark">Čeká</span>
+          {% elif p.status == 'received' %}<span class="badge bg-success">Přijato</span>
+          {% elif p.status == 'failed' %}<span class="badge bg-danger">Neúspěšné</span>
+          {% elif p.status == 'canceled' %}<span class="badge bg-secondary">Zrušeno</span>
+          {% elif p.status == 'refunded' %}<span class="badge bg-secondary">Vráceno</span>
+          {% else %}<span class="badge bg-secondary">{{ p.status }}</span>
           {% endif %}
         </td>
-        <td>
-          {% if p.status == 'pending' %}
-            <span class="badge bg-warning text-dark">Čeká</span>
-          {% elif p.status == 'received' %}
-            <span class="badge bg-success">Přijato</span>
-          {% elif p.status == 'failed' %}
-            <span class="badge bg-danger">Neúspěšné</span>
-          {% else %}
-            <span class="badge bg-secondary">{{ p.status }}</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if p.received_at %}
-            {{ p.received_at }}
-          {% elif p.created_at %}
-            {{ p.created_at }}
-          {% else %}
-            —
-          {% endif %}
-        </td>
+        <td>{% if p.received_at %}{{ p.received_at }}{% endif %}</td>
         <td>
           {% if o %}
-            #{{ o.id }} <small class="text-muted">({{ o.status }}, {{ o.total_czk or '' }} Kč)</small>
+            {% if has_order_detail %}
+              <a href="{{ url_for('admin.order_detail', order_id=o.id) }}">#{{ o.id }}</a>
+            {% else %}
+              #{{ o.id }}
+            {% endif %}
+            <small class="text-muted">({{ o.status }}, {{ o.total_czk or '' }} Kč)</small>
           {% else %}
             <span class="text-muted">—</span>
           {% endif %}
         </td>
+        <td class="text-end">
+          <form method="post" action="{{ url_for('admin.admin_payment_update_status', payment_id=p.id) }}" class="d-inline-flex gap-2">
+            <select name="status" class="form-select form-select-sm" style="width: 160px">
+              {% for st in allowed_statuses %}
+                <option value="{{ st }}" {{ 'selected' if p.status==st else '' }}>
+                  {% if st=='pending' %}Čeká na platbu{% elif st=='received' %}Přijato{% elif st=='failed' %}Neúspěšné{% elif st=='canceled' %}Zrušeno{% elif st=='refunded' %}Vráceno{% else %}{{ st }}{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-sm btn-primary">Uložit</button>
+          </form>
+        </td>
       </tr>
     {% else %}
-      <tr><td colspan="6" class="text-center text-muted">Nic nenalezeno.</td></tr>
+      <tr><td colspan="7" class="text-center text-muted">Nic nenalezeno.</td></tr>
     {% endfor %}
   </tbody>
 </table>
 {% endblock %}
+HTML

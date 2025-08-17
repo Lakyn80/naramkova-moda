@@ -1,8 +1,8 @@
-"""Initial
+"""init schema
 
-Revision ID: 88937fef54c4
+Revision ID: 8de75c781de8
 Revises: 
-Create Date: 2025-07-15 19:30:42.355474
+Create Date: 2025-08-16 23:31:43.851836
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '88937fef54c4'
+revision = '8de75c781de8'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -27,11 +27,45 @@ def upgrade():
     )
     op.create_table('order',
     sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('vs', sa.String(length=32), nullable=True),
+    sa.Column('total_czk', sa.Numeric(precision=10, scale=2), nullable=True),
+    sa.Column('status', sa.String(length=32), nullable=False),
     sa.Column('customer_name', sa.String(length=120), nullable=False),
     sa.Column('customer_email', sa.String(length=120), nullable=False),
     sa.Column('customer_address', sa.Text(), nullable=False),
     sa.Column('note', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('order', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_order_vs'), ['vs'], unique=True)
+
+    op.create_table('payment',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('vs', sa.String(length=32), nullable=False),
+    sa.Column('amount_czk', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('reference', sa.String(length=255), nullable=True),
+    sa.Column('status', sa.String(length=32), nullable=True),
+    sa.Column('received_at', sa.DateTime(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('payment', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_payment_vs'), ['vs'], unique=False)
+
+    op.create_table('sold_product',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('original_product_id', sa.Integer(), nullable=True),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('image', sa.String(length=255), nullable=True),
+    sa.Column('price', sa.String(length=20), nullable=False),
+    sa.Column('quantity', sa.Integer(), nullable=False),
+    sa.Column('customer_name', sa.String(length=100), nullable=True),
+    sa.Column('customer_email', sa.String(length=100), nullable=True),
+    sa.Column('customer_address', sa.Text(), nullable=True),
+    sa.Column('note', sa.Text(), nullable=True),
+    sa.Column('payment_type', sa.String(length=50), nullable=True),
+    sa.Column('sold_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('user',
@@ -61,8 +95,7 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['category_id'], ['category.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('product_media',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -81,6 +114,14 @@ def downgrade():
     op.drop_table('product')
     op.drop_table('order_item')
     op.drop_table('user')
+    op.drop_table('sold_product')
+    with op.batch_alter_table('payment', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_payment_vs'))
+
+    op.drop_table('payment')
+    with op.batch_alter_table('order', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_order_vs'))
+
     op.drop_table('order')
     op.drop_table('category')
     # ### end Alembic commands ###

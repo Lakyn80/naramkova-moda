@@ -1,145 +1,49 @@
-{# templates/admin/products/add.html #}
 {% extends "shared/layout.html" %}
 {% block title %}Přidat produkt{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2 class="mb-4">📦 Přidat nový produkt</h2>
+<h1 class="h3 mb-3">Přidat produkt</h1>
 
-  <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
-    <!-- Název produktu -->
-    <div class="mb-3">
-      <label for="name" class="form-label">Název produktu</label>
-      <input
-        type="text"
-        class="form-control"
-        name="name"
-        id="name"
-        placeholder="Např. Náramek pro maminku"
-        required
-      >
-      <div class="form-text">Zadej jasný a výstižný název produktu.</div>
-    </div>
+<form action="{{ url_for('admin.add_product') }}" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+  <div class="mb-3">
+    <label class="form-label">Název produktu</label>
+    <input type="text" name="name" class="form-control" placeholder="Např. Náramek pro maminku" required>
+  </div>
 
-    <!-- Popis -->
-    <div class="mb-3">
-      <label for="description" class="form-label">Popis</label>
-      <textarea
-        class="form-control"
-        name="description"
-        id="description"
-        rows="4"
-        placeholder="Popis produktu, použití, materiál apod."
-      ></textarea>
-    </div>
+  <div class="mb-3">
+    <label class="form-label">Popis</label>
+    <textarea name="description" class="form-control" rows="5" placeholder="Popis produktu, použití, materiál apod."></textarea>
+  </div>
 
-    <!-- Cena -->
-    <div class="mb-3">
-      <label for="price" class="form-label">Cena (Kč)</label>
-      <input
-        type="number"
-        step="0.01"
-        class="form-control"
-        name="price"
-        id="price"
-        required
-        placeholder="Např. 199.00"
-      >
-    </div>
+  <div class="mb-3">
+    <label class="form-label">Cena (Kč)</label>
+    <input type="number" step="0.01" min="0" name="price" class="form-control" placeholder="Např. 199.00" required>
+  </div>
 
-    <!-- Kategorie -->
-    <div class="mb-3">
-      <label for="category_id" class="form-label">Kategorie</label>
-      <select name="category_id" id="category_id" class="form-select" required>
-        <option value="">-- Vyber kategorii --</option>
-        {% for category in categories %}
-          <option value="{{ category.id }}">{{ category.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
+  <div class="mb-3">
+    <label class="form-label">Kategorie</label>
+    <select name="category_id" class="form-select" required>
+      <option value="" selected disabled>-- Vyber kategorii --</option>
+      {% for c in categories %}
+        <option value="{{ c.id }}">{{ (c.group or "—") ~ " — " ~ c.name }}</option>
+      {% endfor %}
+    </select>
+    <div class="form-text">Do backendu se odešle ID kategorie (ne text).</div>
+  </div>
 
-    <!-- Hlavní obrázek (volitelný) + okamžitý náhled -->
-    <div class="mb-3">
-      <label for="image" class="form-label">Hlavní obrázek (volitelný)</label>
-      <input
-        type="file"
-        class="form-control"
-        name="image"
-        id="image"
-        accept="image/*"
-      >
-      <div class="mt-2">
-        <img
-          id="main-preview"
-          src=""
-          alt="Náhled hlavního obrázku"
-          class="img-thumbnail"
-          style="max-width:150px; display:none;"
-        >
-      </div>
-      <div class="form-text">Např. úvodní miniatura produktu.</div>
-    </div>
+  <div class="mb-3">
+    <label class="form-label">Úvodní obrázek</label>
+    <input type="file" name="image" class="form-control" accept="image/*">
+  </div>
 
-    <!-- Další média: výběr více souborů + postupné přidávání -->
-    <div class="mb-3">
-      <label class="form-label">Další obrázky nebo videa</label>
-      <div id="media-inputs">
-        <input
-          type="file"
-          class="form-control mb-2"
-          name="media"
-          id="media"
-          multiple
-          accept="image/*,video/*"
-        >
-      </div>
-      <button
-        type="button"
-        id="add-media-btn"
-        class="btn btn-sm btn-outline-secondary mb-2"
-      >+ Přidat další výběr</button>
-      <div class="form-text">Můžeš přidat více obrázků nebo videí najednou.</div>
-    </div>
+  <div class="mb-4">
+    <label class="form-label">Další obrázky nebo videa</label>
+    <input type="file" name="media" class="form-control" accept="image/*,video/*" multiple>
+  </div>
 
-    <!-- Tlačítka -->
-    <div class="d-flex justify-content-between align-items-center mt-4">
-      <button type="submit" class="btn btn-success">
-        💾 Uložit produkt
-      </button>
-      <a href="{{ url_for('admin.list_products') }}" class="btn btn-secondary">
-        Zpět na přehled produktů
-      </a>
-    </div>
-  </form>
-</div>
-
-<script>
-  // Náhled hlavního obrázku ihned po výběru
-  document.getElementById('image').addEventListener('change', function(e) {
-    const [file] = e.target.files;
-    const preview = document.getElementById('main-preview');
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = ev => {
-        preview.src = ev.target.result;
-        preview.style.display = 'block';
-      };
-      reader.readAsDataURL(file);
-    } else {
-      preview.src = '';
-      preview.style.display = 'none';
-    }
-  });
-
-  // Přidávání dalších inputů pro média
-  document.getElementById('add-media-btn').addEventListener('click', function() {
-    const wrapper = document.getElementById('media-inputs');
-    const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.name = 'media';
-    inp.accept = 'image/*,video/*';
-    inp.className = 'form-control mb-2';
-    wrapper.appendChild(inp);
-  });
-</script>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('admin.list_products') }}" class="btn btn-outline-secondary">Zpět</a>
+    <button type="submit" class="btn btn-primary">Uložit</button>
+  </div>
+</form>
 {% endblock %}

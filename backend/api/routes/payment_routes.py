@@ -1,12 +1,11 @@
-# 📁 backend/api/routes/payment_routes.py
+# backend/api/routes/payment_routes.py
 import io
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, request, jsonify, current_app, send_file
 import qrcode
-from sqlalchemy import func
 
 from backend.extensions import db
 from backend.admin.models import Order, Payment
@@ -42,6 +41,98 @@ def _build_spd_payload(iban: str, amount: Decimal, vs: str | None, msg: str | No
         safe_msg = "".join(ch for ch in (msg or "") if 32 <= ord(ch) <= 126)
         parts.append(f"MSG:{safe_msg[:60]}")
     return "*".join(parts)
+
+
+def _safe_int(value, default):
+    """Bezpečný převod na int s dolní hranicí 0."""
+    try:
+        v = int(value)
+        return v if v >= 0 else default
+    except Exception:
+        return default
+
+
+def _detect_order_item_schema():
+    """
+    Prohlédne schéma tabulky 'order_item' a vrátí slovník s tím,
+    jaké sloupce jsou k dispozici pro výpočet součtu.
+    """
+    cols = db.session.execute(db.text("PRAGMA table_info('order_item');")).fetchall()
+    colnames = {c[1] for c in cols}
+
+    # kandidáti pro jednotkovou cenu
+    price_cols = [c for c in ("price_czk", "unit_price_czk", "unit_price") if c in colnames]
+    # kandidáti pro množství
+    qty_cols = [c for c in ("quantity", "qty", "count") if c in colnames]
+    # přímý sloupec s částkou položky (fallback)
+    amount_cols = [c for c in ("amount_czk",) if c in colnames]
+
+    # název FK na order (typicky order_id)
+    fk_col = "order_id" if "order_id" in colnames else None
+
+    return {
+        "has_table": len(cols) > 0,
+        "price_cols": price_cols,
+        "qty_cols": qty_cols,
+        "amount_cols": amount_cols,
+        "fk_col": fk_col,
+    }
+
+
+def _compute_amounts_for_orders(order_ids):
+    """
+    Vrátí dict {order_id: sum_amount} sečtený z 'order_item'.
+    Pokud nelze spočítat (chybějící tabulka/sloupce), vrátí prázdný dict.
+    """
+    if not order_ids:
+        return {}
+
+    schema = _detect_order_item_schema()
+    if not schema["has_table"] or not schema["fk_col"]:
+        return {}
+
+    fk = schema["fk_col"]
+    # Pokus 1: amount_czk přímo
+    if schema["amount_cols"]:
+        amount_col = schema["amount_cols"][0]
+        sql = f"""
+            SELECT {fk} as oid, COALESCE(SUM({amount_col}), 0) AS total
+            FROM order_item
+            WHERE {fk} IN :ids
+            GROUP BY {fk}
+        """
+        rows = db.session.execute(
+            db.text(sql.replace(":ids", "(:ids)")),
+            {"ids": tuple(order_ids)},
+        ).fetchall()
+        return {r.oid: float(r.total) for r in rows}
+
+    # Pokus 2: price * qty
+    if schema["price_cols"] and schema["qty_cols"]:
+        price = schema["price_cols"][0]
+        qty = schema["qty_cols"][0]
+        sql = f"""
+            SELECT {fk} as oid, COALESCE(SUM({price} * {qty}), 0) AS total
+            FROM order_item
+            WHERE {fk} IN :ids
+            GROUP BY {fk}
+        """
+        rows = db.session.execute(
+            db.text(sql.replace(":ids", "(:ids)")),
+            {"ids": tuple(order_ids)},
+        ).fetchall()
+        return {r.oid: float(r.total) for r in rows}
+
+    return {}
+
+
+def _vs_display(vs, order_id):
+    """
+    VS pro výstup: pokud vs je prázdné/NULL, použij fallback z id (osmimístný).
+    DB se tímto NEUPRAVUJE.
+    """
+    vs = (vs or "").strip()
+    return vs if vs else f"{int(order_id):08d}"
 
 
 # --- QR endpoints ----------------------------------------------------------
@@ -114,6 +205,134 @@ def payment_qr_payload():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+# --- NOVÉ: Čtení plateb z tabulky ORDER (pro UI) ---------------------------
+
+@payment_bp.get("/summary")
+def payments_summary():
+    """
+    Souhrn „plateb“ z tabulky Order.
+    - count
+    - sample (max 5 řádků) s mapováním: id, vs, status, amount, received_at
+      * amount = Order.total_czk nebo součet order_item (pokud total_czk je NULL)
+      * vs     = Order.vs nebo fallback z id (osmimístné)
+    """
+    try:
+        total = db.session.query(Order).count()
+
+        # sample 5 nejnovějších podle id
+        items = (
+            db.session.query(Order)
+            .order_by(Order.id.desc())
+            .limit(5)
+            .all()
+        )
+
+        ids = [o.id for o in items]
+        # pokud total_czk chybí, dopočítáme z order_item
+        computed = _compute_amounts_for_orders(ids) if ids else {}
+
+        def map_order(o: Order):
+            vs_out = _vs_display(getattr(o, "vs", None), o.id)
+            total_czk = getattr(o, "total_czk", None)
+            amount_val = (float(total_czk) if total_czk is not None else computed.get(o.id))
+            created_at = getattr(o, "created_at", None)
+            return {
+                "id": o.id,
+                "vs": vs_out,
+                "status": getattr(o, "status", None),
+                "amount": amount_val,
+                "received_at": (created_at.isoformat() if created_at else None),
+            }
+
+        sample = [map_order(o) for o in items]
+
+        columns_present = []
+        for attr in ("id", "vs", "status", "total_czk", "created_at"):
+            columns_present.append(attr if hasattr(Order, attr) else f"!missing:{attr}")
+
+        return jsonify({
+            "ok": True,
+            "source_table": "Order",
+            "count": total,
+            "sample": sample,
+            "columns_present": columns_present,
+        })
+    except Exception as e:
+        current_app.logger.exception("payments_summary (Order) failed")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@payment_bp.get("")
+def payments_list():
+    """
+    Stránkovaný seznam „plateb“ z Order.
+    Query:
+      - page (default 1)
+      - per_page (default 20, max 200)
+      - status (optional, Order.status)
+      - sort (optional: 'id','vs','status','amount','received_at','created_at','total_czk'; default 'id')
+      - direction ('asc' | 'desc', default 'desc')
+    """
+    try:
+        page = _safe_int(request.args.get("page", 1), 1)
+        per_page = min(max(_safe_int(request.args.get("per_page", 20), 20), 1), 200)
+        status = (request.args.get("status") or "").strip() or None
+        sort = (request.args.get("sort") or "id").strip()
+        direction = (request.args.get("direction") or "desc").strip().lower()
+        if direction not in ("asc", "desc"):
+            direction = "desc"
+
+        q = db.session.query(Order)
+        if status and hasattr(Order, "status"):
+            q = q.filter(Order.status == status)
+
+        # Sort map (amount -> total_czk, received_at -> created_at)
+        sort_map = {
+            "id": getattr(Order, "id", None),
+            "vs": getattr(Order, "vs", None),
+            "status": getattr(Order, "status", None),
+            "amount": getattr(Order, "total_czk", None),
+            "total_czk": getattr(Order, "total_czk", None),
+            "received_at": getattr(Order, "created_at", None),
+            "created_at": getattr(Order, "created_at", None),
+        }
+        sort_col = sort_map.get(sort) or sort_map["id"]
+        q = q.order_by(sort_col.asc() if direction == "asc" else sort_col.desc())
+
+        total = q.count()
+        items = q.limit(per_page).offset((page - 1) * per_page).all()
+        ids = [o.id for o in items]
+        computed = _compute_amounts_for_orders(ids) if ids else {}
+
+        def map_order(o: Order):
+            vs_out = _vs_display(getattr(o, "vs", None), o.id)
+            total_czk = getattr(o, "total_czk", None)
+            amount_val = (float(total_czk) if total_czk is not None else computed.get(o.id))
+            created_at = getattr(o, "created_at", None)
+            return {
+                "id": o.id,
+                "vs": vs_out,
+                "status": getattr(o, "status", None),
+                "amount": amount_val,
+                "received_at": (created_at.isoformat() if created_at else None),
+            }
+
+        items_out = [map_order(o) for o in items]
+
+        return jsonify({
+            "ok": True,
+            "source_table": "Order",
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "items": items_out,
+            "sort": {"column": sort, "direction": direction},
+        })
+    except Exception as e:
+        current_app.logger.exception("payments_list (Order) failed")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 # --- Platby / párování -----------------------------------------------------
 
 @payment_bp.post("/mark-paid")
@@ -151,7 +370,7 @@ def mark_paid_by_vs():
         if pay:
             pay.status = "received"
             if amount is not None:
-                pay.amount_czk = amount
+                setattr(pay, "amount_czk", amount)
             if ref:
                 pay.reference = (f"{pay.reference} | {ref}" if pay.reference else ref)
             if getattr(pay, "received_at", None) is None:
@@ -248,15 +467,15 @@ def get_status_by_vs(vs: str):
             "payment": None if not pay else {
                 "id": pay.id,
                 "vs": pay.vs,
-                "amountCzk": (float(pay.amount_czk) if pay.amount_czk is not None else None),
+                "amountCzk": (float(getattr(pay, "amount_czk")) if getattr(pay, "amount_czk", None) is not None else None),
                 "status": pay.status,
-                "reference": pay.reference,
+                "reference": getattr(pay, "reference", None),
                 "received_at": (pay.received_at.isoformat() if getattr(pay, "received_at", None) else None),
             },
             "order": None if not order else {
                 "id": order.id,
-                "status": order.status,
-                "totalCzk": (float(order.total_czk) if order.total_czk is not None else None),
+                "status": getattr(order, "status", None),
+                "totalCzk": (float(getattr(order, "total_czk")) if getattr(order, "total_czk", None) is not None else None),
                 "created_at": (order.created_at.isoformat() if getattr(order, "created_at", None) else None),
             }
         }), 200

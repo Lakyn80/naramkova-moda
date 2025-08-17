@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 
-// 🟩 Alias → pod jakým jménem se kategorie filtruje
+// ── pomocné mapy (beze změny) ────────────────────────────────────────────────
 const categoryAliases = {
   "pro maminku": "maminka",
   "pro tatínka": "tatínek",
@@ -19,10 +19,8 @@ const categoryAliases = {
   "svatba": "svatba",
   "pro páry": "pro páry",
   "jméno": "jméno",
-  "ostatní": "ostatní"
+  "ostatní": "ostatní",
 };
-
-// 🟦 Alias → skupina (pro rozřazení do hlavních sekcí)
 const categoryGroups = {
   maminka: "Rodina",
   tatínek: "Rodina",
@@ -42,8 +40,19 @@ const categoryGroups = {
   výročí: "Ostatní",
   "pro páry": "Ostatní",
   kamarádka: "Ostatní",
-  ostatní: "Ostatní"
+  ostatní: "Ostatní",
 };
+
+// ── absolutizace URL obrázků (to opravuje placeholdery) ──────────────────────
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
+function absoluteUploadUrl(u) {
+  if (!u) return null;
+  if (/^https?:\/\//i.test(u)) return u;                 // už je absolutní
+  if (u.startsWith("/")) return `${API_BASE}${u}`;       // např. /static/uploads/a.jpg
+  return `${API_BASE}/static/uploads/${u}`;              // jen název souboru
+}
+const toAlias = (name) => categoryAliases[name] || name;
+const toGroup = (alias) => categoryGroups[alias] || "Ostatní";
 
 export default function Shop() {
   const { addToCart } = useCart();
@@ -56,33 +65,46 @@ export default function Shop() {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 🔁 Načtení kategorií z API
+  // Načtení kategorií
   useEffect(() => {
     fetch("http://localhost:5000/api/categories/")
       .then((res) => res.json())
       .then((data) => {
         setCategories(data);
-        const all = data.map((cat) => alias(cat.name.toLowerCase()));
+        const all = data.map((cat) => toAlias((cat.name || "").toLowerCase()));
         if (urlCategory && all.includes(urlCategory)) {
           setSelectedCategories([urlCategory]);
         } else {
-          setSelectedCategories(all);
+          setSelectedCategories(all); // defaultně vybrat vše
         }
       })
       .catch((err) => console.error("Chyba při načítání kategorií:", err));
   }, [urlCategory]);
 
-  // 🔁 Načtení produktů
+  // Načtení produktů + mapování na starý tvar (image, price, category.name)
   useEffect(() => {
     fetch("http://localhost:5000/api/products/")
       .then((res) => res.json())
-      .then((data) => setProducts(data))
+      .then((data) => {
+        const mapped = (data || []).map((p) => {
+          const priceNumber =
+            typeof p.price === "number"
+              ? p.price
+              : typeof p.price_czk === "number"
+              ? p.price_czk
+              : Number(p.price) || 0;
+
+          return {
+            ...p,
+            image: absoluteUploadUrl(p.image_url || p.image), // ← FIX
+            price: priceNumber,
+            category: { name: p.category_name || "" },
+          };
+        });
+        setProducts(mapped);
+      })
       .catch((err) => console.error("Chyba načítání produktů:", err));
   }, []);
-
-  // ⛏️ Pomocné funkce
-  const alias = (name) => categoryAliases[name] || name;
-  const group = (alias) => categoryGroups[alias] || "Ostatní";
 
   const toggleCat = (cat) =>
     setSelectedCategories((prev) =>
@@ -90,29 +112,31 @@ export default function Shop() {
     );
 
   const selectAll = () => {
-    const all = categories.map((cat) => alias(cat.name.toLowerCase()));
+    const all = categories.map((cat) =>
+      toAlias((cat.name || "").toLowerCase())
+    );
     setSelectedCategories(all);
   };
-
   const deselectAll = () => setSelectedCategories([]);
 
-  // 🗂️ Dynamické seskupení podle skupin
+  // Seskupení kategorií
   const groupedCategories = categories.reduce((acc, cat) => {
-    const aliased = alias(cat.name.toLowerCase());
-    const grp = group(aliased);
+    const aliased = toAlias((cat.name || "").toLowerCase());
+    const grp = toGroup(aliased);
     if (!acc[grp]) acc[grp] = [];
     acc[grp].push({ ...cat, alias: aliased });
     return acc;
   }, {});
 
-  // 🔍 Filtrování produktů
+  // Filtrování (původní logika)
   const filteredProducts = products.filter((p) => {
-    const raw = p.category?.name?.toLowerCase().trim() || "";
-    const cat = alias(raw);
-    return (
-      selectedCategories.includes(cat) &&
-      p.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const raw = p?.category?.name?.toLowerCase().trim() || "";
+    const cat = toAlias(raw);
+    const matchesCat = selectedCategories.includes(cat);
+    const matchesText = (p.name || "")
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    return matchesCat && matchesText;
   });
 
   return (
@@ -121,7 +145,7 @@ export default function Shop() {
         <h2 className="text-4xl font-extrabold text-center mb-10">E-shop</h2>
 
         <div className="flex flex-wrap items-start gap-6">
-          {/* 📂 Levý panel – KATEGORIE */}
+          {/* Sidebar */}
           <aside className="flex-shrink-0 w-64 bg-white/80 p-4 rounded-2xl shadow">
             <h3 className="text-lg font-semibold mb-4">Kategorie</h3>
             <input
@@ -131,7 +155,6 @@ export default function Shop() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-
             <ul className="space-y-4 text-sm">
               {Object.entries(groupedCategories).map(([groupName, cats]) => (
                 <li key={groupName}>
@@ -139,19 +162,17 @@ export default function Shop() {
                     <strong>{groupName.toUpperCase()}</strong>
                     <button
                       onClick={() => {
+                        const allAliases = cats.map((c) => c.alias);
                         const allSelected = cats.every((c) =>
                           selectedCategories.includes(c.alias)
                         );
                         if (allSelected) {
                           setSelectedCategories((prev) =>
-                            prev.filter((c) => !cats.map((c) => c.alias).includes(c))
+                            prev.filter((c) => !allAliases.includes(c))
                           );
                         } else {
                           setSelectedCategories((prev) => [
-                            ...new Set([
-                              ...prev,
-                              ...cats.map((c) => c.alias)
-                            ])
+                            ...new Set([...prev, ...allAliases]),
                           ]);
                         }
                       }}
@@ -179,7 +200,6 @@ export default function Shop() {
                 </li>
               ))}
             </ul>
-
             <div className="mt-6 space-y-2">
               <button
                 onClick={selectAll}
@@ -196,7 +216,7 @@ export default function Shop() {
             </div>
           </aside>
 
-          {/* 🛍️ Pravý panel – PRODUKTY */}
+          {/* Produkty */}
           <div className="flex flex-wrap items-start gap-6 justify-start">
             {filteredProducts.map((product) => (
               <div
@@ -205,13 +225,16 @@ export default function Shop() {
                 style={{ width: 280 }}
               >
                 <img
-                  src={product.image}
+                  src={product.image || "/placeholder.png"}
                   alt={product.name}
                   className="w-full h-48 object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = "/placeholder.png";
+                  }}
                 />
                 <div className="p-4 flex flex-col flex-grow">
                   <Link
-                    to={`/shop/${product.name
+                    to={`/shop/${(product.name || "")
                       .toLowerCase()
                       .replace(/\s+/g, "-")}`}
                     className="text-lg font-semibold mb-2 hover:underline"
@@ -219,10 +242,16 @@ export default function Shop() {
                     {product.name}
                   </Link>
                   <p className="text-pink-700 mb-4">
-                    {product.price.toFixed(2)} Kč
+                    {(Number(product.price) || 0).toFixed(2)} Kč
                   </p>
                   <button
-                    onClick={() => addToCart(product)}
+                    onClick={() =>
+                      addToCart({
+                        id: product.id,
+                        name: product.name,
+                        price: Number(product.price) || 0,
+                      })
+                    }
                     className="mt-auto bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition"
                   >
                     Přidat do košíku
@@ -230,7 +259,6 @@ export default function Shop() {
                 </div>
               </div>
             ))}
-
             {filteredProducts.length === 0 && (
               <div className="w-full text-center text-pink-800 font-medium">
                 Nenalezeny žádné produkty pro vybrané filtry.

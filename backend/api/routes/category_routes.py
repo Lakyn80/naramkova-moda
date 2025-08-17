@@ -1,60 +1,86 @@
-from flask import Blueprint, jsonify, request
+from __future__ import annotations
+
+from flask import Blueprint, request, jsonify
 from backend.extensions import db
-from backend.admin.models import Category
+from backend.models import Category
 
 api_categories = Blueprint("api_categories", __name__, url_prefix="/api/categories")
 
-# Pomocná funkce na převod do dict
-def category_to_dict(category):
+
+def _cat_to_dict(c: Category) -> dict:
+    # Vrací jak původní 'group', tak alias 'category' (kvůli FE/administraci bez migrace DB)
     return {
-        "id": category.id,
-        "name": category.name,
-        "description": category.description
+        "id": c.id,
+        "name": c.name,
+        "description": getattr(c, "description", None),
+        "group": getattr(c, "group", None),
+        "category": getattr(c, "group", None),  # alias
     }
 
-# GET /api/categories – seznam všech kategorií
-@api_categories.route("/", methods=["GET"])
-def get_categories():
-    categories = Category.query.all()
-    return jsonify([category_to_dict(cat) for cat in categories])
 
-# GET /api/categories/<id> – detail kategorie
-@api_categories.route("/<int:category_id>", methods=["GET"])
-def get_category(category_id):
-    category = Category.query.get_or_404(category_id)
-    return jsonify(category_to_dict(category))
+def _get_payload() -> dict:
+    return request.get_json(silent=True) or request.form or {}
 
-# POST /api/categories – vytvoření nové kategorie
-@api_categories.route("/", methods=["POST"])
+
+@api_categories.get("/")
+def list_categories():
+    q = Category.query
+    # filtr může přijít jako group= nebo category=
+    group = request.args.get("group") or request.args.get("category")
+    if group:
+        q = q.filter(Category.group == group)
+    items = q.order_by(Category.name.asc()).all()
+    return jsonify([_cat_to_dict(c) for c in items]), 200
+
+
+@api_categories.get("/<int:category_id>")
+def get_category(category_id: int):
+    c = Category.query.get_or_404(category_id)
+    return jsonify(_cat_to_dict(c)), 200
+
+
+@api_categories.post("/")
 def create_category():
-    data = request.get_json()
-    name = data.get("name")
-    description = data.get("description")
+    data = _get_payload()
+    name = (data.get("name") or "").strip()
+    description = (data.get("description") or "").strip() or None
+
+    # přijmi group i category (alias)
+    group_val = (data.get("group") or data.get("category") or "").strip() or None
 
     if not name:
-        return jsonify({"error": "Název je povinný"}), 400
+        return jsonify({"error": "Missing 'name'"}), 400
 
-    category = Category(name=name, description=description)
-    db.session.add(category)
+    c = Category(name=name, description=description, group=group_val)
+    db.session.add(c)
     db.session.commit()
-    return jsonify(category_to_dict(category)), 201
+    return jsonify(_cat_to_dict(c)), 201
 
-# PUT /api/categories/<id> – úprava kategorie
-@api_categories.route("/<int:category_id>", methods=["PUT"])
-def update_category(category_id):
-    category = Category.query.get_or_404(category_id)
-    data = request.get_json()
 
-    category.name = data.get("name", category.name)
-    category.description = data.get("description", category.description)
+@api_categories.put("/<int:category_id>")
+def update_category(category_id: int):
+    c = Category.query.get_or_404(category_id)
+    data = _get_payload()
+
+    if "name" in data:
+        name = (data.get("name") or "").strip()
+        if not name:
+            return jsonify({"error": "Invalid 'name'"}), 400
+        c.name = name
+
+    if "description" in data:
+        c.description = (data.get("description") or "").strip() or None
+
+    if "group" in data or "category" in data:
+        c.group = (data.get("group") or data.get("category") or "").strip() or None
 
     db.session.commit()
-    return jsonify(category_to_dict(category)), 200
+    return jsonify(_cat_to_dict(c)), 200
 
-# DELETE /api/categories/<id> – smazání
-@api_categories.route("/<int:category_id>", methods=["DELETE"])
-def delete_category(category_id):
-    category = Category.query.get_or_404(category_id)
-    db.session.delete(category)
+
+@api_categories.delete("/<int:category_id>")
+def delete_category(category_id: int):
+    c = Category.query.get_or_404(category_id)
+    db.session.delete(c)
     db.session.commit()
-    return jsonify({"message": "Kategorie byla smazána."}), 200
+    return jsonify({"ok": True}), 200

@@ -5,18 +5,9 @@
     <title>{% block title %}Admin{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* Flash zprávy – elegantní fade-out bez posunu */
-        .alert.fade-out {
-            opacity: 1;
-            transition: opacity 1s ease-in-out;
-        }
-        .alert.fade-out.hide {
-            opacity: 0;
-        }
-        /* Zachování prostoru pro flash zprávy – zabraňuje skákání */
-        .flash-placeholder {
-            min-height: 70px;
-        }
+        .alert.fade-out { opacity: 1; transition: opacity 1s ease-in-out; }
+        .alert.fade-out.hide { opacity: 0; }
+        .flash-placeholder { min-height: 70px; }
     </style>
 </head>
 <body>
@@ -25,31 +16,11 @@
             <a class="navbar-brand" href="{{ url_for('admin.dashboard') }}">🛒 Admin</a>
             <div class="collapse navbar-collapse">
                 <ul class="navbar-nav ms-auto">
-
-                    <!-- 📦 Produkty -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.list_products') }}">📦 Produkty</a>
-                    </li>
-
-                    <!-- 📂 Kategorie -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.list_categories') }}">📂 Kategorie</a>
-                    </li>
-
-                    <!-- 📊 Prodané produkty -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('sold.sold_products') }}">📊 Prodané</a>
-                    </li>
-
-                    <!-- 💳 Platby -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin.admin_payments_index') }}">💳 Platby</a>
-                    </li>
-
-                    <!-- 🚪 Odhlásit -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.logout') }}">🚪 Odhlásit</a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.list_products') }}">📦 Produkty</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.list_categories') }}">📂 Kategorie</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.sold_products') }}">📊 Prodané</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.admin_payments_index') }}">💳 Platby</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">🚪 Odhlásit</a></li>
                 </ul>
             </div>
         </div>
@@ -74,7 +45,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Automatické skrytí flash zpráv bez posunu stránky
         setTimeout(() => {
             document.querySelectorAll('.alert.fade-out').forEach(alert => {
                 alert.classList.add('hide');

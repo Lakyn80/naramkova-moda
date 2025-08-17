@@ -1,37 +1,37 @@
 {% extends "shared/layout.html" %}
+{% block title %}Přidat kategorii{% endblock %}
 
 {% block content %}
-<h2>➕ Přidat kategorii</h2>
+<h1 class="h3 mb-3">Přidat kategorii</h1>
 
-<!-- ✅ Formulář pro přidání nové kategorie -->
-<form method="post">
-  <!-- Název kategorie -->
+<form action="{{ url_for('admin.add_category') }}" method="post" class="needs-validation" novalidate>
   <div class="mb-3">
-    <label for="name" class="form-label">Název</label>
-    <input type="text" class="form-control" id="name" name="name" required>
+    <label class="form-label">Název</label>
+    <input type="text" name="name" class="form-control" placeholder="např. babka" required>
   </div>
 
-  <!-- Popis kategorie (nepovinné, můžeš později přidat i do modelu) -->
   <div class="mb-3">
-    <label for="description" class="form-label">Popis</label>
-    <textarea class="form-control" id="description" name="description"></textarea>
+    <label class="form-label">Kategorie (dříve Skupina)</label>
+    <input type="text" name="category" class="form-control" placeholder="např. Rodina">
+    <input type="hidden" name="group" value="">
+    <script>
+      document.addEventListener('input', (e) => {
+        if (e.target && e.target.name === 'category') {
+          const g = document.querySelector('input[name="group"]');
+          if (g) g.value = e.target.value;
+        }
+      });
+    </script>
   </div>
 
-  <!-- ✅ Skupina kategorie (např. Rodina, Svatba, Dárky...) -->
-  <div class="mb-3">
-    <label for="group" class="form-label">Skupina</label>
-    <select class="form-select" id="group" name="group">
-      <option value="">(Bez skupiny)</option>
-      <option value="Rodina">Rodina</option>
-      <option value="Svatba">Svatba</option>
-      <option value="Dárky">Dárky</option>
-      <option value="Přátelství">Přátelství</option>
-      <option value="Ostatní">Ostatní</option>
-    </select>
+  <div class="mb-4">
+    <label class="form-label">Popis</label>
+    <textarea name="description" class="form-control" rows="3" placeholder="volitelné"></textarea>
   </div>
 
-  <!-- Tlačítka -->
-  <button type="submit" class="btn btn-success">💾 Uložit</button>
-  <a href="{{ url_for('admin.list_categories') }}" class="btn btn-secondary">↩️ Zpět</a>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('admin.list_categories') }}" class="btn btn-outline-secondary">Zpět</a>
+    <button type="submit" class="btn btn-primary">Uložit</button>
+  </div>
 </form>
 {% endblock %}
