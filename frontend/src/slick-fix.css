@@ -1,0 +1,25 @@
+/* Donutíme slick jet horizontálně i když ho něco přepíše */
+.slick-slider {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+}
+
+.slick-list {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+
+.slick-track {
+  display: flex !important;      /* ← klíčové: horizontální skládání */
+  align-items: stretch;
+}
+
+.slick-slide {
+  height: auto;                  /* žádná fixní výška slide */
+}
+
+.slick-slide > div {
+  height: 100%;                  /* vnitřek vyplní slide (kvůli card) */
+}
