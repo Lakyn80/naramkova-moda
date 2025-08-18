@@ -9,7 +9,6 @@ export default function Gallery() {
   const [activeIndex, setActiveIndex] = useState(0);
   const navigate = useNavigate();
 
-  // 🔄 Načtení produktů z backendu
   useEffect(() => {
     fetch("/api/products")
       .then((res) => res.json())
@@ -23,12 +22,16 @@ export default function Gallery() {
     dots: false,
     infinite: true,
     autoplay: true,
-    autoplaySpeed: 3000,
-    speed: 600,
-    slidesToShow: 1, // 🔴 ZOBRAZIT JEDEN PRODUKT NA SLIDE
+    autoplaySpeed: 6000, // 🔧 Pomalejší posun
+    speed: 900,
+    slidesToShow: 3,     // 🔧 Tři produkty na slide
     slidesToScroll: 1,
     pauseOnHover: true,
     afterChange: (index) => setActiveIndex(index),
+    responsive: [
+      { breakpoint: 1024, settings: { slidesToShow: 2 } },
+      { breakpoint: 640, settings: { slidesToShow: 1 } },
+    ],
   };
 
   const percent = ((activeIndex % totalSlides) / totalSlides) * 100;
@@ -39,7 +42,7 @@ export default function Gallery() {
         Galerie
       </h2>
 
-      <div className="max-w-5xl mx-auto relative">
+      <div className="max-w-6xl mx-auto relative">
         <Slider {...settings}>
           {products.map((product) => (
             <div
@@ -47,22 +50,24 @@ export default function Gallery() {
               onClick={() => navigate(`/shop/${product.id}`)}
               className="cursor-pointer px-2"
             >
-              <div className="rounded-xl overflow-hidden shadow-lg transition hover:scale-[1.02] duration-300 bg-white">
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  className="w-full h-[320px] object-contain bg-white"
-                />
-                <div className="p-3 text-center text-pink-800 font-medium">
-                  {product.name}
+              <div className="p-4 bg-white border rounded-xl shadow-md hover:shadow-lg transition-all duration-300">
+                <div className="w-full h-[260px] overflow-hidden rounded-md bg-white flex items-center justify-center">
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    className="object-contain max-h-full max-w-full"
+                  />
                 </div>
+                <p className="text-center text-pink-800 font-medium mt-2 text-sm sm:text-base">
+                  {product.name}
+                </p>
               </div>
             </div>
           ))}
         </Slider>
 
         {/* Progress bar pod sliderem */}
-        <div className="h-2 bg-pink-100 mt-4 rounded-full overflow-hidden">
+        <div className="h-2 bg-pink-100 mt-6 rounded-full overflow-hidden">
           <div
             className="h-full bg-pink-500 transition-all duration-500"
             style={{ width: `${percent}%` }}
