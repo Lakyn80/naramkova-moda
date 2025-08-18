@@ -11,7 +11,13 @@ export default function Hero() {
   return (
     <section
       id="home"
-      className="relative min-h-screen flex items-center justify-center px-4 pt-24 pb-10 sm:pt-32 sm:pb-16 overflow-hidden bg-gradient-to-b from-rose-dark to-rose-mid"
+      className="relative min-h-screen flex items-center justify-center px-4 pt-24 pb-10 sm:pt-32 sm:pb-16 overflow-hidden"
+      style={{
+        backgroundImage: `
+          radial-gradient(circle at top left, #3b0764 0%, #6b21a8 30%, transparent 60%),
+          linear-gradient(to right, #9d174d, #be185d, #f9a8d4)
+        `
+      }}
     >
       <div className="backdrop-blur-sm bg-white/20 rounded-2xl p-6 sm:p-10 shadow-2xl w-full max-w-xl md:max-w-3xl text-center animate-float z-10">
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white bg-clip-text text-transparent bg-gradient-to-r from-pink-200 via-pink-300 to-pink-200 animate-gradient-x drop-shadow-lg">
@@ -28,6 +34,7 @@ export default function Hero() {
         </button>
       </div>
 
+      {/* Vlna dolů navazující na další sekci – beze švu */}
       <img
         src="/wave.svg"
         alt="Wave bottom"
