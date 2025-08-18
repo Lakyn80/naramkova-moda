@@ -4,13 +4,53 @@ import { useNavigate } from "react-router-dom";
 export default function Categories() {
   const navigate = useNavigate();
 
+  // stejné popisky jako dřív (pro UI)
   const categories = [
     "Maminka", "Babička", "Bratr", "Sestra", "Děti", "Svatba", "Jen pro radost",
     "Tatínek", "Dědeček", "Kamarádka", "Láska", "Pro děti", "Pro páry", "Výročí", "Přátelství"
   ];
 
-  const handleClick = (category) => {
-    const encoded = encodeURIComponent(category);
+  // aliasy shodné s těmi, které používá Shop.jsx (klíč = lowercased label z UI)
+  const categoryAliases = {
+    "pro maminku": "maminka",
+    "pro tatínka": "tatínek",
+    "pro babičku": "babička",
+    "pro dědečka": "dědeček",
+    "pro děti": "děti",
+    "pro sestru": "sestra",
+    "pro bratra": "bratr",
+    "kamarádka": "kamarádka",
+    "jen pro radost": "jen pro radost",
+    "přátelství": "přátelství",
+    "výročí": "výročí",
+    "láska": "láska",
+    "svatba": "svatba",
+    "pro páry": "pro páry",
+    "jméno": "jméno",
+    "ostatní": "ostatní",
+    // pro přímé názvy z UI bez "pro ...": prosté zmenšení na lowercase
+    "maminka": "maminka",
+    "babička": "babička",
+    "bratr": "bratr",
+    "sestra": "sestra",
+    "děti": "děti",
+    "tatínek": "tatínek",
+    "dědeček": "dědeček",
+    "láska": "láska",
+    "výročí": "výročí",
+    "přátelství": "přátelství",
+    "pro páry": "pro páry",
+  };
+
+  const toAlias = (label) => {
+    const key = (label || "").toLowerCase().trim();
+    return categoryAliases[key] || key; // fallback na čisté lowercase
+  };
+
+  const handleClick = (categoryLabel) => {
+    const alias = toAlias(categoryLabel);
+    // Shop.jsx očekává lowercased alias v parametru ?category=
+    const encoded = encodeURIComponent(alias);
     navigate(`/shop?category=${encoded}`);
   };
 
