@@ -4,13 +4,11 @@ import { useNavigate } from "react-router-dom";
 export default function Categories() {
   const navigate = useNavigate();
 
-  // stejné popisky jako dřív (pro UI)
   const categories = [
     "Maminka", "Babička", "Bratr", "Sestra", "Děti", "Svatba", "Jen pro radost",
     "Tatínek", "Dědeček", "Kamarádka", "Láska", "Pro děti", "Pro páry", "Výročí", "Přátelství"
   ];
 
-  // aliasy shodné s těmi, které používá Shop.jsx (klíč = lowercased label z UI)
   const categoryAliases = {
     "pro maminku": "maminka",
     "pro tatínka": "tatínek",
@@ -28,7 +26,6 @@ export default function Categories() {
     "pro páry": "pro páry",
     "jméno": "jméno",
     "ostatní": "ostatní",
-    // pro přímé názvy z UI bez "pro ...": prosté zmenšení na lowercase
     "maminka": "maminka",
     "babička": "babička",
     "bratr": "bratr",
@@ -44,24 +41,25 @@ export default function Categories() {
 
   const toAlias = (label) => {
     const key = (label || "").toLowerCase().trim();
-    return categoryAliases[key] || key; // fallback na čisté lowercase
+    return categoryAliases[key] || key;
   };
 
   const handleClick = (categoryLabel) => {
     const alias = toAlias(categoryLabel);
-    // Shop.jsx očekává lowercased alias v parametru ?category=
     const encoded = encodeURIComponent(alias);
     navigate(`/shop?category=${encoded}`);
   };
 
   return (
-    <section id="kategorie" className="relative py-16 sm:py-20 px-3 sm:px-4 overflow-hidden">
+    <section
+      id="kategorie"
+      className="relative pt-16 pb-0 sm:pt-20 sm:pb-0 px-3 sm:px-4 overflow-hidden"
+    >
       <div className="backdrop-blur-sm bg-white/30 rounded-2xl shadow-2xl max-w-5xl mx-auto p-6 sm:p-10">
         <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 drop-shadow-sm">
           Kategorie
         </h2>
 
-        {/* ORLOJ EFEKT */}
         <div className="overflow-hidden relative">
           <div className="flex gap-3 sm:gap-6 animate-scroll whitespace-nowrap">
             {[...categories, ...categories].map((label, index) => (

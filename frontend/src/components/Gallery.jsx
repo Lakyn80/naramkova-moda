@@ -6,59 +6,69 @@ import "slick-carousel/slick/slick-theme.css";
 
 export default function Gallery() {
   const [products, setProducts] = useState([]);
-  const [activeIndex, setActiveIndex] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("/api/products")
-      .then((res) => res.json())
-      .then((data) => setProducts(data))
-      .catch((err) => console.error("❌ Chyba při načítání produktů:", err));
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch("/api/products");
+        const data = await res.json();
+        setProducts(data);
+      } catch (error) {
+        console.error("Chyba při načítání produktů:", error);
+      }
+    };
+    fetchProducts();
   }, []);
-
-  const totalSlides = products.length;
 
   const settings = {
     dots: false,
     infinite: true,
     autoplay: true,
-    autoplaySpeed: 6000, // 🔧 Pomalejší posun
-    speed: 900,
-    slidesToShow: 3,     // 🔧 Tři produkty na slide
+    autoplaySpeed: 5000,
+    speed: 1000,
+    slidesToShow: 3,
     slidesToScroll: 1,
     pauseOnHover: true,
-    afterChange: (index) => setActiveIndex(index),
     responsive: [
       { breakpoint: 1024, settings: { slidesToShow: 2 } },
       { breakpoint: 640, settings: { slidesToShow: 1 } },
     ],
   };
 
-  const percent = ((activeIndex % totalSlides) / totalSlides) * 100;
-
   return (
-    <section id="galerie" className="py-16 sm:py-20 px-3 sm:px-4 bg-pink-50">
-      <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 text-pink-900">
+    <section
+      id="galerie"
+      className="relative py-20 px-3 sm:px-4 bg-gradient-to-b from-white via-pink-50 to-pink-100 overflow-hidden"
+    >
+      {/* Vlna nahoru pro plynulé napojení na kategorii */}
+      <img
+        src="/wave.svg"
+        alt="Wave top"
+        className="absolute -top-[1px] left-0 w-full pointer-events-none opacity-40 rotate-180 z-0"
+      />
+
+      <h2 className="text-4xl sm:text-5xl font-extrabold text-center mb-10 bg-gradient-to-r from-pink-600 via-pink-400 to-fuchsia-600 text-transparent bg-clip-text drop-shadow-sm relative z-10">
         Galerie
       </h2>
 
-      <div className="max-w-6xl mx-auto relative">
+      <div className="max-w-6xl mx-auto relative z-10">
         <Slider {...settings}>
-          {products.map((product) => (
+          {products.map((product, index) => (
             <div
-              key={product.id}
-              onClick={() => navigate(`/shop/${product.id}`)}
-              className="cursor-pointer px-2"
+              key={index}
+              onClick={() =>
+                navigate(`/shop/${product.name.toLowerCase().replace(/\s+/g, "-")}`)
+              }
+              className="px-3"
             >
-              <div className="p-4 bg-white border rounded-xl shadow-md hover:shadow-lg transition-all duration-300">
-                <div className="w-full h-[260px] overflow-hidden rounded-md bg-white flex items-center justify-center">
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="object-contain max-h-full max-w-full"
-                  />
-                </div>
-                <p className="text-center text-pink-800 font-medium mt-2 text-sm sm:text-base">
+              <div className="bg-pink-100 hover:bg-pink-200 rounded-xl p-4 shadow-lg transition cursor-pointer">
+                <img
+                  src={product.image_url}
+                  alt={product.name}
+                  className="w-full h-[300px] object-contain rounded-md"
+                />
+                <p className="text-center mt-3 text-pink-800 font-semibold text-base">
                   {product.name}
                 </p>
               </div>
@@ -66,12 +76,8 @@ export default function Gallery() {
           ))}
         </Slider>
 
-        {/* Progress bar pod sliderem */}
-        <div className="h-2 bg-pink-100 mt-6 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-pink-500 transition-all duration-500"
-            style={{ width: `${percent}%` }}
-          ></div>
+        <div className="h-2 bg-pink-200 mt-6 rounded-full overflow-hidden">
+          <div className="h-full bg-pink-500 transition-all duration-500 w-full animate-pulse"></div>
         </div>
       </div>
     </section>
