@@ -10,53 +10,39 @@ export default function Categories() {
   ];
 
   const categoryAliases = {
-    "pro maminku": "maminka",
-    "pro tatínka": "tatínek",
-    "pro babičku": "babička",
-    "pro dědečka": "dědeček",
-    "pro děti": "děti",
-    "pro sestru": "sestra",
-    "pro bratra": "bratr",
-    "kamarádka": "kamarádka",
-    "jen pro radost": "jen pro radost",
-    "přátelství": "přátelství",
-    "výročí": "výročí",
-    "láska": "láska",
-    "svatba": "svatba",
-    "pro páry": "pro páry",
-    "jméno": "jméno",
-    "ostatní": "ostatní",
     "maminka": "maminka",
     "babička": "babička",
     "bratr": "bratr",
     "sestra": "sestra",
     "děti": "děti",
+    "svatba": "svatba",
+    "jen pro radost": "jen pro radost",
     "tatínek": "tatínek",
     "dědeček": "dědeček",
+    "kamarádka": "kamarádka",
     "láska": "láska",
+    "pro děti": "pro děti",
+    "pro páry": "pro páry",
     "výročí": "výročí",
     "přátelství": "přátelství",
-    "pro páry": "pro páry",
   };
 
-  const toAlias = (label) => {
+  const handleClick = (label) => {
     const key = (label || "").toLowerCase().trim();
-    return categoryAliases[key] || key;
-  };
-
-  const handleClick = (categoryLabel) => {
-    const alias = toAlias(categoryLabel);
-    const encoded = encodeURIComponent(alias);
-    navigate(`/shop?category=${encoded}`);
+    const alias = categoryAliases[key] || key;
+    navigate(`/shop?category=${encodeURIComponent(alias)}`);
   };
 
   return (
-    <section
-      id="kategorie"
-      className="relative pt-16 pb-0 sm:pt-20 sm:pb-0 px-3 sm:px-4 overflow-hidden"
-    >
-      <div className="backdrop-blur-sm bg-white/30 rounded-2xl shadow-2xl max-w-5xl mx-auto p-6 sm:p-10">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 drop-shadow-sm">
+    <section id="kategorie" className="relative py-20 px-4 bg-gradient-to-b from-rose-mid to-rose-light overflow-hidden">
+      <img
+        src="/wave.svg"
+        alt="Wave top"
+        className="absolute -top-[1px] left-0 w-full pointer-events-none rotate-180 z-0"
+      />
+
+      <div className="backdrop-blur-sm bg-white/10 rounded-2xl shadow-2xl max-w-5xl mx-auto p-6 sm:p-10 relative z-10">
+        <h2 className="text-3xl sm:text-4xl font-bold text-center mb-6 sm:mb-8 text-white drop-shadow-sm">
           Kategorie
         </h2>
 
@@ -66,7 +52,7 @@ export default function Categories() {
               <button
                 key={index}
                 onClick={() => handleClick(label)}
-                className="bg-white/70 hover:bg-pink-100 shadow-md backdrop-blur-sm rounded-full px-4 sm:px-6 py-2 sm:py-3 text-sm font-medium text-pink-800 transition-all duration-300 whitespace-nowrap"
+                className="bg-white/20 hover:bg-pink-100 text-white shadow-md backdrop-blur-sm rounded-full px-4 sm:px-6 py-2 sm:py-3 text-sm font-medium transition-all duration-300 whitespace-nowrap"
               >
                 {label}
               </button>
@@ -77,8 +63,8 @@ export default function Categories() {
 
       <img
         src="/wave.svg"
-        alt="Wave transition"
-        className="absolute bottom-0 left-0 w-full pointer-events-none opacity-40 z-0"
+        alt="Wave bottom"
+        className="absolute bottom-0 left-0 w-full pointer-events-none z-0"
       />
     </section>
   );

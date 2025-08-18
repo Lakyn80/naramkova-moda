@@ -39,13 +39,12 @@ export default function Gallery() {
   return (
     <section
       id="galerie"
-      className="relative py-20 px-3 sm:px-4 bg-gradient-to-b from-white via-pink-50 to-pink-100 overflow-hidden"
+      className="relative py-20 px-3 sm:px-4 bg-gradient-to-b from-rose-light to-rose-mid overflow-hidden"
     >
-      {/* Vlna nahoru pro plynulé napojení na kategorii */}
       <img
         src="/wave.svg"
         alt="Wave top"
-        className="absolute -top-[1px] left-0 w-full pointer-events-none opacity-40 rotate-180 z-0"
+        className="absolute -top-[1px] left-0 w-full pointer-events-none rotate-180 z-0"
       />
 
       <h2 className="text-4xl sm:text-5xl font-extrabold text-center mb-10 bg-gradient-to-r from-pink-600 via-pink-400 to-fuchsia-600 text-transparent bg-clip-text drop-shadow-sm relative z-10">
@@ -62,13 +61,13 @@ export default function Gallery() {
               }
               className="px-3"
             >
-              <div className="bg-pink-100 hover:bg-pink-200 rounded-xl p-4 shadow-lg transition cursor-pointer">
+              <div className="bg-white/60 backdrop-blur-md hover:bg-white/80 rounded-xl p-4 shadow-lg transition cursor-pointer">
                 <img
                   src={product.image_url}
                   alt={product.name}
                   className="w-full h-[300px] object-contain rounded-md"
                 />
-                <p className="text-center mt-3 text-pink-800 font-semibold text-base">
+                <p className="text-center mt-3 text-pink-900 font-semibold text-base">
                   {product.name}
                 </p>
               </div>
@@ -76,7 +75,7 @@ export default function Gallery() {
           ))}
         </Slider>
 
-        <div className="h-2 bg-pink-200 mt-6 rounded-full overflow-hidden">
+        <div className="h-2 bg-pink-300 mt-6 rounded-full overflow-hidden">
           <div className="h-full bg-pink-500 transition-all duration-500 w-full animate-pulse"></div>
         </div>
       </div>
