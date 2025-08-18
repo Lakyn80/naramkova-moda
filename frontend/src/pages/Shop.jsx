@@ -250,6 +250,7 @@ export default function Shop() {
                         id: product.id,
                         name: product.name,
                         price: Number(product.price) || 0,
+                        image: product.image, // ✅ TADY!
                       })
                     }
                     className="mt-auto bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition"

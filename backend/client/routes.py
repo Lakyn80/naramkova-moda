@@ -1,10 +1,9 @@
-# backend/client/routes.py
-
 from flask import Blueprint, request, jsonify
 from backend.extensions import db
 from backend.admin.models import Product, Order, OrderItem, SoldProduct
-from backend.models.payment import Payment   # ✅ důležitý import
+from backend.models.payment import Payment
 from backend.api.utils.email import send_email
+from backend.api.utils.generate_vs import generate_vs  # ✅ nový import
 from datetime import datetime
 
 client_bp = Blueprint("client_bp", __name__)
@@ -29,11 +28,11 @@ def create_order():
         customer_email=email,
         customer_address=address,
         note=note,
-        status="awaiting_payment",   # ✅ čeká na platbu
+        status="awaiting_payment",
         created_at=datetime.utcnow()
     )
     db.session.add(order)
-    db.session.flush()  # získáme ID (pro VS)
+    db.session.flush()  # získáme ID pro další vazby
 
     total_price = 0
 
@@ -71,16 +70,18 @@ def create_order():
 
             db.session.delete(product)
 
-    # vytvoření Payment záznamu
+    # 🔁 vygeneruj nový VS
+    vs = generate_vs()
+
+    # vytvoření záznamu o platbě
     payment = Payment(
-        vs=str(order.id),
+        vs=vs,
         amount_czk=total_price,
-        status="pending",   # ✅ čeká na přijetí
+        status="pending",
         reference=f"Objednávka #{order.id}",
-        received_at=None    # dokud není zaplaceno
+        received_at=None
     )
     db.session.add(payment)
-
     db.session.commit()
 
     # odeslání e-mailu
@@ -104,7 +105,7 @@ Děkujeme za Vaši objednávku. Níže jsou detaily:
 {product_list}
 
 💰 Celková cena: {total_price:.2f} Kč
-📌 Variabilní symbol: {order.id}
+📌 Variabilní symbol: {vs}
 
 S pozdravem,
 Tým Náramkové Módy
@@ -118,4 +119,8 @@ Tým Náramkové Módy
     except Exception as e:
         print(f"[CHYBA E-MAILU] {e}")
 
-    return jsonify({"message": "Objednávka úspěšně vytvořena.", "orderId": order.id, "vs": str(order.id)}), 201
+    return jsonify({
+        "message": "Objednávka úspěšně vytvořena.",
+        "orderId": order.id,
+        "vs": vs
+    }), 201

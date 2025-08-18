@@ -1,4 +1,3 @@
-# backend/models/payment.py
 from datetime import datetime
 from backend.extensions import db
 

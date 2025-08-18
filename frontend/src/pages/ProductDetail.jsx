@@ -7,14 +7,6 @@ import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails";
 import "yet-another-react-lightbox/plugins/thumbnails.css";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
 
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
-function absoluteUploadUrl(u) {
-  if (!u) return null;
-  if (/^https?:\/\//i.test(u)) return u;
-  if (u.startsWith("/")) return `${API_BASE}${u}`;
-  return `${API_BASE}/static/uploads/${u}`;
-}
-
 export default function ProductDetail() {
   const { slug } = useParams();
   const { addToCart } = useCart();
@@ -32,6 +24,7 @@ export default function ProductDetail() {
         const found = (data || []).find(
           (p) => (p.name || "").toLowerCase().replace(/\s+/g, "-") === slug
         );
+
         if (!found) {
           setProduct(null);
           return;
@@ -44,28 +37,22 @@ export default function ProductDetail() {
             ? found.price_czk
             : Number(found.price) || 0;
 
-        const mainImage = absoluteUploadUrl(found.image_url || found.image);
+        // Obrázky
+        const mediaUrls = Array.isArray(found.media)
+          ? found.media.filter(Boolean)
+          : [];
 
-        let mediaUrls = [];
-        if (Array.isArray(found.media)) {
-          mediaUrls = found.media
-            .map((m) => {
-              if (!m) return null;
-              if (typeof m === "string") return absoluteUploadUrl(m);
-              if (m.url && (!m.type || m.type === "image"))
-                return absoluteUploadUrl(m.url);
-              return null;
-            })
-            .filter(Boolean);
-        }
-
-        const images = [mainImage, ...mediaUrls]
+        const images = [
+          found.image_url, // hlavní obrázek z backendu
+          ...mediaUrls,
+        ]
           .filter(Boolean)
-          .filter((v, i, a) => a.indexOf(v) === i);
+          .filter((v, i, a) => a.indexOf(v) === i); // unikátní
 
         setProduct({
           ...found,
           price,
+          image_url: found.image_url, // důležité pro košík
           images,
         });
         setPhotoIndex(0);
@@ -75,6 +62,16 @@ export default function ProductDetail() {
       }
     })();
   }, [slug]);
+
+  const handleAddToCart = () => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      quantity: 1,
+      image: product.image_url, // ✅ PŘÍMO Z BACKENDU
+    });
+  };
 
   if (!product) {
     return (
@@ -96,11 +93,10 @@ export default function ProductDetail() {
             {/* Obrázky */}
             <div className="space-y-4">
               <img
-                src={product.images[photoIndex] || "/placeholder.png"}
+                src={product.images[photoIndex]}
                 alt={product.name}
                 className="w-full h-[260px] sm:h-[300px] md:h-[360px] object-cover rounded-xl shadow-lg cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
                 onClick={() => setIsOpen(true)}
-                onError={(e) => (e.currentTarget.src = "/placeholder.png")}
               />
               <div className="flex gap-2 flex-wrap justify-center sm:justify-start">
                 {product.images.map((img, i) => (
@@ -109,7 +105,6 @@ export default function ProductDetail() {
                     src={img}
                     alt={`${product.name} ${i + 1}`}
                     onClick={() => setPhotoIndex(i)}
-                    onError={(e) => (e.currentTarget.src = "/placeholder.png")}
                     className={`h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-lg cursor-pointer border-2 ${
                       photoIndex === i
                         ? "border-pink-500 shadow-lg"
@@ -132,14 +127,7 @@ export default function ProductDetail() {
                 {product.description || "Detail produktu zde."}
               </p>
               <button
-                onClick={() =>
-                  addToCart({
-                    id: product.id,
-                    name: product.name,
-                    price: product.price,
-                    quantity: 1,
-                  })
-                }
+                onClick={handleAddToCart}
                 className="mt-6 bg-gradient-to-r from-pink-600 to-pink-700 hover:from-pink-700 hover:to-pink-800 text-white py-2 px-5 rounded-lg shadow-lg hover:shadow-pink-400/60 transition-transform transform hover:-translate-y-0.5"
               >
                 Přidat do košíku
