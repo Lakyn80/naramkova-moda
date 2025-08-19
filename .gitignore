@@ -1,0 +1,35 @@
+# === OBECNÉ ===
+*.log
+*.tmp
+*.DS_Store
+*.swp
+*.swo
+
+# === FRONTEND (React/Vite) ===
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.vite/
+
+# === BACKEND (Python/Flask) ===
+backend/__pycache__/
+backend/*.pyc
+backend/instance/
+backend/.env
+backend/.venv/
+backend/venv/
+backend/env/
+backend/.mypy_cache/
+backend/.pytest_cache/
+backend/database.db
+backend/migrations/  # pokud nechceš trackovat Alembic migrace
+
+# === EDITORY ===
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# === SYSTEM FILES ===
+Thumbs.db
+ehthumbs.db
