@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 
-// ── pomocné mapy (beze změny) ────────────────────────────────────────────────
 const categoryAliases = {
   "pro maminku": "maminka",
   "pro tatínka": "tatínek",
@@ -21,6 +20,7 @@ const categoryAliases = {
   "jméno": "jméno",
   "ostatní": "ostatní",
 };
+
 const categoryGroups = {
   maminka: "Rodina",
   tatínek: "Rodina",
@@ -43,13 +43,12 @@ const categoryGroups = {
   ostatní: "Ostatní",
 };
 
-// ── absolutizace URL obrázků (to opravuje placeholdery) ──────────────────────
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
 function absoluteUploadUrl(u) {
   if (!u) return null;
-  if (/^https?:\/\//i.test(u)) return u;                 // už je absolutní
-  if (u.startsWith("/")) return `${API_BASE}${u}`;       // např. /static/uploads/a.jpg
-  return `${API_BASE}/static/uploads/${u}`;              // jen název souboru
+  if (/^https?:\/\//i.test(u)) return u;
+  if (u.startsWith("/")) return `${API_BASE}${u}`;
+  return `${API_BASE}/static/uploads/${u}`;
 }
 const toAlias = (name) => categoryAliases[name] || name;
 const toGroup = (alias) => categoryGroups[alias] || "Ostatní";
@@ -65,7 +64,6 @@ export default function Shop() {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Načtení kategorií
   useEffect(() => {
     fetch("http://localhost:5000/api/categories/")
       .then((res) => res.json())
@@ -75,13 +73,12 @@ export default function Shop() {
         if (urlCategory && all.includes(urlCategory)) {
           setSelectedCategories([urlCategory]);
         } else {
-          setSelectedCategories(all); // defaultně vybrat vše
+          setSelectedCategories(all);
         }
       })
       .catch((err) => console.error("Chyba při načítání kategorií:", err));
   }, [urlCategory]);
 
-  // Načtení produktů + mapování na starý tvar (image, price, category.name)
   useEffect(() => {
     fetch("http://localhost:5000/api/products/")
       .then((res) => res.json())
@@ -96,7 +93,7 @@ export default function Shop() {
 
           return {
             ...p,
-            image: absoluteUploadUrl(p.image_url || p.image), // ← FIX
+            image: absoluteUploadUrl(p.image_url || p.image),
             price: priceNumber,
             category: { name: p.category_name || "" },
           };
@@ -117,9 +114,9 @@ export default function Shop() {
     );
     setSelectedCategories(all);
   };
+
   const deselectAll = () => setSelectedCategories([]);
 
-  // Seskupení kategorií
   const groupedCategories = categories.reduce((acc, cat) => {
     const aliased = toAlias((cat.name || "").toLowerCase());
     const grp = toGroup(aliased);
@@ -128,7 +125,6 @@ export default function Shop() {
     return acc;
   }, {});
 
-  // Filtrování (původní logika)
   const filteredProducts = products.filter((p) => {
     const raw = p?.category?.name?.toLowerCase().trim() || "";
     const cat = toAlias(raw);
@@ -140,18 +136,19 @@ export default function Shop() {
   });
 
   return (
-    <section className="pt-24 pb-12 bg-gradient-to-br from-pink-300 to-pink-200 min-h-screen">
+    <section className="pt-24 pb-12 bg-gradient-to-br from-[#3b0764] via-[#9d174d] to-[#f9a8d4] min-h-screen text-white">
       <div className="mx-auto max-w-7xl px-4">
         <h2 className="text-4xl font-extrabold text-center mb-10">E-shop</h2>
 
-        <div className="flex flex-wrap items-start gap-6">
-          {/* Sidebar */}
-          <aside className="flex-shrink-0 w-64 bg-white/80 p-4 rounded-2xl shadow">
+        {/* Mobile-first layout */}
+        <div className="flex flex-col md:flex-row gap-8 items-start">
+          {/* Kategorie nahoře na mobilu, vlevo na desktopu */}
+          <aside className="w-full md:w-1/4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Kategorie</h3>
             <input
               type="text"
               placeholder="Hledat produkt..."
-              className="w-full mb-4 px-3 py-2 border rounded"
+              className="w-full mb-4 px-3 py-2 border rounded text-black"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -176,7 +173,7 @@ export default function Shop() {
                           ]);
                         }
                       }}
-                      className="text-sm hover:underline"
+                      className="text-sm text-pink-200 hover:underline"
                     >
                       {cats.every((c) => selectedCategories.includes(c.alias))
                         ? "Odebrat"
@@ -217,12 +214,11 @@ export default function Shop() {
           </aside>
 
           {/* Produkty */}
-          <div className="flex flex-wrap items-start gap-6 justify-start">
+          <main className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProducts.map((product) => (
               <div
                 key={product.id}
-                className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col flex-shrink-0"
-                style={{ width: 280 }}
+                className="bg-white/10 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden flex flex-col"
               >
                 <img
                   src={product.image || "/placeholder.png"}
@@ -237,11 +233,11 @@ export default function Shop() {
                     to={`/shop/${(product.name || "")
                       .toLowerCase()
                       .replace(/\s+/g, "-")}`}
-                    className="text-lg font-semibold mb-2 hover:underline"
+                    className="text-lg font-semibold mb-2 hover:underline text-white"
                   >
                     {product.name}
                   </Link>
-                  <p className="text-pink-700 mb-4">
+                  <p className="text-pink-200 mb-4">
                     {(Number(product.price) || 0).toFixed(2)} Kč
                   </p>
                   <button
@@ -250,7 +246,7 @@ export default function Shop() {
                         id: product.id,
                         name: product.name,
                         price: Number(product.price) || 0,
-                        image: product.image, // ✅ TADY!
+                        image: product.image,
                       })
                     }
                     className="mt-auto bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition"
@@ -261,11 +257,11 @@ export default function Shop() {
               </div>
             ))}
             {filteredProducts.length === 0 && (
-              <div className="w-full text-center text-pink-800 font-medium">
+              <div className="col-span-full text-center text-pink-200 font-medium">
                 Nenalezeny žádné produkty pro vybrané filtry.
               </div>
             )}
-          </div>
+          </main>
         </div>
       </div>
     </section>
