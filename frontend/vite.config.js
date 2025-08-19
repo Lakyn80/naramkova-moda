@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
     define: {
       global: "window", // Fix pro react-image-lightbox
     },
-    base: "/",
+    base: isDev ? "/" : "/naramkova-moda/", // 👈 důležité pro GitHub Pages!
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "src"), // ✅ alias @ → src/

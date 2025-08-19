@@ -8,37 +8,38 @@
 *.bak
 *.old
 
-# Systémové/OS soubory
+# === SYSTÉMOVÉ / OS SOUBORY ===
 .DS_Store
 Thumbs.db
 ehthumbs.db
 
 # === TAJEMSTVÍ / ENV ===
-# kořenové env soubory (pokud je někdy přidáš)
 .env
 .env.*.local
+frontend/.env
+frontend/.env.*.local
+backend/.env
 
 # === FRONTEND (React/Vite) ===
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 frontend/.cache/
-frontend/.env
-frontend/.env.*.local
 frontend/*.tsbuildinfo
 
 # === BACKEND (Python/Flask) ===
+
 # Bytecode a cache
-backend/__pycache__/
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-backend/.mypy_cache/
-backend/.pytest_cache/
 .mypy_cache/
 .pytest_cache/
 .cache/
+backend/__pycache__/
+backend/.mypy_cache/
+backend/.pytest_cache/
 
 # Virtuální prostředí
 .venv/
@@ -48,30 +49,27 @@ backend/.venv/
 backend/venv/
 backend/env/
 
-# Instance data / lokální databáze a konfigurace
+# Lokální data / konfigurace / instance
 backend/instance/
-backend/.env
-backend/database.db
 backend/*.db
 *.sqlite
 *.sqlite3
 
-# Uploady (ponecháme placeholder .gitkeep)
+# Uploady (ponechat .gitkeep)
 backend/static/uploads/*
 !backend/static/uploads/.gitkeep
 
-# === MIGRACE (TRACKUJEME) ===
-# NEignoruj Alembic migrace – patří do repa:
-# backend/migrations/
+# === MIGRACE ===
+# Alembic migrace verzujeme – nezakazujeme backend/migrations/
 
-# === BUILD/ARTEFAKTY ===
+# === COVERAGE / BUILD ===
 dist/
 build/
 .coverage
 coverage/
 htmlcov/
 
-# === EDITORY ===
+# === EDITORY / IDE ===
 .vscode/
 .idea/
 *.sublime-project
