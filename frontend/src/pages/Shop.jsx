@@ -2,56 +2,35 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 
+// Mapy pro aliasování názvů (ponecháváme pouze toAlias)
 const categoryAliases = {
-  "pro maminku": "maminka",
-  "pro tatínka": "tatínek",
-  "pro babičku": "babička",
-  "pro dědečka": "dědeček",
-  "pro děti": "děti",
-  "pro sestru": "sestra",
-  "pro bratra": "bratr",
-  "kamarádka": "kamarádka",
-  "jen pro radost": "jen pro radost",
-  "přátelství": "přátelství",
-  "výročí": "výročí",
-  "láska": "láska",
+  "maminka": "maminka",
+  "babička": "babička",
+  "bratr": "bratr",
+  "sestra": "sestra",
+  "děti": "děti",
   "svatba": "svatba",
+  "jen pro radost": "jen pro radost",
+  "tatínek": "tatínek",
+  "dědeček": "dědeček",
+  "kamarádka": "kamarádka",
+  "láska": "láska",
+  "pro děti": "pro děti",
   "pro páry": "pro páry",
-  "jméno": "jméno",
-  "ostatní": "ostatní",
-};
-
-const categoryGroups = {
-  maminka: "Rodina",
-  tatínek: "Rodina",
-  babička: "Rodina",
-  dědeček: "Rodina",
-  děti: "Rodina",
-  sestra: "Rodina",
-  bratr: "Rodina",
-  svatba: "Svatba",
-  "pro nevěstu": "Svatba",
-  "pro ženicha": "Svatba",
-  "pro svědky": "Svatba",
-  "jen pro radost": "Dárky",
-  jméno: "Dárky",
-  přátelství: "Ostatní",
-  láska: "Ostatní",
-  výročí: "Ostatní",
-  "pro páry": "Ostatní",
-  kamarádka: "Ostatní",
-  ostatní: "Ostatní",
+  "výročí": "výročí",
+  "přátelství": "přátelství",
 };
 
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
+
 function absoluteUploadUrl(u) {
   if (!u) return null;
   if (/^https?:\/\//i.test(u)) return u;
   if (u.startsWith("/")) return `${API_BASE}${u}`;
   return `${API_BASE}/static/uploads/${u}`;
 }
+
 const toAlias = (name) => categoryAliases[name] || name;
-const toGroup = (alias) => categoryGroups[alias] || "Ostatní";
 
 export default function Shop() {
   const { addToCart } = useCart();
@@ -117,9 +96,10 @@ export default function Shop() {
 
   const deselectAll = () => setSelectedCategories([]);
 
+  // ✅ NOVÁ logika: group přímo z backendu
   const groupedCategories = categories.reduce((acc, cat) => {
     const aliased = toAlias((cat.name || "").toLowerCase());
-    const grp = toGroup(aliased);
+    const grp = cat.group || "Ostatní";
     if (!acc[grp]) acc[grp] = [];
     acc[grp].push({ ...cat, alias: aliased });
     return acc;
@@ -140,9 +120,8 @@ export default function Shop() {
       <div className="mx-auto max-w-7xl px-4">
         <h2 className="text-4xl font-extrabold text-center mb-10">E-shop</h2>
 
-        {/* Mobile-first layout */}
         <div className="flex flex-col md:flex-row gap-8 items-start">
-          {/* Kategorie nahoře na mobilu, vlevo na desktopu */}
+          {/* Sidebar (mobil nahoře, desktop vlevo) */}
           <aside className="w-full md:w-1/4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Kategorie</h3>
             <input
