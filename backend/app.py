@@ -34,14 +34,15 @@ def create_app() -> Flask:
     bcrypt.init_app(app)
     mail.init_app(app)
 
-    # ✅ CORS pouze jednou, správně nastavený pro vývoj i produkci
+    # ✅ CORS pro vývoj a GitHub Pages
     cors.init_app(app, resources={
         r"/api/*": {
             "origins": [
-                "http://localhost:3000",     # Vite vývoj
-                "http://localhost:5173",     # fallback Vite
-                "https://lakyn80.github.io"  # GitHub Pages
-            ]
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "https://lakyn80.github.io"
+            ],
+            "supports_credentials": True
         }
     })
 
