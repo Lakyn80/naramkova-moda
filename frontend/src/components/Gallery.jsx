@@ -1,11 +1,8 @@
-// === Gallery.jsx ===
 import React, { useEffect, useState } from "react";
 import Slider from "react-slick";
 import { useNavigate } from "react-router-dom";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 export default function Gallery() {
   const [products, setProducts] = useState([]);
@@ -14,7 +11,7 @@ export default function Gallery() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/products`);
+        const res = await fetch("/api/products");
         const data = await res.json();
         setProducts(data);
       } catch (error) {
@@ -49,7 +46,6 @@ export default function Gallery() {
         alt="Wave top"
         className="absolute -top-[1px] left-0 w-full pointer-events-none rotate-180 z-0"
       />
-
       <h2 className="text-4xl sm:text-5xl font-extrabold text-center mb-10 bg-gradient-to-r from-pink-600 via-pink-400 to-fuchsia-600 text-transparent bg-clip-text drop-shadow-sm relative z-10">
         Galerie
       </h2>
@@ -60,18 +56,16 @@ export default function Gallery() {
             <div
               key={index}
               onClick={() =>
-                navigate(`/shop/${product.name.toLowerCase().replace(/\s+/g, "-")}`)
+                navigate(
+                  `/shop/${product.name.toLowerCase().replace(/\s+/g, "-")}`
+                )
               }
               className="px-3"
             >
               <div className="rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden bg-transparent">
                 <div className="w-full aspect-square overflow-hidden">
                   <img
-                    src={
-                      product.image_url?.startsWith("http")
-                        ? product.image_url
-                        : `${API_BASE}${product.image_url}`
-                    }
+                    src={product.image_url}
                     alt={product.name}
                     loading="lazy"
                     decoding="async"
@@ -87,7 +81,6 @@ export default function Gallery() {
             </div>
           ))}
         </Slider>
-
         <div className="h-2 bg-pink-300/60 mt-6 rounded-full overflow-hidden">
           <div className="h-full bg-pink-500/80 transition-all duration-500 w-full animate-pulse"></div>
         </div>
