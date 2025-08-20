@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 
+
+
 // Mapy pro aliasování názvů (ponecháváme pouze toAlias)
 const categoryAliases = {
   "maminka": "maminka",

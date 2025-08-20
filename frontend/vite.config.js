@@ -1,19 +1,20 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
-import path from "path"; // ← nutné pro alias
+import path from "path";
 
 export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd());
   const isDev = mode === "development";
 
   return {
     plugins: [react()],
     define: {
-      global: "window", // Fix pro react-image-lightbox
+      global: "window",
     },
-    base: isDev ? "/" : "/naramkova-moda/", // 👈 důležité pro GitHub Pages!
+    base: isDev ? "/" : "/naramkova-moda/",
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "src"), // ✅ alias @ → src/
+        "@": path.resolve(__dirname, "src"),
       },
     },
     server: {
@@ -24,15 +25,13 @@ export default defineConfig(({ mode }) => {
         host: "localhost",
         port: 3000,
       },
-      proxy: isDev
-        ? {
-            "/api": {
-              target: "http://localhost:5000",
-              changeOrigin: true,
-              secure: false,
-            },
-          }
-        : undefined,
+      proxy: {
+        "/api": {
+          target: env.VITE_API_BASE_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+      },
     },
   };
 });
