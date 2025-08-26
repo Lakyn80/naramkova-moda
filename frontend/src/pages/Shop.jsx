@@ -2,34 +2,31 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 
-
-
 // Mapy pro aliasování názvů (ponecháváme pouze toAlias)
 const categoryAliases = {
-  "maminka": "maminka",
-  "babička": "babička",
-  "bratr": "bratr",
-  "sestra": "sestra",
-  "děti": "děti",
-  "svatba": "svatba",
+  maminka: "maminka",
+  babička: "babička",
+  bratr: "bratr",
+  sestra: "sestra",
+  děti: "děti",
+  svatba: "svatba",
   "jen pro radost": "jen pro radost",
-  "tatínek": "tatínek",
-  "dědeček": "dědeček",
-  "kamarádka": "kamarádka",
-  "láska": "láska",
+  tatínek: "tatínek",
+  dědeček: "dědeček",
+  kamarádka: "kamarádka",
+  láska: "láska",
   "pro děti": "pro děti",
   "pro páry": "pro páry",
-  "výročí": "výročí",
-  "přátelství": "přátelství",
+  výročí: "výročí",
+  přátelství: "přátelství",
 };
 
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
-
+// už není potřeba natvrdo BASE_URL
 function absoluteUploadUrl(u) {
   if (!u) return null;
   if (/^https?:\/\//i.test(u)) return u;
-  if (u.startsWith("/")) return `${API_BASE}${u}`;
-  return `${API_BASE}/static/uploads/${u}`;
+  if (u.startsWith("/")) return u; // necháme /api generovat správně backend
+  return `/api/static/uploads/${u}`;
 }
 
 const toAlias = (name) => categoryAliases[name] || name;
@@ -46,7 +43,7 @@ export default function Shop() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/categories/")
+    fetch("/api/categories/")
       .then((res) => res.json())
       .then((data) => {
         setCategories(data);
@@ -61,7 +58,7 @@ export default function Shop() {
   }, [urlCategory]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/products/")
+    fetch("/api/products/")
       .then((res) => res.json())
       .then((data) => {
         const mapped = (data || []).map((p) => {
@@ -98,7 +95,7 @@ export default function Shop() {
 
   const deselectAll = () => setSelectedCategories([]);
 
-  // ✅ NOVÁ logika: group přímo z backendu
+  // ✅ logika: group přímo z backendu
   const groupedCategories = categories.reduce((acc, cat) => {
     const aliased = toAlias((cat.name || "").toLowerCase());
     const grp = cat.group || "Ostatní";
@@ -123,7 +120,7 @@ export default function Shop() {
         <h2 className="text-4xl font-extrabold text-center mb-10">E-shop</h2>
 
         <div className="flex flex-col md:flex-row gap-8 items-start">
-          {/* Sidebar (mobil nahoře, desktop vlevo) */}
+          {/* Sidebar */}
           <aside className="w-full md:w-1/4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Kategorie</h3>
             <input

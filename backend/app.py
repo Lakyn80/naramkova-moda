@@ -40,7 +40,7 @@ def create_app() -> Flask:
         }
     })
 
-    login_manager.login_view = "auth.login"
+    login_manager.login_view = "auth.login"  # type: ignore
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
     app.register_blueprint(auth_bp)
@@ -61,4 +61,5 @@ app = create_app()
 
 # ✅ Toto je jen pro lokální vývoj
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)
+

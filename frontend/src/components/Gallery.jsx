@@ -11,6 +11,7 @@ export default function Gallery() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
+        // 👉 proxy z Vite zajistí správnou URL (http://localhost:5001/api/products v dev)
         const res = await fetch("/api/products");
         const data = await res.json();
         setProducts(data);
