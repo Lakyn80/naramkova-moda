@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import React, { useRef } from "react";
 import Navbar from "./components/Navbar";
@@ -15,11 +16,13 @@ import ScrollToTop from "./components/ScrollToTop";
 export default function App() {
   const heroRef = useRef();
   const shopRef = useRef();
-  const isProd = import.meta.env.MODE === "production"; // 👈 detekce buildu
+
+  // BASE_URL je z Vite (base:"/"), takže funguje v dev i prod
+  const basename = import.meta.env.BASE_URL || "/";
 
   return (
     <CartProvider>
-      <Router basename={isProd ? "/naramkova-moda" : "/"}> {/* ✅ dynamický basename */}
+      <Router basename={basename}>
         <ScrollToTop />
         <div className="bg-gradient-to-b from-pink-800 via-pink-600 to-pink-400 min-h-screen overflow-hidden text-pink-50">
           <Navbar heroRef={heroRef} shopRef={shopRef} />

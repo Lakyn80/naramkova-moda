@@ -1,3 +1,4 @@
+// frontend/src/components/Gallery.jsx
 import React, { useEffect, useState } from "react";
 import Slider from "react-slick";
 import { useNavigate } from "react-router-dom";
@@ -8,13 +9,15 @@ export default function Gallery() {
   const [products, setProducts] = useState([]);
   const navigate = useNavigate();
 
+  const makeSlug = (s) =>
+    String(s || "").toLowerCase().trim().replace(/\s+/g, "-");
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        // 👉 proxy z Vite zajistí správnou URL (http://localhost:5001/api/products v dev)
-        const res = await fetch("/api/products");
+        const res = await fetch("/api/products/");
         const data = await res.json();
-        setProducts(data);
+        setProducts(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Chyba při načítání produktů:", error);
       }
@@ -42,25 +45,23 @@ export default function Gallery() {
       id="galerie"
       className="relative py-20 px-3 sm:px-4 bg-gradient-to-b from-rose-light to-rose-mid overflow-hidden"
     >
+      {/* vlna nahoře (z public/) */}
       <img
         src="/wave.svg"
         alt="Wave top"
         className="absolute -top-[1px] left-0 w-full pointer-events-none rotate-180 z-0"
       />
+
       <h2 className="text-4xl sm:text-5xl font-extrabold text-center mb-10 bg-gradient-to-r from-pink-600 via-pink-400 to-fuchsia-600 text-transparent bg-clip-text drop-shadow-sm relative z-10">
         Galerie
       </h2>
 
       <div className="max-w-6xl mx-auto relative z-10">
         <Slider {...settings}>
-          {products.map((product, index) => (
+          {products.map((product) => (
             <div
-              key={index}
-              onClick={() =>
-                navigate(
-                  `/shop/${product.name.toLowerCase().replace(/\s+/g, "-")}`
-                )
-              }
+              key={product.id ?? product.name}
+              onClick={() => navigate(`/shop/${product.slug || makeSlug(product.name)}`)}
               className="px-3"
             >
               <div className="rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden bg-transparent">
@@ -82,8 +83,9 @@ export default function Gallery() {
             </div>
           ))}
         </Slider>
+
         <div className="h-2 bg-pink-300/60 mt-6 rounded-full overflow-hidden">
-          <div className="h-full bg-pink-500/80 transition-all duration-500 w-full animate-pulse"></div>
+          <div className="h-full bg-pink-500/80 transition-all duration-500 w-full animate-pulse" />
         </div>
       </div>
     </section>

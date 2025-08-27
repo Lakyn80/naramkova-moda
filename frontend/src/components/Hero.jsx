@@ -1,3 +1,4 @@
+// frontend/src/components/Hero.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -5,7 +6,8 @@ export default function Hero() {
   const navigate = useNavigate();
 
   const handleExploreClick = () => {
-    navigate("/shop");
+    // relativní navigace vůči basename
+    navigate("shop");
   };
 
   return (
@@ -16,7 +18,7 @@ export default function Hero() {
         backgroundImage: `
           radial-gradient(circle at top left, #3b0764 0%, #6b21a8 30%, transparent 60%),
           linear-gradient(to right, #9d174d, #be185d, #f9a8d4)
-        `
+        `,
       }}
     >
       <div className="backdrop-blur-sm bg-white/20 rounded-2xl p-6 sm:p-10 shadow-2xl w-full max-w-xl md:max-w-3xl text-center animate-float z-10">
@@ -34,11 +36,13 @@ export default function Hero() {
         </button>
       </div>
 
-      {/* Vlna dolů navazující na další sekci – beze švu */}
+      {/* Vlna z public/ */}
       <img
-        src="/wave.svg"
+        src={`${import.meta.env.BASE_URL || "/"}wave.svg`}
         alt="Wave bottom"
-        className="absolute bottom-0 left-0 w-full pointer-events-none z-0"
+        className="absolute bottom-0 left-0 w-full h-auto block pointer-events-none z-0"
+        loading="lazy"
+        decoding="async"
       />
     </section>
   );

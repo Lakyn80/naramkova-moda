@@ -1,3 +1,4 @@
+// frontend/src/pages/ProductDetail.jsx
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
@@ -6,6 +7,7 @@ import "yet-another-react-lightbox/styles.css";
 import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails";
 import "yet-another-react-lightbox/plugins/thumbnails.css";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
+import { apiGet } from "../lib/api";
 
 export default function ProductDetail() {
   const { slug } = useParams();
@@ -15,15 +17,16 @@ export default function ProductDetail() {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
+  const makeSlug = (s) =>
+    String(s || "").toLowerCase().trim().replace(/\s+/g, "-");
+
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/products/");
-        const data = await res.json();
-
-        const found = (data || []).find(
-          (p) => (p.name || "").toLowerCase().replace(/\s+/g, "-") === slug
-        );
+        const data = await apiGet("/products/");
+        const found =
+          (data || []).find((p) => (p.slug || makeSlug(p.name)) === slug) ||
+          null;
 
         if (!found) {
           setProduct(null);
@@ -37,39 +40,36 @@ export default function ProductDetail() {
             ? found.price_czk
             : Number(found.price) || 0;
 
-        // Obrázky
         const mediaUrls = Array.isArray(found.media)
           ? found.media.filter(Boolean)
           : [];
-
-        const images = [
-          found.image_url, // hlavní obrázek z backendu
-          ...mediaUrls,
-        ]
+        const images = [found.image_url, ...mediaUrls]
           .filter(Boolean)
-          .filter((v, i, a) => a.indexOf(v) === i); // unikátní
+          .filter((v, i, a) => a.indexOf(v) === i);
 
         setProduct({
           ...found,
           price,
-          image_url: found.image_url, // důležité pro košík
+          image_url: found.image_url,
           images,
         });
         setPhotoIndex(0);
         setIsOpen(false);
       } catch (err) {
-        console.error("Chyba při načítání produktu:", err);
+        console.error("Chyba načítání produktů:", err);
+        setProduct(null);
       }
     })();
   }, [slug]);
 
   const handleAddToCart = () => {
+    if (!product) return;
     addToCart({
       id: product.id,
       name: product.name,
       price: product.price,
       quantity: 1,
-      image: product.image_url, // ✅ PŘÍMO Z BACKENDU
+      image: product.image_url,
     });
   };
 

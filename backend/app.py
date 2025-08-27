@@ -1,14 +1,15 @@
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from flask import Flask
 from config import Config
 
-# ─── Načtení rozšíření ──────────────────────────────────────────
+# ─── Přidání cesty, aby fungovaly importy ──────────────────────
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# ─── Načtení rozšíření ─────────────────────────────────────────
 from backend.extensions import db, login_manager, bcrypt, migrate, cors, mail
 
-# ─── Načtení jednotlivých blueprintů ────────────────────────────
+# ─── Načtení jednotlivých blueprintů ───────────────────────────
 from backend.admin import admin_bp
 from backend.auth.login_routes import auth_bp
 from backend.api.routes.product_routes import api_products
@@ -19,16 +20,19 @@ from backend.api.routes.payment_routes import payment_bp
 from backend.debug_routes import debug_bp
 from backend import models as _models  # noqa: F401
 
+
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    # Inicializace extensions
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     bcrypt.init_app(app)
     mail.init_app(app)
 
+    # Povolení CORS pro frontend
     cors.init_app(app, resources={
         r"/api/*": {
             "origins": [
@@ -43,6 +47,7 @@ def create_app() -> Flask:
     login_manager.login_view = "auth.login"  # type: ignore
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
+    # Registrace blueprintů
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(api_products)
@@ -56,10 +61,10 @@ def create_app() -> Flask:
 
     return app
 
+
 # ✅ GUNICORN potřebuje tento řádek
 app = create_app()
 
 # ✅ Toto je jen pro lokální vývoj
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
-
+    app.run(host="0.0.0.0", port=5001, debug=True, use_reloader=False)
