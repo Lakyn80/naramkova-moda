@@ -1,4 +1,3 @@
-
 {% extends "shared/layout.html" %}
 {% block title %}💳 Platby{% endblock %}
 
@@ -19,10 +18,10 @@
 {% endwith %}
 
 <form method="get" class="row g-2 mb-3">
-  <div class="col-md-3">
+  <div class="col-md-3 col-sm-6">
     <input name="vs" class="form-control" value="{{ filters.get('vs','') }}" placeholder="VS">
   </div>
-  <div class="col-md-3">
+  <div class="col-md-3 col-sm-6">
     <select name="status" class="form-select">
       {% set st = filters.get('status','all') %}
       <option value="all"     {{ 'selected' if st=='all' else '' }}>Všechny stavy</option>
@@ -33,7 +32,7 @@
       <option value="refunded"{{ 'selected' if st=='refunded' else '' }}>Vráceno</option>
     </select>
   </div>
-  <div class="col-md-2">
+  <div class="col-md-2 col-sm-6">
     <input type="number" name="limit" class="form-control" min="1" max="1000" value="{{ filters.get('limit',100) }}">
   </div>
   <div class="col-12">
@@ -50,58 +49,60 @@
 </div>
 {% endif %}
 
-<table class="table table-striped align-middle">
-  <thead>
-    <tr>
-      <th>ID</th><th>VS</th><th>Částka</th><th>Status</th><th>Přijato</th><th>Objednávka</th><th class="text-end">Akce</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for r in rows %}
-      {% set p = r.p %}{% set o = r.o %}
+<!-- responsivní obal -->
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead>
       <tr>
-        <td>{{ p.id }}</td>
-        <td>{{ p.vs }}</td>
-        <td>{% if p.amount_czk is not none %}{{ "%.2f"|format(p.amount_czk) }} Kč{% endif %}</td>
-        <td>
-          {% if p.status == 'pending' %}<span class="badge bg-warning text-dark">Čeká</span>
-          {% elif p.status == 'received' %}<span class="badge bg-success">Přijato</span>
-          {% elif p.status == 'failed' %}<span class="badge bg-danger">Neúspěšné</span>
-          {% elif p.status == 'canceled' %}<span class="badge bg-secondary">Zrušeno</span>
-          {% elif p.status == 'refunded' %}<span class="badge bg-secondary">Vráceno</span>
-          {% else %}<span class="badge bg-secondary">{{ p.status }}</span>
-          {% endif %}
-        </td>
-        <td>{% if p.received_at %}{{ p.received_at }}{% endif %}</td>
-        <td>
-          {% if o %}
-            {% if has_order_detail %}
-              <a href="{{ url_for('admin.order_detail', order_id=o.id) }}">#{{ o.id }}</a>
-            {% else %}
-              #{{ o.id }}
-            {% endif %}
-            <small class="text-muted">({{ o.status }}, {{ o.total_czk or '' }} Kč)</small>
-          {% else %}
-            <span class="text-muted">—</span>
-          {% endif %}
-        </td>
-        <td class="text-end">
-          <form method="post" action="{{ url_for('admin.admin_payment_update_status', payment_id=p.id) }}" class="d-inline-flex gap-2">
-            <select name="status" class="form-select form-select-sm" style="width: 160px">
-              {% for st in allowed_statuses %}
-                <option value="{{ st }}" {{ 'selected' if p.status==st else '' }}>
-                  {% if st=='pending' %}Čeká na platbu{% elif st=='received' %}Přijato{% elif st=='failed' %}Neúspěšné{% elif st=='canceled' %}Zrušeno{% elif st=='refunded' %}Vráceno{% else %}{{ st }}{% endif %}
-                </option>
-              {% endfor %}
-            </select>
-            <button class="btn btn-sm btn-primary">Uložit</button>
-          </form>
-        </td>
+        <th>ID</th><th>VS</th><th>Částka</th><th>Status</th><th>Přijato</th><th>Objednávka</th><th class="text-end">Akce</th>
       </tr>
-    {% else %}
-      <tr><td colspan="7" class="text-center text-muted">Nic nenalezeno.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        {% set p = r.p %}{% set o = r.o %}
+        <tr>
+          <td>{{ p.id }}</td>
+          <td>{{ p.vs }}</td>
+          <td>{% if p.amount_czk is not none %}{{ "%.2f"|format(p.amount_czk) }} Kč{% endif %}</td>
+          <td>
+            {% if p.status == 'pending' %}<span class="badge bg-warning text-dark">Čeká</span>
+            {% elif p.status == 'received' %}<span class="badge bg-success">Přijato</span>
+            {% elif p.status == 'failed' %}<span class="badge bg-danger">Neúspěšné</span>
+            {% elif p.status == 'canceled' %}<span class="badge bg-secondary">Zrušeno</span>
+            {% elif p.status == 'refunded' %}<span class="badge bg-secondary">Vráceno</span>
+            {% else %}<span class="badge bg-secondary">{{ p.status }}</span>
+            {% endif %}
+          </td>
+          <td>{% if p.received_at %}{{ p.received_at }}{% endif %}</td>
+          <td>
+            {% if o %}
+              {% if has_order_detail %}
+                <a href="{{ url_for('admin.order_detail', order_id=o.id) }}">#{{ o.id }}</a>
+              {% else %}
+                #{{ o.id }}
+              {% endif %}
+              <small class="text-muted">({{ o.status }}, {{ o.total_czk or '' }} Kč)</small>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <form method="post" action="{{ url_for('admin.admin_payment_update_status', payment_id=p.id) }}" class="d-inline-flex gap-2">
+              <select name="status" class="form-select form-select-sm" style="min-width: 140px">
+                {% for st in allowed_statuses %}
+                  <option value="{{ st }}" {{ 'selected' if p.status==st else '' }}>
+                    {% if st=='pending' %}Čeká na platbu{% elif st=='received' %}Přijato{% elif st=='failed' %}Neúspěšné{% elif st=='canceled' %}Zrušeno{% elif st=='refunded' %}Vráceno{% else %}{{ st }}{% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+              <button class="btn btn-sm btn-primary">Uložit</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="text-center text-muted">Nic nenalezeno.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}
-HTML

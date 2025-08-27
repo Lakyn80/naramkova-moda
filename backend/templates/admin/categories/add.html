@@ -29,7 +29,8 @@
     <textarea name="description" class="form-control" rows="3" placeholder="volitelné"></textarea>
   </div>
 
-  <div class="d-flex gap-2">
+  <!-- mobil-friendly tlačítka -->
+  <div class="d-flex flex-wrap gap-2">
     <a href="{{ url_for('admin.list_categories') }}" class="btn btn-outline-secondary">Zpět</a>
     <button type="submit" class="btn btn-primary">Uložit</button>
   </div>

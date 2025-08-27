@@ -54,13 +54,20 @@ export default function Navbar() {
           </span>
         </div>
 
-        {/* Hamburger */}
-        <button
-          className="sm:hidden text-pink-900 text-3xl focus:outline-none"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          ☰
-        </button>
+        {/* Hamburger s badge */}
+        <div className="sm:hidden relative">
+          <button
+            className="text-pink-900 text-3xl focus:outline-none relative"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            ☰
+            {cartCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-pink-600 text-white text-xs font-bold rounded-full px-2 py-0.5 shadow-md">
+                {cartCount}
+              </span>
+            )}
+          </button>
+        </div>
 
         {/* Navigace */}
         <ul className="hidden sm:flex space-x-6 text-lg font-semibold items-center">
@@ -123,11 +130,17 @@ export default function Navbar() {
           <Link to="/shop" onClick={() => setMenuOpen(false)} className="block hover:text-pink-600">
             E-shop
           </Link>
-          <Link to="/cart" onClick={() => setMenuOpen(false)} className="block hover:text-pink-600">
-            🛒 Košík {cartCount > 0 && `(${cartCount})`}
+          <Link to="/cart" onClick={() => setMenuOpen(false)} className="block hover:text-pink-600 relative">
+            🛒 Košík
+            {cartCount > 0 && (
+              <span className="ml-2 bg-pink-600 text-white text-xs rounded-full px-2 py-0.5">
+                {cartCount}
+              </span>
+            )}
           </Link>
         </div>
       )}
     </nav>
   );
 }
+

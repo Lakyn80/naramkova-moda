@@ -5,40 +5,48 @@
 <h1 class="mb-4">🏠 Dashboard</h1>
 
 <div class="row g-3">
-  <div class="col-md-3">
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">📦 Produkty</h5>
-        <p class="card-text mb-2">Počet: {{ product_count }}</p>
-        <a href="{{ url_for('admin.list_products') }}" class="btn btn-primary">Zobrazit</a>
+  <div class="col-12 col-sm-6 col-md-3">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body d-flex flex-column justify-content-between p-4">
+        <div>
+          <h5 class="card-title">📦 Produkty</h5>
+          <p class="card-text mb-3">Počet: {{ product_count }}</p>
+        </div>
+        <a href="{{ url_for('admin.list_products') }}" class="btn btn-primary mt-auto">Zobrazit</a>
       </div>
     </div>
   </div>
 
-  <div class="col-md-3">
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">📂 Kategorie</h5>
-        <p class="card-text mb-2">Počet: {{ category_count }}</p>
-        <a href="{{ url_for('admin.list_categories') }}" class="btn btn-primary">Zobrazit</a>
+  <div class="col-12 col-sm-6 col-md-3">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body d-flex flex-column justify-content-between p-4">
+        <div>
+          <h5 class="card-title">📂 Kategorie</h5>
+          <p class="card-text mb-3">Počet: {{ category_count }}</p>
+        </div>
+        <a href="{{ url_for('admin.list_categories') }}" class="btn btn-primary mt-auto">Zobrazit</a>
       </div>
     </div>
   </div>
 
-  <div class="col-md-3">
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">📊 Prodané</h5>
-        <a href="{{ url_for('admin.sold_products') }}" class="btn btn-warning">Zobrazit</a>
+  <div class="col-12 col-sm-6 col-md-3">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body d-flex flex-column justify-content-between p-4">
+        <div>
+          <h5 class="card-title">📊 Prodané</h5>
+        </div>
+        <a href="{{ url_for('admin.sold_products') }}" class="btn btn-warning mt-auto">Zobrazit</a>
       </div>
     </div>
   </div>
 
-  <div class="col-md-3">
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">💳 Platby</h5>
-        <a href="{{ url_for('admin.admin_payments_index') }}" class="btn btn-success">Zobrazit</a>
+  <div class="col-12 col-sm-6 col-md-3">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body d-flex flex-column justify-content-between p-4">
+        <div>
+          <h5 class="card-title">💳 Platby</h5>
+        </div>
+        <a href="{{ url_for('admin.admin_payments_index') }}" class="btn btn-success mt-auto">Zobrazit</a>
       </div>
     </div>
   </div>

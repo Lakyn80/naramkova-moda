@@ -37,7 +37,9 @@
     {% if product.image %}
       <div class="mb-2">
         <img src="{{ url_for('static', filename='uploads/' ~ product.image) }}"
-             alt="náhled" style="max-height:100px">
+             alt="náhled"
+             class="img-fluid rounded border"
+             style="max-height:150px;object-fit:contain">
       </div>
     {% endif %}
     <input type="file" name="image" class="form-control" accept="image/*">
@@ -46,19 +48,23 @@
   <div class="mb-3">
     <label class="form-label">Další média</label>
     {% if product.media %}
-      <div class="mb-2 d-flex flex-wrap gap-3">
+      <div class="mb-2 d-flex flex-wrap gap-3 justify-content-start align-items-start">
         {% for m in product.media %}
           <div class="text-center">
             {% set is_video = m.media_type and m.media_type.startswith('video') %}
             {% if is_video %}
               <video src="{{ url_for('static', filename='uploads/' ~ m.filename) }}"
-                     style="max-height:100px" controls muted></video>
+                     class="img-fluid rounded border"
+                     style="max-width:150px;max-height:150px;object-fit:contain" 
+                     controls muted></video>
             {% else %}
               <img src="{{ url_for('static', filename='uploads/' ~ m.filename) }}"
-                   alt="media" style="max-height:100px">
+                   alt="media"
+                   class="img-fluid rounded border"
+                   style="max-width:150px;max-height:150px;object-fit:contain">
             {% endif %}
 
-            <!-- tlačítko odešle POST na správný endpoint bez vnořeného <form> -->
+            <!-- tlačítko odešle POST na správný endpoint -->
             <div class="mt-1">
               <button type="submit"
                       class="btn btn-sm btn-outline-danger"
@@ -76,7 +82,7 @@
     <input type="file" name="media" class="form-control" accept="image/*,video/*" multiple>
   </div>
 
-  <div class="d-flex gap-2">
+  <div class="d-flex flex-wrap gap-2">
     <button type="submit" class="btn btn-primary">💾 Uložit</button>
     <a href="{{ url_for('admin.products') }}" class="btn btn-secondary">Zpět</a>
   </div>
