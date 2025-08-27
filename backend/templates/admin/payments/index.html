@@ -17,6 +17,13 @@
   {% endif %}
 {% endwith %}
 
+<!-- 🔽 tlačítka export -->
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a class="btn btn-outline-primary btn-sm" href="/admin/payments/export.xlsx">Export XLSX</a>
+  <a class="btn btn-outline-secondary btn-sm" href="/admin/payments/export.pdf">Export PDF</a>
+</div>
+
+
 <form method="get" class="row g-2 mb-3">
   <div class="col-md-3 col-sm-6">
     <input name="vs" class="form-control" value="{{ filters.get('vs','') }}" placeholder="VS">
@@ -49,7 +56,7 @@
 </div>
 {% endif %}
 
-<!-- responsivní obal -->
+<!-- ✅ responsivní obal -->
 <div class="table-responsive">
   <table class="table table-striped align-middle">
     <thead>
