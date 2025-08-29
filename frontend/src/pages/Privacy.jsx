@@ -12,11 +12,13 @@ export default function Privacy() {
         Právní základ: plnění smlouvy (objednávka), oprávněný zájem (zlepšování služeb) a souhlas (marketingové cookies).
       </p>
       <p className="mb-3">
-        Doba uchování: po dobu nezbytnou k vyřízení, účetnictví dle zákona. Svá práva (přístup, výmaz, omezení) uplatníš na
-        <a className="underline ml-1" href="mailto:info@naramkova-moda.cz">info@naramkova-moda.cz</a>.
+        Doba uchování: po dobu nezbytnou k vyřízení; účetnictví dle zákona. Svá práva (přístup, výmaz, omezení) uplatníš na
+        <a className="underline ml-1" href="mailto:naramkovamoda@email.cz">
+          naramkovamoda@email.cz
+        </a>.
       </p>
       <p>
-        Nepředáváme data mimo EU bez odpovídající ochrany. Více informací ti poskytneme na vyžádání.
+        Nepředáváme data mimo EU bez odpovídající ochrany. Více informací poskytneme na vyžádání.
       </p>
     </section>
   );
