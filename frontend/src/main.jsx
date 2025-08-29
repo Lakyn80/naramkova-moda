@@ -1,11 +1,19 @@
+// frontend/src/main.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
 
+// ✅ cookie lišta + volitelné skripty po souhlasu
+import CookieBanner from "./components/CookieBanner";
+import { setupOptionalScripts } from "./lib/loaders.js";
+setupOptionalScripts();
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <App />
+    {/* cookie lišta je globálně, mimo router */}
+    <CookieBanner />
   </React.StrictMode>
 );
 

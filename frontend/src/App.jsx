@@ -12,6 +12,7 @@ import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import { CartProvider } from "./context/CartContext";
 import ScrollToTop from "./components/ScrollToTop";
+import CookieBanner from "./components/CookieBanner";
 
 export default function App() {
   const heroRef = useRef();
@@ -34,6 +35,7 @@ export default function App() {
                   <Hero ref={heroRef} />
                   <Categories />
                   <Gallery />
+                  <CookieBanner />
                 </>
               }
             />
