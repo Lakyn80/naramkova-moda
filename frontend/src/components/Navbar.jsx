@@ -38,11 +38,7 @@ export default function Navbar() {
           className="text-2xl font-bold tracking-wider cursor-pointer flex items-center gap-3"
           onClick={handleHomeClick}
         >
-          <img
-            src={logo}
-            alt="Logo"
-            className="h-14 w-14 object-contain"
-          />
+          <img src={logo} alt="Logo" className="h-14 w-14 object-contain" />
           <span
             className={`transition-all duration-500 font-bold ${
               scrolled
@@ -57,7 +53,7 @@ export default function Navbar() {
         {/* Hamburger s badge */}
         <div className="sm:hidden relative">
           <button
-            className="text-pink-900 text-3xl focus:outline-none relative"
+            className="text-pink-900 text-4xl focus:outline-none relative"
             onClick={() => setMenuOpen(!menuOpen)}
           >
             ☰
@@ -99,7 +95,12 @@ export default function Navbar() {
             </Link>
           </li>
           <li>
-            <Link to="/cart" className="text-pink-900 hover:text-pink-600 transition relative">
+            {/* ✅ Twemoji/emotikony zde vypnuto */}
+            <Link
+              to="/cart"
+              data-no-emoji
+              className="text-pink-900 hover:text-pink-600 transition relative"
+            >
               🛒 Košík
               {cartCount > 0 && (
                 <span className="absolute -top-2 -right-3 bg-pink-600 text-white text-xs rounded-full px-2 py-0.5">
@@ -130,7 +131,8 @@ export default function Navbar() {
           <Link to="/shop" onClick={() => setMenuOpen(false)} className="block hover:text-pink-600">
             E-shop
           </Link>
-          <Link to="/cart" onClick={() => setMenuOpen(false)} className="block hover:text-pink-600 relative">
+          {/* ✅ Twemoji/emotikony zde vypnuto */}
+          <Link to="/cart" data-no-emoji onClick={() => setMenuOpen(false)} className="block hover:text-pink-600 relative">
             🛒 Košík
             {cartCount > 0 && (
               <span className="ml-2 bg-pink-600 text-white text-xs rounded-full px-2 py-0.5">
@@ -143,4 +145,3 @@ export default function Navbar() {
     </nav>
   );
 }
-

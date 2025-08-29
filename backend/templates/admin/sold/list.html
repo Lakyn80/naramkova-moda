@@ -1,3 +1,4 @@
+{# backend/templates/admin/sold/list.html #}
 {% extends "shared/layout.html" %}
 {% block title %}Prodané produkty{% endblock %}
 
@@ -5,16 +6,8 @@
 <div class="container mt-5">
   <h2 class="mb-4">🧾 Prodané produkty</h2>
 
-  <!-- 🔽 tlačítka na export -->
-<div class="d-flex flex-wrap gap-2 mb-3">
-  <a class="btn btn-outline-primary btn-sm" href="/admin/sold/export.xlsx">Export XLSX</a>
-  <a class="btn btn-outline-secondary btn-sm" href="/admin/sold/export.pdf">Export PDF</a>
-</div>
-
-
-  <!-- Responsivní obal tabulky -->
   <div class="table-responsive">
-    <table class="table table-bordered table-striped">
+    <table class="table table-bordered table-striped align-middle">
       <thead>
         <tr>
           <th>Název</th>
@@ -26,6 +19,7 @@
           <th>Poznámka</th>
           <th>Typ platby</th>
           <th>Datum</th>
+          <th class="text-end">Akce</th>
         </tr>
       </thead>
       <tbody>
@@ -36,10 +30,32 @@
           <td>{{ item.quantity }}</td>
           <td>{{ item.customer_name }}</td>
           <td>{{ item.customer_email }}</td>
-          <td>{{ item.customer_address }}</td>
+          <td style="white-space: pre-wrap;">{{ item.customer_address }}</td>
           <td>{{ item.note }}</td>
           <td>{{ item.payment_type }}</td>
-          <td>{{ item.sold_at.strftime('%d.%m.%Y %H:%M') }}</td>
+          <td>{% if item.sold_at %}{{ item.sold_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}</td>
+          <td class="text-end">
+            <div class="d-flex justify-content-end align-items-center gap-2">
+              <!-- Náhled PDF (otevře novou kartu) -->
+              <a class="btn btn-sm btn-outline-secondary"
+                 target="_blank"
+                 href="{{ url_for('admin.sold_invoice_pdf', sold_id=item.id) }}">
+                🔍 Náhled
+              </a>
+
+              <!-- Poslat fakturu e-mailem -->
+              <form method="post"
+                    action="{{ url_for('admin.sold_send_invoice', sold_id=item.id) }}"
+                    class="d-inline-flex gap-2">
+                <input type="email" name="email"
+                       class="form-control form-control-sm"
+                       placeholder="e-mail"
+                       value="{{ item.customer_email or '' }}"
+                       style="max-width:220px">
+                <button class="btn btn-sm btn-outline-primary">📧 Poslat fakturu</button>
+              </form>
+            </div>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

@@ -1,4 +1,3 @@
-# 📁 backend/config.py
 import os
 from dotenv import load_dotenv
 
@@ -40,6 +39,9 @@ def _resolve_sqlite_uri(db_url: str | None) -> str:
     return db_url
 
 class Config:
+    # ✅ Unicode JSON výstup (emoji a diakritika bez \u escape)
+    JSON_AS_ASCII = False
+
     # 🔐 Secret
     SECRET_KEY = _env("SECRET_KEY", "dev-please-change-me")
 

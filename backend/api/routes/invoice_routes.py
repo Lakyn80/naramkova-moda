@@ -1,19 +1,18 @@
-# backend/admin/sold_routes.py
 import io
 from datetime import datetime
 from decimal import Decimal
 
-from flask import render_template, request, redirect, url_for, flash, send_file
+from flask import Blueprint, request, redirect, flash, send_file
 from flask_login import login_required
 from flask_mail import Message
 
-from backend.admin import admin_bp
+from backend.extensions import mail
 from backend.admin.models import SoldProduct
 from backend.invoicing import build_invoice_pdf_bytes
-from backend.extensions import mail
 
+invoice_bp = Blueprint("invoice_bp", __name__, url_prefix="/api/invoice")
 
-# ── Pomocné funkce ───────────────────────────────────────────────────────────
+# ---------- Helpers ----------------------------------------------------------
 
 def _parse_price_decimal(val) -> Decimal:
     if val is None:
@@ -30,7 +29,6 @@ def _parse_price_decimal(val) -> Decimal:
     except Exception:
         return Decimal("0")
 
-
 def _sold_proxy_for_invoice(sold: SoldProduct):
     unit_price = _parse_price_decimal(getattr(sold, "price", 0))
     qty = int(getattr(sold, "quantity", 1) or 1)
@@ -41,7 +39,7 @@ def _sold_proxy_for_invoice(sold: SoldProduct):
     }]
     total = unit_price * qty
 
-    class _O: ...
+    class _O: pass
     o = _O()
     o.id = sold.id
     o.customer_name = sold.customer_name or ""
@@ -53,9 +51,8 @@ def _sold_proxy_for_invoice(sold: SoldProduct):
     o.created_at = getattr(sold, "sold_at", None)
     return o
 
-
 def _sold_payment_for_invoice(sold: SoldProduct):
-    class _P: ...
+    class _P: pass
     p = _P()
     p.id = sold.id
     p.vs = f"SOLD-{sold.id:06d}"
@@ -65,21 +62,12 @@ def _sold_payment_for_invoice(sold: SoldProduct):
     p.payment_type = getattr(sold, "payment_type", "Prodej")
     return p
 
+# ---------- API: SOLD PRODUCT faktura ---------------------------------------
 
-# ── ROUTES ───────────────────────────────────────────────────────────────────
-
-# Seznam prodaných kusů
-@admin_bp.get("/sold", endpoint="sold_list")
+@invoice_bp.get("/sold/<int:sold_id>.pdf", endpoint="sold_invoice_pdf_api")
 @login_required
-def sold_products():
-    sold_products = SoldProduct.query.order_by(SoldProduct.sold_at.desc()).all()
-    return render_template("admin/sold/list.html", sold_products=sold_products)
-
-
-# Náhled PDF faktury (otevře v nové kartě)
-@admin_bp.get("/sold/<int:sold_id>/invoice.pdf", endpoint="sold_invoice_pdf")
-@login_required
-def sold_invoice_pdf(sold_id: int):
+def sold_invoice_pdf_api(sold_id: int):
+    """Náhled PDF faktury pro SoldProduct (inline)."""
     sold = SoldProduct.query.get_or_404(sold_id)
     o = _sold_proxy_for_invoice(sold)
     p = _sold_payment_for_invoice(sold)
@@ -96,16 +84,15 @@ def sold_invoice_pdf(sold_id: int):
         last_modified=None,
     )
 
-
-# Odeslání faktury e-mailem
-@admin_bp.post("/sold/<int:sold_id>/invoice/send", endpoint="sold_send_invoice")
+@invoice_bp.post("/sold/<int:sold_id>/send", endpoint="sold_invoice_send_api")
 @login_required
-def sold_send_invoice(sold_id: int):
+def sold_invoice_send_api(sold_id: int):
+    """Pošle fakturu e-mailem (PDF v příloze) a vrátí redirect zpět do adminu."""
     sold = SoldProduct.query.get_or_404(sold_id)
     recipient = (request.form.get("email") or sold.customer_email or "").strip()
     if not recipient:
         flash("❌ Zákaznický e-mail není vyplněn.", "danger")
-        return redirect(url_for("admin.sold_list"))
+        return redirect("/admin/sold")
 
     o = _sold_proxy_for_invoice(sold)
     p = _sold_payment_for_invoice(sold)
@@ -125,4 +112,4 @@ def sold_send_invoice(sold_id: int):
     mail.send(msg)
 
     flash(f"📧 Faktura {inv_no} odeslána na {recipient}.", "success")
-    return redirect(url_for("admin.sold_list"))
+    return redirect("/admin/sold")

@@ -20,6 +20,47 @@ export default function ProductDetail() {
   const makeSlug = (s) =>
     String(s || "").toLowerCase().trim().replace(/\s+/g, "-");
 
+  // ---- helpers pro URL a fallback
+  const toUploadUrl = (input) => {
+    if (!input) return "";
+    let s = String(input).trim();
+    s = s.replace(/^https?:\/\/[^/]+/i, "");     // zahodit doménu
+    s = s.replace(/^\/+/, "");                   // zahodit počáteční /
+    if (s.toLowerCase().startsWith("api/static/uploads/")) {
+      s = s.slice("api/".length);
+    }
+    if (s.toLowerCase().startsWith("static/uploads/")) {
+      s = s.slice("static/uploads/".length);
+    }
+    return `/static/uploads/${s}`;
+  };
+
+  const fallbackSrc = (current) => {
+    try {
+      const u = new URL(current, window.location.origin);
+      const dir = u.pathname.substring(0, u.pathname.lastIndexOf("/") + 1);
+      const name = u.pathname.split("/").pop() || "";
+      const alt1 = name.includes("_") ? name.replace(/_/g, "-") : name.replace(/-/g, "_");
+      if (alt1 !== name) return `${dir}${alt1}`;
+      const alt2 = name.toLowerCase();
+      if (alt2 !== name) return `${dir}${alt2}`;
+    } catch (_) {}
+    return "/placeholder.png";
+  };
+
+  const onImgError = (e) => {
+    const el = e.currentTarget;
+    const next = fallbackSrc(el.src);
+    // zabráníme nekonečné smyčce
+    if (el.dataset.fallbackTried === "1") {
+      el.onerror = null;
+      el.src = "/placeholder.png";
+      return;
+    }
+    el.dataset.fallbackTried = "1";
+    el.src = next;
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -40,17 +81,16 @@ export default function ProductDetail() {
             ? found.price_czk
             : Number(found.price) || 0;
 
-        const mediaUrls = Array.isArray(found.media)
-          ? found.media.filter(Boolean)
-          : [];
+        const mediaUrls = Array.isArray(found.media) ? found.media.filter(Boolean) : [];
         const images = [found.image_url, ...mediaUrls]
           .filter(Boolean)
+          .map(toUploadUrl)
           .filter((v, i, a) => a.indexOf(v) === i);
 
         setProduct({
           ...found,
           price,
-          image_url: found.image_url,
+          image_url: images[0] || "",
           images,
         });
         setPhotoIndex(0);
@@ -97,6 +137,7 @@ export default function ProductDetail() {
                 alt={product.name}
                 className="w-full h-[260px] sm:h-[300px] md:h-[360px] object-cover rounded-xl shadow-lg cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
                 onClick={() => setIsOpen(true)}
+                onError={onImgError}
               />
               <div className="flex gap-2 flex-wrap justify-center sm:justify-start">
                 {product.images.map((img, i) => (
@@ -105,6 +146,7 @@ export default function ProductDetail() {
                     src={img}
                     alt={`${product.name} ${i + 1}`}
                     onClick={() => setPhotoIndex(i)}
+                    onError={onImgError}
                     className={`h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-lg cursor-pointer border-2 ${
                       photoIndex === i
                         ? "border-pink-500 shadow-lg"

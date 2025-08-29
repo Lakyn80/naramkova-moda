@@ -15,8 +15,9 @@ from backend.auth.login_routes import auth_bp
 from backend.api.routes.product_routes import api_products
 from backend.api.routes.category_routes import api_categories
 from backend.api.routes.media_routes import api_media
-from backend.client import client_bp
 from backend.api.routes.payment_routes import payment_bp
+from backend.api.routes.invoice_routes import invoice_bp  # ✅ tady
+from backend.client import client_bp
 from backend.debug_routes import debug_bp
 from backend import models as _models  # noqa: F401
 
@@ -32,7 +33,7 @@ def create_app() -> Flask:
     bcrypt.init_app(app)
     mail.init_app(app)
 
-    # Povolení CORS pro frontend
+    # CORS pro frontend
     cors.init_app(app, resources={
         r"/api/*": {
             "origins": [
@@ -47,14 +48,15 @@ def create_app() -> Flask:
     login_manager.login_view = "auth.login"  # type: ignore
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-    # Registrace blueprintů
+    # Registrace blueprintů (pořadí je OK)
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(api_products)
     app.register_blueprint(api_categories)
     app.register_blueprint(api_media)
-    app.register_blueprint(client_bp)
     app.register_blueprint(payment_bp)
+    app.register_blueprint(invoice_bp)  # ✅ registrace
+    app.register_blueprint(client_bp)
     app.register_blueprint(debug_bp)
 
     from backend.user_loader import load_user  # noqa: F401
@@ -65,6 +67,6 @@ def create_app() -> Flask:
 # ✅ GUNICORN potřebuje tento řádek
 app = create_app()
 
-# ✅ Toto je jen pro lokální vývoj
+# ✅ Lokální vývoj
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True, use_reloader=False)

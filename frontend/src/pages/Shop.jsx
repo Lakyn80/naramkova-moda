@@ -1,8 +1,8 @@
+// frontend/src/pages/Shop.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 
-// Mapy pro aliasování názvů (ponecháváme pouze toAlias)
 const categoryAliases = {
   maminka: "maminka",
   babička: "babička",
@@ -21,13 +21,41 @@ const categoryAliases = {
   přátelství: "přátelství",
 };
 
-// už není potřeba natvrdo BASE_URL
+// ✅ normalizace na /static/uploads
 function absoluteUploadUrl(u) {
   if (!u) return null;
-  if (/^https?:\/\//i.test(u)) return u;
-  if (u.startsWith("/")) return u; // necháme /api generovat správně backend
-  return `/api/static/uploads/${u}`;
+  if (/^https?:\/\//i.test(u)) {
+    u = u.replace(/^https?:\/\/[^/]+/i, "");
+  }
+  if (u.startsWith("/api/static/uploads/")) return u.replace("/api", "");
+  if (u.startsWith("/static/uploads/")) return u;
+  if (u.startsWith("/")) return u;
+  return `/static/uploads/${u}`;
 }
+
+// ✅ fallback při chybě načtení
+const onImgError = (e) => {
+  const el = e.currentTarget;
+  try {
+    const u = new URL(el.src, window.location.origin);
+    const dir = u.pathname.substring(0, u.pathname.lastIndexOf("/") + 1);
+    const name = u.pathname.split("/").pop() || "";
+    const alt1 = name.includes("_") ? name.replace(/_/g, "-") : name.replace(/-/g, "_");
+    if (alt1 !== name) {
+      el.dataset.fallbackTried = "1";
+      el.src = `${dir}${alt1}`;
+      return;
+    }
+    const alt2 = name.toLowerCase();
+    if (el.dataset.fallbackTried !== "2" && alt2 !== name) {
+      el.dataset.fallbackTried = "2";
+      el.src = `${dir}${alt2}`;
+      return;
+    }
+  } catch (_) {}
+  el.onerror = null;
+  el.src = "/placeholder.png";
+};
 
 const toAlias = (name) => categoryAliases[name] || name;
 
@@ -71,7 +99,7 @@ export default function Shop() {
 
           return {
             ...p,
-            image: absoluteUploadUrl(p.image_url || p.image),
+            image: absoluteUploadUrl(p.image_url || p.image), // ✅
             price: priceNumber,
             category: { name: p.category_name || "" },
           };
@@ -95,7 +123,6 @@ export default function Shop() {
 
   const deselectAll = () => setSelectedCategories([]);
 
-  // ✅ logika: group přímo z backendu
   const groupedCategories = categories.reduce((acc, cat) => {
     const aliased = toAlias((cat.name || "").toLowerCase());
     const grp = cat.group || "Ostatní";
@@ -202,9 +229,7 @@ export default function Shop() {
                   src={product.image || "/placeholder.png"}
                   alt={product.name}
                   className="w-full h-48 object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = "/placeholder.png";
-                  }}
+                  onError={onImgError}
                 />
                 <div className="p-4 flex flex-col flex-grow">
                   <Link
@@ -224,7 +249,7 @@ export default function Shop() {
                         id: product.id,
                         name: product.name,
                         price: Number(product.price) || 0,
-                        image: product.image,
+                        image: product.image, // už normalizováno
                       })
                     }
                     className="mt-auto bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition"

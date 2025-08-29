@@ -24,7 +24,7 @@ export default {
       keyframes: {
         float: {
           "0%, 100%": { transform: "translateY(0px)" },
-          "50%": { transform: "translateY(-10px)" },
+          "50%": { transform: "translateY(-10px)" }, // ✅ opravená uvozovka
         },
         "gradient-x": {
           "0%, 100%": {

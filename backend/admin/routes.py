@@ -2,12 +2,11 @@ import os
 import requests
 from flask import render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
+from werkzeug.utils import secure_filename
 
 from backend.admin import admin_bp
 from backend.extensions import db
 from backend.admin.models import Product, Category, ProductMedia
-from werkzeug.utils import secure_filename
-
 
 def _file_tuple(fs):
     """Vrátí (filename, fileobj, mimetype). ŽÁDNÉ placeholdery ani zásahy do URL (HARD RULES)."""
@@ -15,7 +14,6 @@ def _file_tuple(fs):
     fobj = getattr(fs, "stream", None) or fs
     ctype = fs.mimetype or "application/octet-stream"
     return (fn, fobj, ctype)
-
 
 @admin_bp.route("/dashboard")
 @login_required
@@ -29,11 +27,8 @@ def dashboard():
         category_count=category_count,
     )
 
-
 # -----------------------------------------------------------------------------
 # LIST PRODUKTŮ
-#  - Primární endpoint: admin.products  → /admin/products
-#  - Alias endpoint:    admin.list_products → /admin/products/list (kvůli starým odkazům)
 # -----------------------------------------------------------------------------
 @admin_bp.route("/products", endpoint="products")
 @login_required
@@ -45,7 +40,6 @@ def products_list():
 @login_required
 def products_list_alias():
     return redirect(url_for("admin.products"))
-
 
 # -----------------------------------------------------------------------------
 # PŘIDÁNÍ PRODUKTU (proxy přes API)
@@ -89,7 +83,6 @@ def add_product():
             return redirect(request.url)
 
     return render_template("admin/products/add.html", categories=categories, category_labels=category_labels)
-
 
 # -----------------------------------------------------------------------------
 # ÚPRAVA PRODUKTU (proxy přes API)
@@ -140,7 +133,6 @@ def edit_product(product_id: int):
         category_labels=category_labels,
     )
 
-
 # -----------------------------------------------------------------------------
 # SMAZÁNÍ PRODUKTU (proxy přes API)
 # -----------------------------------------------------------------------------
@@ -161,17 +153,10 @@ def delete_product(product_id: int):
 
     return redirect(url_for("admin.products"))
 
-
 # -----------------------------------------------------------------------------
-# SMAZÁNÍ JEDNOHO MÉDIA (endpoint: admin.delete_product_media)
-#  - ŽÁDNÉ zásahy do obrázků/URL, žádné placeholdery (HARD RULES)
-#  - Přímé mazání přes DB + soubor (os.remove)
+# SMAZÁNÍ JEDNOHO MÉDIA
 # -----------------------------------------------------------------------------
-@admin_bp.route(
-    "/products/media/delete/<int:media_id>",
-    methods=["POST"],
-    endpoint="delete_product_media",
-)
+@admin_bp.route("/products/media/delete/<int:media_id>", methods=["POST"], endpoint="delete_product_media")
 @login_required
 def delete_product_media(media_id: int):
     media = ProductMedia.query.get(media_id)
@@ -190,7 +175,8 @@ def delete_product_media(media_id: int):
         is_same_as_main = True
 
     # pokud soubor sdílí více záznamů, nemaž fyzicky
-    shared_count = ProductMedia.query.filter(ProductMedia.filename == filename).count()
+    from backend.admin.models import ProductMedia as PM
+    shared_count = PM.query.filter(PM.filename == filename).count()
 
     if not is_same_as_main and shared_count <= 1:
         try:
