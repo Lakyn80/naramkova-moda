@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";          // SPA odkazy
 import { getConsent, setConsent } from "../lib/consent";
 
-// respektuj BASE_URL (Vite) pro návrat domů
-const HOME = import.meta.env.BASE_URL || "/";
+// respektuj BASE_URL (Vite) pro návrat na domů
+const HOME = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "/");
 
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false);
@@ -34,7 +34,7 @@ export default function CookieBanner() {
       setShowPrefs(true);
     };
 
-    // funkce, kterou může volat footer (přímé volání)
+    // funkce, kterou může volat footer
     window._openCookiePrefs = openPrefs;
 
     // kompatibilita s eventy
@@ -82,19 +82,26 @@ export default function CookieBanner() {
     goHome();
   };
 
+  // NOVÉ: zpět se chová stejně jako uložit (zavírá a vrací na domů)
+  const backLikeSave = () => {
+    // neukládáme změny, jen zavřeme a jdeme na domů
+    setVisible(false);
+    setShowPrefs(false);
+    goHome();
+  };
+
   return (
     <div
       data-cookie-banner-visible={visible ? "true" : "false"}
       style={{
         position: "fixed",
-        left: 0,
-        right: 0,
-        bottom: 0,
+        left: 0, right: 0, bottom: 0,
         zIndex: 9999, // překryje i footer
       }}
       role="dialog"
       aria-live="polite"
       aria-label="Nastavení cookies"
+      aria-modal="true"
     >
       <div
         className="w-full"
@@ -175,12 +182,14 @@ export default function CookieBanner() {
 
               <div className="flex gap-2 justify-end mt-2">
                 <button
-                  onClick={() => setShowPrefs(false)}
+                  type="button"
+                  onClick={backLikeSave}  // ← tady změna
                   className="px-4 py-2 rounded-md border border-gray-400/50 hover:border-gray-300 text-sm"
                 >
                   Zpět
                 </button>
                 <button
+                  type="button"
                   onClick={savePrefs}
                   className="px-4 py-2 rounded-md bg-pink-600 hover:bg-pink-700 text-white text-sm font-semibold"
                 >
