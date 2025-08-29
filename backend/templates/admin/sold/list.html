@@ -4,15 +4,91 @@
 
 {% block content %}
 <div class="container mt-5">
-  <h2 class="mb-4">🧾 Prodané produkty</h2>
+  <h2 class="mb-3">🧾 Prodané produkty</h2>
+
+  {# 🔽 tlačítka export – stejné jako u plateb, jen cesta /admin/sold/... #}
+  <!-- Exporty (stejně jako u plateb) -->
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a class="btn btn-outline-primary btn-sm" href="/admin/sold/export.xlsx">Export XLSX</a>
+  <a class="btn btn-outline-secondary btn-sm" href="/admin/sold/export.pdf">Export PDF</a>
+</div>
+
+
+
+
+
+
+  {# Excel-like filtry (čistě klientsky) – můžeš klidně smazat, pokud nechceš #}
+  <div class="mb-3 p-3 bg-light border rounded">
+    <div class="row g-2">
+      <div class="col-md-4">
+        <label class="form-label mb-1">Hledat (cokoliv)</label>
+        <input id="f-q" type="text" class="form-control" placeholder="název, jméno, e-mail, adresa, poznámka">
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label mb-1">Typ platby</label>
+        <select id="f-payment" class="form-select">
+          <option value="">— vše —</option>
+          {% for pt in payment_types|default([]) %}
+            <option value="{{ pt }}">{{ pt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label mb-1">Datum od</label>
+        <input id="f-date-from" type="date" class="form-control">
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label mb-1">Datum do</label>
+        <input id="f-date-to" type="date" class="form-control">
+      </div>
+
+      <div class="col-md-1">
+        <label class="form-label mb-1">Cena od</label>
+        <input id="f-price-min" type="number" step="0.01" class="form-control">
+      </div>
+
+      <div class="col-md-1">
+        <label class="form-label mb-1">Cena do</label>
+        <input id="f-price-max" type="number" step="0.01" class="form-control">
+      </div>
+    </div>
+
+    <div class="row g-2 mt-2">
+      <div class="col-md-3">
+        <label class="form-label mb-1">Řazení</label>
+        <select id="f-sort" class="form-select">
+          <option value="newest">Nejnovější</option>
+          <option value="oldest">Nejstarší</option>
+          <option value="price_asc">Cena ↑</option>
+          <option value="price_desc">Cena ↓</option>
+        </select>
+      </div>
+
+      <div class="col-md d-flex align-items-end gap-2">
+        <button id="btn-apply" type="button" class="btn btn-primary">Filtrovat</button>
+        <a class="btn btn-outline-secondary" href="{{ request.path }}">Reset</a>
+      </div>
+
+      <div class="col-md-5 d-flex align-items-end justify-content-md-end">
+        <div class="text-muted small">
+          Zobrazeno: <b id="stat-count">{{ sold_products|length if sold_products else 0 }}</b>
+          · Součet: <b id="stat-sum">—</b>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="table-responsive">
-    <table class="table table-bordered table-striped align-middle">
+    <table id="sold-table" class="table table-bordered table-striped align-middle">
       <thead>
         <tr>
           <th>Název</th>
-          <th>Cena</th>
-          <th>Množství</th>
+          <th class="text-end">Cena</th>
+          <th class="text-end">Množství</th>
           <th>Zákazník</th>
           <th>Email</th>
           <th>Adresa</th>
@@ -23,43 +99,159 @@
         </tr>
       </thead>
       <tbody>
-        {% for item in sold_products %}
-        <tr>
-          <td>{{ item.name }}</td>
-          <td>{{ item.price }} Kč</td>
-          <td>{{ item.quantity }}</td>
-          <td>{{ item.customer_name }}</td>
-          <td>{{ item.customer_email }}</td>
-          <td style="white-space: pre-wrap;">{{ item.customer_address }}</td>
-          <td>{{ item.note }}</td>
-          <td>{{ item.payment_type }}</td>
-          <td>{% if item.sold_at %}{{ item.sold_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}</td>
-          <td class="text-end">
-            <div class="d-flex justify-content-end align-items-center gap-2">
-              <!-- Náhled PDF (otevře novou kartu) -->
-              <a class="btn btn-sm btn-outline-secondary"
-                 target="_blank"
-                 href="{{ url_for('admin.sold_invoice_pdf', sold_id=item.id) }}">
-                🔍 Náhled
-              </a>
-
-              <!-- Poslat fakturu e-mailem -->
-              <form method="post"
-                    action="{{ url_for('admin.sold_send_invoice', sold_id=item.id) }}"
-                    class="d-inline-flex gap-2">
-                <input type="email" name="email"
-                       class="form-control form-control-sm"
-                       placeholder="e-mail"
-                       value="{{ item.customer_email or '' }}"
-                       style="max-width:220px">
-                <button class="btn btn-sm btn-outline-primary">📧 Poslat fakturu</button>
-              </form>
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
+        {% if sold_products %}
+          {% for item in sold_products %}
+          <tr
+            data-price="{{ item.price or 0 }}"
+            data-qty="{{ item.quantity or 1 }}"
+            data-payment="{{ item.payment_type or '' }}"
+            data-date="{{ item.sold_at.isoformat() if item.sold_at else '' }}"
+          >
+            <td>{{ item.name }}</td>
+            <td class="text-end">{{ item.price }} Kč</td>
+            <td class="text-end">{{ item.quantity }}</td>
+            <td>{{ item.customer_name }}</td>
+            <td>{{ item.customer_email }}</td>
+            <td style="white-space: pre-wrap;">{{ item.customer_address }}</td>
+            <td>{{ item.note }}</td>
+            <td>{{ item.payment_type }}</td>
+            <td>{% if item.sold_at %}{{ item.sold_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}</td>
+            <td class="text-end">
+              <div class="d-flex justify-content-end align-items-center gap-2">
+                <!-- PŮVODNÍ endpointy -->
+                <a class="btn btn-sm btn-outline-secondary"
+                   target="_blank"
+                   href="{{ url_for('admin.sold_invoice_pdf', sold_id=item.id) }}">
+                  🔍 Náhled
+                </a>
+                <form method="post"
+                      action="{{ url_for('admin.sold_send_invoice', sold_id=item.id) }}"
+                      class="d-inline-flex gap-2">
+                  <input type="email" name="email"
+                         class="form-control form-control-sm"
+                         placeholder="e-mail"
+                         value="{{ item.customer_email or '' }}"
+                         style="max-width:220px">
+                  <button class="btn btn-sm btn-outline-primary">📧 Poslat fakturu</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="10" class="text-center text-muted py-4">
+              Žádné záznamy.
+            </td>
+          </tr>
+        {% endif %}
       </tbody>
     </table>
   </div>
 </div>
+
+{# jednoduchý klientský filtr/součet #}
+<script>
+(function(){
+  const $q = document.getElementById('f-q');
+  const $payment = document.getElementById('f-payment');
+  const $dFrom = document.getElementById('f-date-from');
+  const $dTo = document.getElementById('f-date-to');
+  const $pMin = document.getElementById('f-price-min');
+  const $pMax = document.getElementById('f-price-max');
+  const $sort = document.getElementById('f-sort');
+
+  const $tbl = document.getElementById('sold-table');
+  const $rows = Array.from($tbl.querySelectorAll('tbody tr'));
+  const $statCount = document.getElementById('stat-count');
+  const $statSum = document.getElementById('stat-sum');
+
+  const toNum = (s) => {
+    if (s === null || s === undefined) return NaN;
+    const t = String(s).replace(/\s/g,'').replace('Kč','').replace(',', '.');
+    const n = parseFloat(t);
+    return isNaN(n) ? NaN : n;
+  };
+  const toDate = (iso) => iso ? new Date(iso) : null;
+
+  function rowMatches(tr){
+    const q = $q.value.trim().toLowerCase();
+    const payment = $payment.value;
+    const dFrom = $dFrom.value ? new Date($dFrom.value+'T00:00:00') : null;
+    const dTo = $dTo.value ? new Date($dTo.value+'T23:59:59') : null;
+    const pMin = $pMin.value ? parseFloat($pMin.value) : null;
+    const pMax = $pMax.value ? parseFloat($pMax.value) : null;
+
+    if (q){
+      const text = tr.innerText.toLowerCase();
+      if (!text.includes(q)) return false;
+    }
+    if (payment && (tr.dataset.payment || '') !== payment) return false;
+
+    const price = toNum(tr.dataset.price);
+    if (pMin !== null && !isNaN(pMin) && !(price >= pMin)) return false;
+    if (pMax !== null && !isNaN(pMax) && !(price <= pMax)) return false;
+
+    const d = toDate(tr.dataset.date);
+    if (dFrom && (!d || d < dFrom)) return false;
+    if (dTo && (!d || d > dTo)) return false;
+
+    return true;
+  }
+
+  function applySort(rowsVisible){
+    const mode = $sort.value;
+    const byDate = (a,b) => {
+      const da = toDate(a.dataset.date)?.getTime() || 0;
+      const db = toDate(b.dataset.date)?.getTime() || 0;
+      return da - db;
+    };
+    const byPrice = (a,b) => {
+      const pa = toNum(a.dataset.price) || 0;
+      const pb = toNum(b.dataset.price) || 0;
+      return pa - pb;
+    };
+
+    if (mode === 'oldest') rowsVisible.sort(byDate);
+    else if (mode === 'newest') rowsVisible.sort((a,b)=> byDate(b,a));
+    else if (mode === 'price_asc') rowsVisible.sort(byPrice);
+    else if (mode === 'price_desc') rowsVisible.sort((a,b)=> byPrice(b,a));
+  }
+
+  function applyFilters(){
+    let visible = 0;
+    let sum = 0;
+
+    const tbody = $tbl.tBodies[0];
+    const rowsVisible = [];
+
+    $rows.forEach(tr => {
+      const ok = rowMatches(tr);
+      tr.style.display = ok ? '' : 'none';
+      if (ok){
+        visible += 1;
+        const price = toNum(tr.dataset.price) || 0;
+        const qty = parseFloat(tr.dataset.qty || '1') || 1;
+        sum += price * qty;
+        rowsVisible.push(tr);
+      }
+    });
+
+    applySort(rowsVisible);
+    rowsVisible.forEach(tr => tbody.appendChild(tr));
+
+    $statCount.textContent = String(visible);
+    $statSum.textContent = sum.toFixed(2) + ' Kč';
+  }
+
+  document.getElementById('btn-apply').addEventListener('click', applyFilters);
+  ['f-q','f-payment','f-date-from','f-date-to','f-price-min','f-price-max','f-sort'].forEach(id=>{
+    const el = document.getElementById(id);
+    el.addEventListener('change', applyFilters);
+    if (el.tagName === 'INPUT') el.addEventListener('keyup', (e)=>{ if (e.key==='Enter') applyFilters(); });
+  });
+
+  applyFilters();
+})();
+</script>
 {% endblock %}

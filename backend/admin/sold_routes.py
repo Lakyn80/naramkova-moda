@@ -1,128 +1,167 @@
 # backend/admin/sold_routes.py
-import io
+import io, csv
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
-from flask import render_template, request, redirect, url_for, flash, send_file
+from flask import render_template, request, redirect, url_for, flash, send_file, Response
 from flask_login import login_required
 from flask_mail import Message
 
 from backend.admin import admin_bp
+from backend.extensions import db, mail
 from backend.admin.models import SoldProduct
 from backend.invoicing import build_invoice_pdf_bytes
-from backend.extensions import mail
 
 
-# ── Pomocné funkce ───────────────────────────────────────────────────────────
-
-def _parse_price_decimal(val) -> Decimal:
-    if val is None:
-        return Decimal("0")
-    if isinstance(val, (int, float, Decimal)):
-        return Decimal(str(val))
-    s = "".join(ch for ch in str(val) if ch.isdigit() or ch in (".", ","))
-    if s.count(",") == 1 and s.count(".") == 0:
-        s = s.replace(",", ".")
-    else:
-        s = s.replace(",", "")
-    try:
-        return Decimal(s)
-    except Exception:
-        return Decimal("0")
-
-
-def _sold_proxy_for_invoice(sold: SoldProduct):
-    unit_price = _parse_price_decimal(getattr(sold, "price", 0))
-    qty = int(getattr(sold, "quantity", 1) or 1)
-    items = [{
-        "name": sold.name or "",
-        "quantity": qty,
-        "price_czk": float(unit_price),
-    }]
-    total = unit_price * qty
-
-    class _O: ...
-    o = _O()
-    o.id = sold.id
-    o.customer_name = sold.customer_name or ""
-    o.customer_email = sold.customer_email or ""
-    o.customer_address = sold.customer_address or ""
-    o.note = sold.note or ""
-    o.total_czk = float(total)
-    o.items = items
-    o.created_at = getattr(sold, "sold_at", None)
-    return o
-
-
-def _sold_payment_for_invoice(sold: SoldProduct):
-    class _P: ...
-    p = _P()
-    p.id = sold.id
-    p.vs = f"SOLD-{sold.id:06d}"
-    p.amount_czk = _parse_price_decimal(getattr(sold, "price", 0)) * int(getattr(sold, "quantity", 1) or 1)
-    p.received_at = getattr(sold, "sold_at", None) or datetime.utcnow()
-    p.status = "sold"
-    p.payment_type = getattr(sold, "payment_type", "Prodej")
-    return p
-
-
-# ── ROUTES ───────────────────────────────────────────────────────────────────
-
-# Seznam prodaných kusů
+# ───────────────── LIST (bez trailing slash): /admin/sold ─────────────────
 @admin_bp.get("/sold", endpoint="sold_list")
 @login_required
-def sold_products():
-    sold_products = SoldProduct.query.order_by(SoldProduct.sold_at.desc()).all()
-    return render_template("admin/sold/list.html", sold_products=sold_products)
+def sold_list():
+    items = (
+        db.session.query(SoldProduct)
+        .order_by(SoldProduct.sold_at.desc().nullslast())
+        .all()
+    )
+    return render_template("admin/sold/list.html", sold_products=items)
 
 
-# Náhled PDF faktury (otevře v nové kartě)
+# ──────────────── Faktura – náhled + odeslání e-mailem ───────────────────
 @admin_bp.get("/sold/<int:sold_id>/invoice.pdf", endpoint="sold_invoice_pdf")
 @login_required
 def sold_invoice_pdf(sold_id: int):
-    sold = SoldProduct.query.get_or_404(sold_id)
-    o = _sold_proxy_for_invoice(sold)
-    p = _sold_payment_for_invoice(sold)
+    sold = db.session.get(SoldProduct, sold_id)
+    if not sold:
+        from flask import abort; abort(404)
+    pdf_bytes = build_invoice_pdf_bytes(sold)
+    return send_file(io.BytesIO(pdf_bytes), mimetype="application/pdf",
+                     as_attachment=False, download_name=f"faktura_{sold.id}.pdf")
 
-    pdf_bytes, inv_no = build_invoice_pdf_bytes(o, p, seller=None)
-    buf = io.BytesIO(pdf_bytes); buf.seek(0)
-    return send_file(
-        buf,
-        mimetype="application/pdf",
-        as_attachment=False,
-        download_name=f"{inv_no}.pdf",
-        max_age=0,
-        etag=False,
-        last_modified=None,
-    )
-
-
-# Odeslání faktury e-mailem
 @admin_bp.post("/sold/<int:sold_id>/invoice/send", endpoint="sold_send_invoice")
 @login_required
 def sold_send_invoice(sold_id: int):
-    sold = SoldProduct.query.get_or_404(sold_id)
-    recipient = (request.form.get("email") or sold.customer_email or "").strip()
-    if not recipient:
-        flash("❌ Zákaznický e-mail není vyplněn.", "danger")
-        return redirect(url_for("admin.sold_list"))
+    sold = db.session.get(SoldProduct, sold_id)
+    if not sold:
+        from flask import abort; abort(404)
 
-    o = _sold_proxy_for_invoice(sold)
-    p = _sold_payment_for_invoice(sold)
+    target_email = (request.form.get("email") or sold.customer_email or "").strip()
+    if not target_email:
+        flash("Chybí e-mail pro odeslání.", "warning")
+        return redirect(request.headers.get("Referer") or url_for("admin.sold_list"))
 
-    pdf_bytes, inv_no = build_invoice_pdf_bytes(o, p, seller=None)
-
-    subject = f"Faktura {inv_no} – Náramková Móda"
-    body = (
-        f"Dobrý den {o.customer_name},\n\n"
-        f"v příloze zasíláme fakturu č. {inv_no} k Vašemu nákupu.\n"
-        f"Děkujeme za nákup.\n\n"
-        f"Náramková Móda"
+    pdf_bytes = build_invoice_pdf_bytes(sold)
+    msg = Message(
+        subject=f"Faktura #{sold.id} – Náramková Móda",
+        recipients=[target_email],
+        body=(
+            f"Dobrý den {sold.customer_name or ''},\n\n"
+            "v příloze posíláme fakturu k Vaší objednávce.\n"
+            "Děkujeme za nákup.\n\n"
+            "Náramková Móda"
+        ),
     )
+    msg.attach(filename=f"faktura_{sold.id}.pdf", content_type="application/pdf", data=pdf_bytes)
+    try:
+        mail.send(msg)
+        flash(f"Faktura byla odeslána na {target_email}.", "success")
+    except Exception as e:
+        flash(f"E-mail se nepodařilo odeslat: {e}", "danger")
 
-    msg = Message(subject=subject, recipients=[recipient], body=body)
-    msg.attach(f"{inv_no}.pdf", "application/pdf", pdf_bytes)
-    mail.send(msg)
+    return redirect(request.headers.get("Referer") or url_for("admin.sold_list"))
 
-    flash(f"📧 Faktura {inv_no} odeslána na {recipient}.", "success")
-    return redirect(url_for("admin.sold_list"))
+
+# ─────────────────────────── EXPORT XLSX ───────────────────────────
+@admin_bp.get("/sold/export.xlsx", endpoint="sold_export_xlsx")
+@login_required
+def sold_export_xlsx():
+    rows = (
+        db.session.query(SoldProduct)
+        .order_by(SoldProduct.sold_at.desc().nullslast())
+        .all()
+    )
+    try:
+        from openpyxl import Workbook
+        from openpyxl.utils import get_column_letter
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Prodané"
+        ws.append(["Datum","Název","Množství","Cena","Zákazník","Email","Adresa","Poznámka","Typ platby"])
+
+        for r in rows:
+            date_str = r.sold_at.strftime("%d.%m.%Y %H:%M") if r.sold_at else ""
+            price = float(Decimal(str(r.price or "0")))
+            ws.append([date_str, r.name or "", r.quantity or 1, price,
+                       r.customer_name or "", r.customer_email or "",
+                       (r.customer_address or ""), r.note or "", r.payment_type or ""])
+
+        for i, w in enumerate([18,28,10,12,20,26,36,26,16], start=1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        bio = io.BytesIO(); wb.save(bio); bio.seek(0)
+        return send_file(bio, as_attachment=True, download_name="sold_export.xlsx",
+                         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    except Exception:
+        # fallback CSV – ať se vždy něco stáhne
+        out = io.StringIO(); w = csv.writer(out, delimiter=';')
+        w.writerow(["Datum","Název","Množství","Cena","Zákazník","Email","Adresa","Poznámka","Typ platby"])
+        for r in rows:
+            date_str = r.sold_at.strftime("%d.%m.%Y %H:%M") if r.sold_at else ""
+            w.writerow([date_str, r.name or "", r.quantity or 1, str(r.price or ""),
+                        r.customer_name or "", r.customer_email or "",
+                        (r.customer_address or "").replace("\n"," "), r.note or "", r.payment_type or ""])
+        return Response(out.getvalue(), mimetype="text/csv",
+                        headers={"Content-Disposition": 'attachment; filename=\"sold_export.csv\"'})
+
+
+# ─────────────────────────── EXPORT PDF ───────────────────────────
+@admin_bp.get("/sold/export.pdf", endpoint="sold_export_pdf")
+@login_required
+def sold_export_pdf():
+    rows = (
+        db.session.query(SoldProduct)
+        .order_by(SoldProduct.sold_at.desc().nullslast())
+        .all()
+    )
+    try:
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+
+        bio = io.BytesIO()
+        doc = SimpleDocTemplate(bio, pagesize=landscape(A4),
+                                leftMargin=20, rightMargin=20, topMargin=20, bottomMargin=20)
+
+        styles = getSampleStyleSheet()
+        elements = [Paragraph("Report – Prodané produkty", styles["Heading2"]), Spacer(1, 8)]
+
+        data = [["Datum","Název","Množství","Cena (Kč)","Zákazník","Email","Adresa","Poznámka","Typ platby"]]
+        total = Decimal("0")
+        for r in rows:
+            qty = r.quantity or 1
+            price = Decimal(str(r.price or "0"))
+            total += price * qty
+            data.append([
+                r.sold_at.strftime("%d.%m.%Y %H:%M") if r.sold_at else "",
+                r.name or "", qty, f"{price:.2f}",
+                r.customer_name or "", r.customer_email or "", (r.customer_address or ""),
+                r.note or "", r.payment_type or ""
+            ])
+        data.append(["","","","","","","","Součet", f"{total:.2f}"])
+
+        table = Table(data, repeatRows=1)
+        table.setStyle(TableStyle([
+            ("BACKGROUND",(0,0),(-1,0),colors.lightgrey),
+            ("GRID",(0,0),(-1,-1),0.25,colors.grey),
+            ("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),
+            ("ALIGN",(2,1),(3,-2),"RIGHT"),
+            ("BACKGROUND",(-2,-1),(-1,-1),colors.lightgrey),
+            ("FONTNAME",(-2,-1),(-1,-1),"Helvetica-Bold"),
+            ("ALIGN",(-1,-1),(-1,-1),"RIGHT"),
+        ]))
+
+        elements.append(table)
+        doc.build(elements); bio.seek(0)
+        return send_file(bio, as_attachment=True, download_name="sold_report.pdf", mimetype="application/pdf")
+    except Exception:
+        return sold_export_xlsx()
