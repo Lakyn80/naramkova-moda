@@ -1,0 +1,204 @@
+﻿# backend/invoicing/__init__.py
+import io
+import os
+from datetime import datetime
+from decimal import Decimal
+
+from flask import current_app
+
+# ---------- malá utilita na čísla / data ----------
+
+def _to_float(v) -> float:
+    if v is None:
+        return 0.0
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, Decimal):
+        return float(v)
+    try:
+        s = str(v).strip().replace(",", ".")
+        return float(s) if s else 0.0
+    except Exception:
+        return 0.0
+
+def _get_first_attr(obj, *names):
+    for n in names:
+        if hasattr(obj, n):
+            val = getattr(obj, n)
+            if val not in (None, ""):
+                return val
+    return None
+
+def _qty(sp) -> float:
+    q = _to_float(_get_first_attr(sp, "quantity", "qty", "count", "pieces"))
+    return q if q > 0 else 1.0
+
+def _unit_price(sp) -> float:
+    cand = _get_first_attr(
+        sp,
+        "unit_price_czk", "price_czk",
+        "unit_price", "price",
+        "final_price_czk", "sold_unit_price_czk"
+    )
+    return round(_to_float(cand), 2)
+
+def _total(sp) -> float:
+    cand = _get_first_attr(sp, "total_czk", "total_price_czk", "amount_czk", "amount")
+    val = round(_to_float(cand), 2)
+    if val > 0:
+        return val
+    return round(_unit_price(sp) * _qty(sp), 2)
+
+def _sold_dt(sp):
+    return _get_first_attr(sp, "sold_at", "created_at")
+
+# ---------- registrace CZ fontu ----------
+
+def _register_cz_fonts():
+    """
+    Zkusí registrovat DejaVuSans / DejaVuSans-Bold (potažmo NotoSans...), jinak použije Helvetica.
+    Vrátí (regular_name, bold_name).
+    """
+    try:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+    except Exception:
+        return "Helvetica", "Helvetica-Bold"
+
+    root = current_app.root_path  # backend/
+    candidates = [
+        # DejaVu Sans
+        (os.path.join(root, "static", "fonts", "DejaVuSans.ttf"),
+         os.path.join(root, "static", "fonts", "DejaVuSans-Bold.ttf"),
+         "DejaVuSans", "DejaVuSans-Bold"),
+        # Noto Sans (fallback)
+        (os.path.join(root, "static", "fonts", "NotoSans-Regular.ttf"),
+         os.path.join(root, "static", "fonts", "NotoSans-Bold.ttf"),
+         "NotoSans", "NotoSans-Bold"),
+        # Windows Arial (poslední možnost)
+        (r"C:\Windows\Fonts\arial.ttf",
+         r"C:\Windows\Fonts\arialbd.ttf",
+         "ArialTT", "ArialTT-Bold"),
+    ]
+
+    for reg_path, bold_path, reg_name, bold_name in candidates:
+        if os.path.isfile(reg_path):
+            try:
+                pdfmetrics.registerFont(TTFont(reg_name, reg_path))
+                if os.path.isfile(bold_path):
+                    pdfmetrics.registerFont(TTFont(bold_name, bold_path))
+                else:
+                    bold_name = reg_name
+                # volitelné: rodina
+                try:
+                    pdfmetrics.registerFontFamily(reg_name,
+                        normal=reg_name, bold=bold_name, italic=reg_name, boldItalic=bold_name
+                    )
+                except Exception:
+                    pass
+                return reg_name, bold_name
+            except Exception:
+                continue
+
+    return "Helvetica", "Helvetica-Bold"
+
+# ---------- hlavní: vygeneruj PDF faktury ----------
+
+def build_invoice_pdf_bytes(sold_product) -> bytes:
+    """
+    Vytvoří jednoduché PDF s českou diakritikou.
+    Očekává objekt prodané položky (SoldProduct nebo podobný).
+    """
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import mm
+        from reportlab.pdfgen import canvas
+    except ImportError as e:
+        raise RuntimeError("ReportLab není nainstalován. Spusť: pip install reportlab") from e
+
+    reg_font, bold_font = _register_cz_fonts()
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    w, h = A4
+
+    # Hlavička
+    c.setFont(bold_font, 16)
+    c.drawString(20 * mm, h - 20 * mm, "DAŇOVÝ DOKLAD / FAKTURA")
+
+    c.setFont(reg_font, 10)
+    company = current_app.config.get("COMPANY_NAME", "Náramková Móda")
+    company_email = current_app.config.get("COMPANY_EMAIL", "")
+    company_iban = current_app.config.get("MERCHANT_IBAN", "")
+    c.drawString(20 * mm, h - 28 * mm, company)
+    if company_email:
+        c.drawString(20 * mm, h - 33 * mm, company_email)
+    if company_iban:
+        c.drawString(20 * mm, h - 38 * mm, f"IBAN: {company_iban}")
+
+    # Číslo / datumy
+    num = _get_first_attr(sold_product, "id", "order_id", "order_code") or "-"
+    dt = _sold_dt(sold_product)
+    dt_str = dt.strftime("%Y-%m-%d") if isinstance(dt, datetime) else "-"
+    c.drawRightString(w - 20 * mm, h - 28 * mm, f"Číslo dokladu: {num}")
+    c.drawRightString(w - 20 * mm, h - 33 * mm, f"Datum vystavení: {dt_str}")
+
+    # Odběratel
+    buyer_name = _get_first_attr(sold_product, "customer_name", "buyer_name", "full_name")
+    if not buyer_name:
+        # zkuz poskládat ze jména / příjmení
+        first = _get_first_attr(sold_product, "first_name", "firstname")
+        last = _get_first_attr(sold_product, "last_name", "lastname", "surname")
+        buyer_name = " ".join([x for x in [first, last] if x]) or "-"
+    buyer_email = _get_first_attr(sold_product, "customer_email", "email") or ""
+
+    y = h - 50 * mm
+    c.setFont(bold_font, 11)
+    c.drawString(20 * mm, y, "Odběratel")
+    c.setFont(reg_font, 10)
+    y -= 6 * mm
+    c.drawString(20 * mm, y, buyer_name)
+    y -= 5 * mm
+    if buyer_email:
+        c.drawString(20 * mm, y, buyer_email)
+        y -= 8 * mm
+    else:
+        y -= 3 * mm
+
+    # Položky – jednoduchá tabulka (položka / ks / cena / celkem)
+    c.setFont(bold_font, 10)
+    c.drawString(20 * mm, y, "Položka")
+    c.drawRightString(120 * mm, y, "Množ.")
+    c.drawRightString(155 * mm, y, "Cena/ks (CZK)")
+    c.drawRightString(190 * mm, y, "Celkem (CZK)")
+    y -= 5 * mm
+    c.line(20 * mm, y, 190 * mm, y)
+    y -= 6 * mm
+    c.setFont(reg_font, 10)
+
+    name = _get_first_attr(sold_product, "product_name", "name") or "Položka"
+    qty = _qty(sold_product)
+    unit = _unit_price(sold_product)
+    total = _total(sold_product)
+
+    # řádek položky
+    c.drawString(20 * mm, y, name[:60])
+    c.drawRightString(120 * mm, y, f"{qty:g}")
+    c.drawRightString(155 * mm, y, f"{unit:.2f}")
+    c.drawRightString(190 * mm, y, f"{total:.2f}")
+    y -= 10 * mm
+
+    # Součet
+    c.setFont(bold_font, 11)
+    c.drawRightString(155 * mm, y, "CELKEM:")
+    c.drawRightString(190 * mm, y, f"{total:.2f} CZK")
+    y -= 12 * mm
+
+    # Poznámka
+    c.setFont(reg_font, 9)
+    c.drawString(20 * mm, y, "Pozn.: V případě převodu použijte uvedený IBAN a variabilní symbol (pokud je).")
+
+    c.showPage()
+    c.save()
+    buf.seek(0)
+    return buf.getvalue()

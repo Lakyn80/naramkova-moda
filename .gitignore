@@ -1,0 +1,76 @@
+# === OBECNÉ ===
+*.log
+*.tmp
+*.swp
+*.swo
+*.pid
+*.seed
+*.bak
+*.old
+
+# === SYSTÉMOVÉ / OS SOUBORY ===
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# === TAJEMSTVÍ / ENV ===
+.env
+.env.*.local
+frontend/.env
+frontend/.env.*.local
+backend/.env
+
+# === FRONTEND (React/Vite) ===
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.cache/
+frontend/*.tsbuildinfo
+
+# === BACKEND (Python/Flask) ===
+
+# Bytecode a cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.mypy_cache/
+.pytest_cache/
+.cache/
+backend/__pycache__/
+backend/.mypy_cache/
+backend/.pytest_cache/
+
+# Virtuální prostředí
+.venv/
+venv/
+env/
+backend/.venv/
+backend/venv/
+backend/env/
+
+# Lokální data / konfigurace / instance
+backend/instance/
+backend/*.db
+*.sqlite
+*.sqlite3
+
+# Uploady (ponechat .gitkeep)
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep
+
+# === MIGRACE ===
+# Alembic migrace verzujeme – nezakazujeme backend/migrations/
+
+# === COVERAGE / BUILD ===
+dist/
+build/
+.coverage
+coverage/
+htmlcov/
+
+# === EDITORY / IDE ===
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace

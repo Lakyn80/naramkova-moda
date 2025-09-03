@@ -1,0 +1,174 @@
+{# backend/templates/admin/sold/list.html #}
+{% extends "shared/layout.html" %}
+{% block title %}📊 Prodané{% endblock %}
+
+{% block styles %}
+<style>
+  .sold-card { border: 1px solid rgba(0,0,0,.06)!important; }
+  .btn { border-radius: .65rem; }
+  .table td, .table th { vertical-align: middle; }
+  .filter-label { font-size: .9rem; color: #6c757d; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">📊 Prodané</h1>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary"
+         href="{{ url_for('admin.sold_products') }}">Reset</a>
+      <a class="btn btn-outline-primary"
+         href="{{ url_for('admin.sold_export_xlsx', **filters) }}">Export Excel</a>
+      <a class="btn btn-outline-dark"
+         href="{{ url_for('admin.sold_export_pdf', **filters) }}">Export PDF</a>
+    </div>
+  </div>
+
+  {# ---- FILTRY ---- #}
+  <div class="card shadow-sm border-0 sold-card mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-6 col-md-3">
+          <label class="form-label filter-label mb-1">Od</label>
+          <input type="date" name="from" value="{{ filters.get('from','') }}" class="form-control">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label filter-label mb-1">Do</label>
+          <input type="date" name="to" value="{{ filters.get('to','') }}" class="form-control">
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label filter-label mb-1">Stav</label>
+          <select name="status" class="form-select">
+            {% set st = filters.get('status','') %}
+            <option value="" {{ '' == st and 'selected' or '' }}>— jakýkoli —</option>
+            <option value="paid" {{ 'paid' == st and 'selected' or '' }}>paid</option>
+            <option value="received" {{ 'received' == st and 'selected' or '' }}>received</option>
+            <option value="pending" {{ 'pending' == st and 'selected' or '' }}>pending</option>
+            <option value="canceled" {{ 'canceled' == st and 'selected' or '' }}>canceled</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label filter-label mb-1">Hledat (produkt/obj./email)</label>
+          <input type="text" name="q" value="{{ filters.get('q','') }}" class="form-control" placeholder="např. náramek / 12345 / mail@...">
+        </div>
+
+        <div class="col-6 col-md-3">
+          <label class="form-label filter-label mb-1">Min. cena (Kč)</label>
+          <input type="number" step="0.01" name="min_total" value="{{ filters.get('min_total','') }}" class="form-control">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label filter-label mb-1">Max. cena (Kč)</label>
+          <input type="number" step="0.01" name="max_total" value="{{ filters.get('max_total','') }}" class="form-control">
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label filter-label mb-1">E-mail</label>
+          <input type="email" name="email" value="{{ filters.get('email','') }}" class="form-control" placeholder="zákazník@email.cz">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label filter-label mb-1">VS</label>
+          <input type="text" name="vs" value="{{ filters.get('vs','') }}" class="form-control">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label filter-label mb-1">Produkt</label>
+          <input type="text" name="product" value="{{ filters.get('product','') }}" class="form-control" placeholder="název">
+        </div>
+
+        <div class="col-12 col-md-auto">
+          <button class="btn btn-primary w-100">Filtrovat</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if summary %}
+  <div class="alert alert-info py-2 mb-3 border-0 shadow-sm">
+    <strong>Souhrn:</strong>
+    počet: {{ summary.count }} |
+    suma: {{ "%.2f"|format(summary.total_amount or 0) }} Kč
+  </div>
+  {% endif %}
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr class="text-nowrap">
+              <th>ID</th>
+              <th>Objednávka</th>
+              <th>Produkt</th>
+              <th>Množ.</th>
+              <th>Celkem (Kč)</th>
+              <th>Status</th>
+              <th>E-mail</th>
+              <th>VS</th>
+              <th>Prodané</th>
+              <th class="text-end">Akce</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            {# --- Výpočet ceny s fallbackem --- #}
+            {% set qty = (r.quantity or 1)|float %}
+            {% set total = (r.total_czk if r.total_czk is not none else 0)|float %}
+            {% if total == 0 %}
+              {% set unit_guess = (r.unit_price_czk or r.unit_price or r.price_czk or r.price or 0)|float %}
+              {% set total = (unit_guess * qty) %}
+            {% endif %}
+
+            <tr>
+              <td class="text-muted">#{{ r.id }}</td>
+              <td>{{ r.order_id or '—' }}</td>
+              <td>{{ r.product_name or '—' }}</td>
+              <td>{{ r.quantity or 1 }}</td>
+              <td><strong>{{ '%.2f'|format(total) }}</strong></td>
+              <td>
+                {% if r.status == 'paid' or r.status == 'received' %}
+                  <span class="badge bg-success rounded-pill">{{ r.status }}</span>
+                {% elif r.status == 'pending' %}
+                  <span class="badge bg-warning text-dark rounded-pill">{{ r.status }}</span>
+                {% elif r.status %}
+                  <span class="badge bg-secondary rounded-pill">{{ r.status }}</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>{{ r.customer_email or '—' }}</td>
+              <td>{{ r.vs or '—' }}</td>
+              <td class="text-nowrap">
+                {% if r.sold_at %}{{ r.sold_at.strftime('%Y-%m-%d %H:%M') }}{% else %}—{% endif %}
+              </td>
+              <td class="text-end">
+                <div class="d-flex flex-wrap gap-2 justify-content-end">
+                  <a class="btn btn-sm btn-outline-primary"
+                     target="_blank"
+                     href="{{ url_for('admin.invoice_preview_pdf', sold_id=r.id) }}">
+                    Náhled FA
+                  </a>
+                  <form method="post"
+                        action="{{ url_for('admin.invoice_send_email', sold_id=r.id) }}"
+                        onsubmit="return confirm('Odeslat fakturu na e-mail zákazníka?');"
+                        class="d-inline">
+                    <button class="btn btn-sm btn-primary">Odeslat FA</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="10" class="text-center text-muted py-4">Žádná data.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

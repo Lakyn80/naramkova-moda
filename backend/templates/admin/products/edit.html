@@ -1,0 +1,84 @@
+{% extends "shared/layout.html" %}
+{% block title %}Upravit produkt{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">✏️ Upravit produkt</h1>
+
+<form id="product-edit-form" method="post" enctype="multipart/form-data">
+  <div class="mb-3">
+    <label class="form-label">Název</label>
+    <input type="text" name="name" value="{{ product.name }}" class="form-control" required>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Popis</label>
+    <textarea name="description" class="form-control">{{ product.description }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Cena</label>
+    <input type="number" step="0.01" name="price" value="{{ product.price_czk }}" class="form-control" required>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Kategorie</label>
+    <select name="category_id" class="form-select">
+      <option value="">— Vyber kategorii —</option>
+      {% for c in categories %}
+        <option value="{{ c.id }}" {% if product.category_id == c.id %}selected{% endif %}>
+          {{ c.group }} — {{ c.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Úvodní obrázek</label>
+    {% if product.image %}
+      <div class="mb-2">
+        <img src="{{ url_for('static', filename='uploads/' ~ product.image) }}"
+             alt="náhled" style="max-height:100px">
+      </div>
+    {% endif %}
+    <input type="file" name="image" class="form-control" accept="image/*">
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Další média</label>
+    {% if product.media %}
+      <div class="mb-2 d-flex flex-wrap gap-3">
+        {% for m in product.media %}
+          <div class="text-center">
+            {% set is_video = m.media_type and m.media_type.startswith('video') %}
+            {% if is_video %}
+              <video src="{{ url_for('static', filename='uploads/' ~ m.filename) }}"
+                     style="max-height:100px" controls muted></video>
+            {% else %}
+              <img src="{{ url_for('static', filename='uploads/' ~ m.filename) }}"
+                   alt="media" style="max-height:100px">
+            {% endif %}
+
+            <!-- tlačítko odešle POST na správný endpoint bez vnořeného <form> -->
+            <div class="mt-1">
+              <button type="submit"
+                      class="btn btn-sm btn-outline-danger"
+                      form="product-edit-form"
+                      formaction="{{ url_for('admin.delete_product_media', media_id=m.id) }}"
+                      formmethod="post"
+                      formnovalidate>
+                🗑️ Smazat
+              </button>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <input type="file" name="media" class="form-control" accept="image/*,video/*" multiple>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">💾 Uložit</button>
+    <a href="{{ url_for('admin.products') }}" class="btn btn-secondary">Zpět</a>
+  </div>
+</form>
+{% endblock %}

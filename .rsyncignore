@@ -1,0 +1,23 @@
+# Node.js / frontend
+node_modules/
+dist/
+.vite/
+
+# Python / backend
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Databáze / uploads
+*.sqlite
+*.db
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep
