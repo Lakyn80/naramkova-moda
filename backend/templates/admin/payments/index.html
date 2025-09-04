@@ -116,7 +116,7 @@
                 <td>
                   {% if o %}
                     {% if has_order_detail %}
-                      <a href="{{ url_for('admin.order_detail', order_id=o.id) }}">#{{ o.id }}</a>
+                      <a href="{{ url_for('admin.admin_payments_index') }}">#{{ o.id }}</a>
                     {% else %}
                       #{{ o.id }}
                     {% endif %}

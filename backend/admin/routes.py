@@ -38,13 +38,78 @@ def dashboard():
 @admin_bp.route("/products", endpoint="products")
 @login_required
 def products_list():
-    products = Product.query.all()
-    return render_template("admin/products/list.html", products=products)
+    # ---- FILTRY (GET parametry) ----
+    q = (request.args.get("q") or "").strip()
+    category_id = request.args.get("category_id", type=int)
+    has_image = request.args.get("has_image")
+    has_media = request.args.get("has_media")
+    sort = request.args.get("sort", "id_desc")  # default
 
-@admin_bp.route("/products/list", endpoint="list_products")
-@login_required
-def products_list_alias():
-    return redirect(url_for("admin.products"))
+    # ---- Základní dotaz ----
+    query = Product.query
+    if q:
+        query = query.filter(Product.name.ilike(f"%{q}%"))
+    if category_id:
+        query = query.filter(Product.category_id == category_id)
+    if has_image == "1":
+        query = query.filter(Product.image.isnot(None), Product.image != "")
+    if has_media == "1":
+        query = query.filter(Product.media.any())
+
+    # ---- ŘAZENÍ ----
+    if sort == "id_asc":
+        query = query.order_by(Product.id.asc())
+    elif sort == "name_asc":
+        query = query.order_by(Product.name.asc())
+    elif sort == "name_desc":
+        query = query.order_by(Product.name.desc())
+    elif sort == "price_asc":
+        query = query.order_by(Product.price_czk.asc())
+    elif sort == "price_desc":
+        query = query.order_by(Product.price_czk.desc())
+    else:
+        query = query.order_by(Product.id.desc())
+
+    # ---- Stránkování (bez závislosti na verzi Flask-SQLAlchemy) ----
+    page = request.args.get("page", 1, type=int)
+    per_page = 30
+    total = query.count()
+
+    # ošetření mimo rozsah
+    max_pages = (total + per_page - 1) // per_page if total else 1
+    if page < 1:
+        page = 1
+    if page > max_pages:
+        page = max_pages
+
+    products = (
+        query.offset((page - 1) * per_page)
+             .limit(per_page)
+             .all()
+    )
+
+    categories = Category.query.order_by(Category.name.asc()).all()
+
+    return render_template(
+        "admin/products/list.html",
+        products=products,
+        categories=categories,
+        # filtry pro předvyplnění
+        q=q,
+        selected_category_id=category_id,
+        selected_has_image=(has_image == "1"),
+        selected_has_media=(has_media == "1"),
+        selected_sort=sort,
+        # pagination info
+        page=page,
+        per_page=per_page,
+        total=total,
+        max_pages=max_pages,
+        has_prev=(page > 1),
+        has_next=(page < max_pages),
+    )
+
+
 
 
 # -----------------------------------------------------------------------------
