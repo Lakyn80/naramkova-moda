@@ -24,6 +24,17 @@ def _load_token(token: str, max_age_seconds: int = 3600) -> str:
     data = s.loads(token, max_age=max_age_seconds)
     return data.get("uid")
 
+# [CHANGE] – jednotné určení odesílatele
+def _mail_sender() -> str | None:
+    """
+    Vrátí adresu odesílatele pro Flask-Mail.
+    Preferujeme MAIL_DEFAULT_SENDER; pokud není, použijeme MAIL_USERNAME.
+    """
+    sender = current_app.config.get("MAIL_DEFAULT_SENDER")
+    if not sender:
+        sender = current_app.config.get("MAIL_USERNAME")
+    return sender
+
 # ── Diagnostika ──────────────────────────────────────────────────────────────
 
 @auth_bp.get("/__mail_cfg")
@@ -51,9 +62,11 @@ def __mail_ping():
 
     subj = "Mail ping (Flask-Mail)"
     body = "OK z Flasku (Flask-Mail)."
-    msg = Message(recipients=[to], subject=subj, body=body)
 
     try:
+        # [CHANGE] – přidán explicitní sender
+        msg = Message(recipients=[to], subject=subj, body=body, sender=_mail_sender())
+
         current_app.logger.info("[MAIL_PING] trying to send to %r", to)
         print("[MAIL_PING] to:", to)
         with mail.connect() as conn:
@@ -149,8 +162,9 @@ def forgot_password_submit():
     )
 
     try:
-        msg = Message(recipients=[recipient], subject=subj, body=body)
-        current_app.logger.info("[FORGOT] sending to=%r subj=%r", recipient, subj)
+        # [CHANGE] – přidán explicitní sender
+        msg = Message(recipients=[recipient], subject=subj, body=body, sender=_mail_sender())
+        current_app.logger.info("[FORGOT] sending to=%r subj=%r sender=%r", recipient, subj, _mail_sender())
         print("[FORGOT] sending to:", recipient)
 
         with mail.connect() as conn:
@@ -223,4 +237,4 @@ def reset_password_submit(token: str):
 
     db.session.commit()
     flash("Heslo změněno. Můžeš se přihlásit.", "success")
-    return redirect(url_for("auth.login"))
+    return redirect(url_for("auth.login"))  # ✅ Tento soubor obsluhuje přihlášení/odhlášení

@@ -5,6 +5,7 @@
 # používaly JEDEN a ten samý objekt.
 from . import login_routes as _login
 
+
 # Export pro zbytek balíčku: package-level auth_bp ukazuje na tentýž objekt
 auth_bp = _login.auth_bp
 

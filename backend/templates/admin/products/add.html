@@ -4,6 +4,36 @@
 {% block content %}
 <h1 class="h3 mb-3">Přidat produkt</h1>
 
+<!-- Styl jen pro tuto stránku: thumbnail + hover „bublina“ -->
+<style>
+  .thumb-wrap{
+    position:relative; width:80px; height:80px; overflow:hidden;
+    border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.15); background:#f8f9fa;
+  }
+  .thumb-wrap img.thumb{ width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb-wrap .bubble{
+    position:absolute; display:none; top:-10px; left:90px;
+    background:#fff; padding:8px; border-radius:10px;
+    box-shadow:0 12px 28px rgba(0,0,0,0.30);
+    border:1px solid rgba(0,0,0,0.08); z-index:1000;
+  }
+  .thumb-wrap:hover .bubble{ display:block; }
+  .thumb-wrap .bubble img{ width:360px; height:360px; object-fit:cover; border-radius:8px; display:block; }
+  .thumb-wrap .bubble::after{
+    content:""; position:absolute; left:-10px; top:34px;
+    border-width:10px; border-style:solid;
+    border-color:transparent #fff transparent transparent;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.10));
+  }
+  .thumbs-grid{ display:flex; flex-wrap:wrap; gap:10px; }
+  .thumb-cell{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .thumb-label{ font-size:.8rem; color:#6c757d; max-width:80px; text-align:center; }
+  @media (max-width:576px){
+    .thumb-wrap .bubble{ left:84px; top:-6px; }
+    .thumb-wrap .bubble img{ width:260px; height:260px; }
+  }
+</style>
+
 <form action="{{ url_for('admin.add_product') }}" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
   <div class="mb-3">
     <label class="form-label">Název produktu</label>
@@ -31,14 +61,26 @@
     <div class="form-text">Do backendu se odešle ID kategorie (ne text).</div>
   </div>
 
+  <!-- ÚVODNÍ OBRÁZEK + LIVE NÁHLED -->
   <div class="mb-3">
     <label class="form-label">Úvodní obrázek</label>
-    <input type="file" name="image" class="form-control" accept="image/*">
+    <input id="image-input" type="file" name="image" class="form-control" accept="image/*">
+    <div class="mt-2 thumbs-grid" id="image-preview" style="display:none;">
+      <div class="thumb-cell">
+        <div class="thumb-wrap">
+          <img class="thumb" id="image-thumb" alt="náhled">
+          <div class="bubble"><img id="image-bubble" alt="náhled velký"></div>
+        </div>
+        <div class="thumb-label">Úvodní</div>
+      </div>
+    </div>
   </div>
 
+  <!-- DALŠÍ MÉDIA + LIVE NÁHLEDY -->
   <div class="mb-4">
     <label class="form-label">Další obrázky nebo videa</label>
-    <input type="file" name="media" class="form-control" accept="image/*,video/*" multiple>
+    <input id="media-input" type="file" name="media" class="form-control" accept="image/*,video/*" multiple>
+    <div class="mt-2 thumbs-grid" id="media-preview" style="display:none;"></div>
   </div>
 
   <div class="d-flex gap-2">
@@ -46,4 +88,50 @@
     <button type="submit" class="btn btn-primary">Uložit</button>
   </div>
 </form>
+
+<!-- Minimal JS pro live náhledy -->
+<script>
+  const imageInput = document.getElementById('image-input');
+  const imagePreview = document.getElementById('image-preview');
+  const imageThumb = document.getElementById('image-thumb');
+  const imageBubble = document.getElementById('image-bubble');
+
+  imageInput?.addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f || !f.type.startsWith('image/')) { imagePreview.style.display='none'; return; }
+    const url = URL.createObjectURL(f);
+    imageThumb.src = url; imageBubble.src = url; imagePreview.style.display = 'flex';
+  });
+
+  const mediaInput = document.getElementById('media-input');
+  const mediaPreview = document.getElementById('media-preview');
+
+  mediaInput?.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files || []);
+    mediaPreview.innerHTML = '';
+    if (!files.length) { mediaPreview.style.display='none'; return; }
+    files.forEach((f, idx) => {
+      const cell = document.createElement('div');
+      cell.className = 'thumb-cell';
+      if (f.type.startsWith('image/')) {
+        const url = URL.createObjectURL(f);
+        cell.innerHTML = `
+          <div class="thumb-wrap">
+            <img class="thumb" src="${url}" alt="media">
+            <div class="bubble"><img src="${url}" alt="media velký"></div>
+          </div>
+          <div class="thumb-label">#${idx+1}</div>`;
+      } else if (f.type.startsWith('video/')) {
+        const url = URL.createObjectURL(f);
+        cell.innerHTML = `
+          <div style="width:80px; height:80px; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.15); background:#000;">
+            <video src="${url}" style="width:100%; height:100%; object-fit:cover;" muted></video>
+          </div>
+          <div class="thumb-label">Video #${idx+1}</div>`;
+      }
+      mediaPreview.appendChild(cell);
+    });
+    mediaPreview.style.display = 'flex';
+  });
+</script>
 {% endblock %}

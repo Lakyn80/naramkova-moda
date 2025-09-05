@@ -13,19 +13,7 @@
     <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin.dashboard') }}">← Zpět do adminu</a>
   </div>
 
-  <!-- Flash zprávy -->
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <div class="mb-3">
-        {% for category, message in messages %}
-          <div class="alert alert-{{ 'warning' if category=='danger' else category }} alert-dismissible fade show py-2" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Zavřít"></button>
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-  {% endwith %}
+  {# Flash zprávy zde NErenderujeme – řeší je shared/layout.html, aby nebyly duplicitní #}
 
   <!-- Filtry -->
   <div class="card shadow-sm mb-3 border-0">
@@ -156,4 +144,17 @@
   .table td, .table th { vertical-align: middle; }
   .table thead th { font-weight: 600; }
 </style>
+
+<!-- Auto-hide flash zpráv po 5 s (nezasahuje do backendu ani layoutu) -->
+<script>
+  window.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () {
+      document.querySelectorAll('.alert').forEach(function (el) {
+        el.classList.remove('show');  // pro Bootstrap fade-out
+        el.classList.add('fade');
+        setTimeout(function(){ el.style.display = 'none'; }, 300);
+      });
+    }, 5000);
+  });
+</script>
 {% endblock %}

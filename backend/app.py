@@ -62,6 +62,7 @@ def create_app() -> Flask:
     app.register_blueprint(client_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(debug_bp)
+    
 
     from backend.user_loader import load_user  # noqa: F401
 
