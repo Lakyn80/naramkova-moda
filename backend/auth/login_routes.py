@@ -1,9 +1,9 @@
+# backend/auth/login_routes.py
 # ✅ Tento soubor obsluhuje přihlášení/odhlášení
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required
-from werkzeug.security import check_password_hash
 
-# ✅ Opravený import modelu User
+# Použijeme model s metodou user.check_password(...)
 from backend.models.user import User
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -15,14 +15,14 @@ def login():
     Zobrazí přihlašovací formulář a zpracuje přihlášení uživatele.
     """
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
+        username = (request.form.get("username") or "").strip()
+        password = (request.form.get("password") or "").strip()
 
         # Vyhledání uživatele podle username
         user = User.query.filter_by(username=username).first()
 
-        # Ověření hesla
-        if user and check_password_hash(user.password_hash, password):
+        # ✅ Ověření hesla přes model (umí bcrypt i starý werkzeug hash)
+        if user and user.check_password(password):
             login_user(user)
             flash("✅ Přihlášení proběhlo úspěšně.", "success")
             return redirect(url_for("admin.dashboard"))
@@ -32,7 +32,7 @@ def login():
     return render_template("admin/auth/login.html")
 
 # ─── Odhlášení uživatele ─────────────────────────────────────────────
-@auth_bp.route("/logout")
+@auth_bp.route("/logout", methods=["GET", "POST"])
 @login_required
 def logout():
     """

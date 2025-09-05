@@ -62,7 +62,6 @@ def create_app() -> Flask:
     app.register_blueprint(client_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(debug_bp)
-    
 
     from backend.user_loader import load_user  # noqa: F401
 
@@ -74,6 +73,23 @@ def create_app() -> Flask:
             methods = ",".join(sorted(m for m in r.methods if m in {"GET","POST","PUT","DELETE","PATCH"}))
             lines.append(f"{r.rule:35s}  → {r.endpoint}  [{methods}]")
         return "<pre>" + "\n".join(lines) + "</pre>"
+
+    # ✅ Nově: diagnostika mail konfigurace bez /auth/ prefixu
+    @app.get("/__mail_cfg")
+    def __mail_cfg():
+        """Vrátí runtime mail konfiguraci (bez hesla)."""
+        cfg = app.config
+        safe = {
+            "MAIL_SERVER": cfg.get("MAIL_SERVER"),
+            "MAIL_PORT": cfg.get("MAIL_PORT"),
+            "MAIL_USE_SSL": cfg.get("MAIL_USE_SSL"),
+            "MAIL_USE_TLS": cfg.get("MAIL_USE_TLS"),
+            "MAIL_USERNAME": cfg.get("MAIL_USERNAME"),
+            "MAIL_DEFAULT_SENDER": cfg.get("MAIL_DEFAULT_SENDER"),
+            "MAIL_SUPPRESS_SEND": cfg.get("MAIL_SUPPRESS_SEND"),
+            "MAIL_DEBUG": cfg.get("MAIL_DEBUG"),
+        }
+        return safe, 200
 
     # Volitelný rychlý mail ping (root varianta) – máš už /auth/__mail_ping
     if app.debug:
