@@ -1,29 +1,32 @@
-import React, { useState, useEffect } from "react";
+// src/pages/Shop.jsx
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import { slugify } from "../utils/slugify";
 import { emojify } from "../utils/emojify";
 
-// Mapy pro aliasování názvů (ponecháváme pouze toAlias)
+// aliasy kategorií (ponecháno pro kompatibilitu)
 const categoryAliases = {
-  "maminka": "maminka",
-  "babička": "babička",
-  "bratr": "bratr",
-  "sestra": "sestra",
-  "děti": "děti",
-  "svatba": "svatba",
+  maminka: "maminka",
+  babička: "babička",
+  bratr: "bratr",
+  sestra: "sestra",
+  děti: "děti",
+  svatba: "svatba",
   "jen pro radost": "jen pro radost",
-  "tatínek": "tatínek",
-  "dědeček": "dědeček",
-  "kamarádka": "kamarádka",
-  "láska": "láska",
+  tatínek: "tatínek",
+  dědeček: "dědeček",
+  kamarádka: "kamarádka",
+  láska: "láska",
   "pro děti": "pro děti",
   "pro páry": "pro páry",
-  "výročí": "výročí",
-  "přátelství": "přátelství",
+  výročí: "výročí",
+  přátelství: "přátelství",
 };
 
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
+const toAlias = (name) => categoryAliases[name] || name;
+
+// === API base (LOCK na 5050) ===
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:5050`;
 
 function absoluteUploadUrl(u) {
   if (!u) return null;
@@ -32,9 +35,48 @@ function absoluteUploadUrl(u) {
   return `${API_BASE}/static/uploads/${u}`;
 }
 
-const toAlias = (name) => categoryAliases[name] || name;
+// page size = 8 řádků × 3 sloupce
+const COLS = 3;
+const ROWS = 8;
+const PAGE_SIZE = COLS * ROWS;
 
-export default function Shop() {
+// pomocná funkce pro pěkné stránkování s elipsami
+function getPageList(current, total) {
+  const pages = [];
+  const delta = 1; // sousedé kolem aktuální stránky
+  const range = [];
+  const rangeWithDots = [];
+  let l;
+
+  // vždy ukážeme 1, poslední, aktuální ±1 a „kotvy“ 2 a total-1 podle potřeby
+  for (let i = 1; i <= total; i++) {
+    if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+      range.push(i);
+    }
+  }
+
+  // vložení teček
+  for (let i of range) {
+    if (l) {
+      if (i - l === 2) {
+        rangeWithDots.push(l + 1);
+      } else if (i - l > 2) {
+        rangeWithDots.push("…");
+      }
+    }
+    rangeWithDots.push(i);
+    l = i;
+  }
+
+  // jemné rozšíření na začátku/konce pro lepší UX (volitelné, stále jen v rámci pagination)
+  if (rangeWithDots[1] === 3) rangeWithDots.splice(1, 1, 2);
+  if (rangeWithDots[rangeWithDots.length - 2] === total - 2)
+    rangeWithDots.splice(rangeWithDots.length - 2, 1, total - 1);
+
+  return rangeWithDots;
+}
+
+const Shop = forwardRef(function Shop(_, ref) {
   const { addToCart } = useCart();
   const location = useLocation();
   const params = new URLSearchParams(location.search);
@@ -45,8 +87,18 @@ export default function Shop() {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
+  // pagination
+  const [page, setPage] = useState(1);
+
+  useImperativeHandle(ref, () => ({
+    scrollIntoView: () => {
+      const el = document.getElementById("shop-root");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+  }));
+
   useEffect(() => {
-    fetch("http://localhost:5050/api/categories/")
+    fetch(`${API_BASE}/api/categories/`)
       .then((res) => res.json())
       .then((data) => {
         setCategories(data);
@@ -61,7 +113,7 @@ export default function Shop() {
   }, [urlCategory]);
 
   useEffect(() => {
-    fetch("http://localhost:5050/api/products/")
+    fetch(`${API_BASE}/api/products/`)
       .then((res) => res.json())
       .then((data) => {
         const mapped = (data || []).map((p) => {
@@ -90,15 +142,13 @@ export default function Shop() {
     );
 
   const selectAll = () => {
-    const all = categories.map((cat) =>
-      toAlias((cat.name || "").toLowerCase())
-    );
+    const all = categories.map((cat) => toAlias((cat.name || "").toLowerCase()));
     setSelectedCategories(all);
   };
 
   const deselectAll = () => setSelectedCategories([]);
 
-  // ✅ NOVÁ logika: group přímo z backendu
+  // groupy kategorií (podpora group z backendu)
   const groupedCategories = categories.reduce((acc, cat) => {
     const aliased = toAlias((cat.name || "").toLowerCase());
     const grp = cat.group || "Ostatní";
@@ -117,13 +167,30 @@ export default function Shop() {
     return matchesCat && matchesText;
   });
 
+  // reset stránkování při změně filtru/hladání
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedCategories]);
+
+  const total = filteredProducts.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const start = (page - 1) * PAGE_SIZE;
+  const pageItems = filteredProducts.slice(start, start + PAGE_SIZE);
+
+  // pro status v patičce stránkování
+  const shownFrom = total === 0 ? 0 : start + 1;
+  const shownTo = Math.min(start + PAGE_SIZE, total);
+
   return (
-    <section className="pt-24 pb-12 bg-gradient-to-br from-[#3b0764] via-[#9d174d] to-[#f9a8d4] min-h-screen text-white">
+    <section
+      id="shop-root"
+      className="pt-24 pb-12 bg-gradient-to-br from-[#3b0764] via-[#9d174d] to-[#f9a8d4] min-h-screen text-white"
+    >
       <div className="mx-auto max-w-7xl px-4">
         <h2 className="text-4xl font-extrabold text-center mb-10">E-shop</h2>
 
         <div className="flex flex-col md:flex-row gap-8 items-start">
-          {/* Sidebar (mobil nahoře, desktop vlevo) */}
+          {/* Sidebar */}
           <aside className="w-full md:w-1/4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Kategorie</h3>
             <input
@@ -194,52 +261,136 @@ export default function Shop() {
             </div>
           </aside>
 
-          {/* Produkty */}
-          <main className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                className="bg-white/10 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden flex flex-col"
-              >
-                <img
-                  src={product.image || "/placeholder.png"}
-                  alt={product.name}
-                  className="w-full h-48 object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = "/placeholder.png";
-                  }}
-                />
-                <div className="p-4 flex flex-col flex-grow">
-                  <Link
-                    to={`/shop/${(product.name || "")
-                      .toLowerCase()
-                      .replace(/\s+/g, "-")}`}
-                    className="text-lg font-semibold mb-2 hover:underline text-white"
-                  >
-                    {emojify(product.name)} {/* ✅ JEDINÁ ZMĚNA V RENDERU */}
-                  </Link>
-                  <p className="text-pink-200 mb-4">
-                    {(Number(product.price) || 0).toFixed(2)} Kč
-                  </p>
-                  <button
-                    onClick={() =>
-                      addToCart({
-                        id: product.id,
-                        name: product.name,
-                        price: Number(product.price) || 0,
-                        image: product.image,
-                      })
-                    }
-                    className="mt-auto bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition"
-                  >
-                    Přidat do košíku
-                  </button>
+          {/* Produkty + stránkování */}
+          <main className="flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pageItems.map((product) => (
+                <div
+                  key={product.id}
+                  className="bg-white/10 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden flex flex-col"
+                >
+                  <img
+                    src={product.image || "/placeholder.png"}
+                    alt={product.name}
+                    className="w-full h-48 object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder.png";
+                    }}
+                  />
+                  <div className="p-4 flex flex-col flex-grow">
+                    <Link
+                      to={`/shop/${(product.name || "")
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")}`}
+                      className="text-lg font-semibold mb-2 hover:underline text-white"
+                    >
+                      {emojify(product.name)}
+                    </Link>
+                    <p className="text-pink-200 mb-4">
+                      {(Number(product.price) || 0).toFixed(2)} Kč
+                    </p>
+                    <button
+                      onClick={() =>
+                        addToCart({
+                          id: product.id,
+                          name: product.name,
+                          price: Number(product.price) || 0,
+                          image: product.image,
+                        })
+                      }
+                      className="mt-auto bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700 transition"
+                    >
+                      Přidat do košíku
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+
             {filteredProducts.length === 0 && (
-              <div className="col-span-full text-center text-pink-200 font-medium">
+              <div className="text-center text-pink-200 font-medium mt-6">
                 Nenalezeny žádné produkty pro vybrané filtry.
+              </div>
+            )}
+
+            {/* Hezčí stránkování (jen dole), 8 řádků na stránku zachováno */}
+            {totalPages > 1 && (
+              <div className="mt-10">
+                <div className="flex flex-col items-center gap-3">
+                  {/* status řádku */}
+                  <div className="text-sm text-pink-100/90">
+                    Zobrazeno <span className="font-semibold">{shownFrom}</span>
+                    {"–"}
+                    <span className="font-semibold">{shownTo}</span> z{" "}
+                    <span className="font-semibold">{total}</span>
+                  </div>
+
+                  {/* ovládací lišta */}
+                  <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-2 py-1 shadow-lg">
+                    <button
+                      disabled={page === 1}
+                      onClick={() => setPage(1)}
+                      className="px-3 py-2 rounded-full bg-white/0 hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-transparent transition"
+                      aria-label="První stránka"
+                      title="První stránka"
+                    >
+                      «
+                    </button>
+                    <button
+                      disabled={page === 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      className="px-3 py-2 rounded-full bg-white/0 hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-transparent transition"
+                      aria-label="Předchozí"
+                      title="Předchozí"
+                    >
+                      ‹
+                    </button>
+
+                    {getPageList(page, totalPages).map((n, idx) =>
+                      n === "…" ? (
+                        <span
+                          key={`dots-${idx}`}
+                          className="px-2 select-none text-pink-100/70"
+                        >
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={n}
+                          onClick={() => setPage(n)}
+                          className={`px-3 py-2 rounded-full transition ${
+                            n === page
+                              ? "bg-pink-600 text-white shadow-md"
+                              : "bg-white/0 hover:bg-white/15"
+                          }`}
+                          aria-current={n === page ? "page" : undefined}
+                          title={`Stránka ${n}`}
+                        >
+                          {n}
+                        </button>
+                      )
+                    )}
+
+                    <button
+                      disabled={page === totalPages}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      className="px-3 py-2 rounded-full bg-white/0 hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-transparent transition"
+                      aria-label="Další"
+                      title="Další"
+                    >
+                      ›
+                    </button>
+                    <button
+                      disabled={page === totalPages}
+                      onClick={() => setPage(totalPages)}
+                      className="px-3 py-2 rounded-full bg-white/0 hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-transparent transition"
+                      aria-label="Poslední stránka"
+                      title="Poslední stránka"
+                    >
+                      »
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </main>
@@ -247,4 +398,6 @@ export default function Shop() {
       </div>
     </section>
   );
-}
+});
+
+export default Shop;

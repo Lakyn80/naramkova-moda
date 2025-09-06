@@ -125,10 +125,14 @@ def create_order():
 
             db.session.delete(product)
 
+    # ➕ Přidej poštovné
+    shipping_cost = 89.0
+    final_total = total_price + shipping_cost
+
     # záznam o platbě – stejný VS
     payment = Payment(
         vs=vs,
-        amount_czk=total_price,
+        amount_czk=final_total,
         status="pending",
         reference=f"Objednávka #{order.id}",
         received_at=None
@@ -156,7 +160,8 @@ Děkujeme za Vaši objednávku. Níže jsou detaily:
 🛒 Položky:
 {product_list}
 
-💰 Celková cena: {total_price:.2f} Kč
+🚚 Poštovné: {shipping_cost:.2f} Kč
+💰 Celková cena: {final_total:.2f} Kč
 📌 Variabilní symbol: {vs}
 
 S pozdravem,
@@ -170,7 +175,7 @@ Tým Náramkové Módy
             body=email_body
         )
 
-        # ✅ kopie pro obchod (samostatná zpráva – zákazník to neuvidí)
+        # ✅ kopie pro obchod (samostatná zpráva – zákazníkovi odesláno)
         send_email(
             subject="Kopie: Nová objednávka (zákazníkovi odesláno)",
             recipients=["naramkovamoda@email.cz"],
@@ -183,5 +188,6 @@ Tým Náramkové Módy
     return jsonify({
         "message": "Objednávka úspěšně vytvořena.",
         "orderId": order.id,
-        "vs": vs
+        "vs": vs,
+        "totalCzk": final_total
     }), 201

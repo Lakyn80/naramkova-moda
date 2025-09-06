@@ -4,6 +4,9 @@ from backend.extensions import db
 from . import admin_bp
 from backend.admin.models import Payment, Order
 
+# jediný helper, který potřebujeme: automatické poslání faktury
+from backend.admin.sold_routes import send_invoice_for_order
+
 ALLOWED_STATUSES = ("pending", "received", "failed", "canceled", "refunded")
 
 @admin_bp.route("/payments", methods=["GET"], endpoint="admin_payments_index")
@@ -72,5 +75,13 @@ def admin_payment_update_status(payment_id: int):
             o.status = "awaiting_payment"
 
     db.session.commit()
+
+    # Automatické poslání FA (bez Telegramu! Telegram běží jen ve tvém e-mail import skriptu)
+    if new_status == "received" and o:
+        try:
+            send_invoice_for_order(o.id)
+        except Exception:
+            pass
+
     flash(f"Status platby #{p.id} změněn na '{new_status}'.", "success")
     return redirect(url_for("admin.admin_payments_index"))

@@ -447,7 +447,7 @@ def invoice_preview_pdf(sold_id: int):
 
 
 # -----------------------------
-# Odeslání faktury e-mailem
+# Odeslání faktury e-mailem (jedna položka)
 # -----------------------------
 
 @admin_bp.route("/invoice/<int:sold_id>/email", methods=["POST"])
@@ -487,3 +487,123 @@ def invoice_send_email(sold_id: int):
         flash(f"Nepodařilo se odeslat e-mail: {e}", "danger")
 
     return redirect(url_for("admin.sold_products"))
+
+
+# =============================
+# NOVÉ: Odeslání faktury podle ORDER_ID (pro „auto po zaplacení“)
+#  - Použij z adminu/servisu po změně stavu na 'paid' / 'zaplaceno'
+#  - Vrací dict s výsledkem; volání je idempotentní v tom smyslu,
+#    že když pro objednávku není žádný SoldProduct, jen vrátí info.
+# =============================
+
+def send_invoice_for_order(order_id: int) -> dict:
+    """
+    Najde první SoldProduct pro daný order_id, vygeneruje PDF a:
+      - pokud už je invoice označená jako odeslaná (invoice_sent_at), NIC neposílá (idempotentní),
+      - jinak pošle e-mail, uloží PDF na disk a zapíše info do DB (pokud má model pole).
+    """
+    sp = (SoldProduct.query
+          .filter(SoldProduct.order_id == order_id)
+          .order_by(SoldProduct.id.asc())
+          .first())
+
+    if not sp:
+        return {"ok": False, "error": "No SoldProduct for this order_id."}
+
+    # 1) idempotence: pokud existuje flag, nepřeposílat
+    already_sent = False
+    if hasattr(sp, "invoice_sent_at") and getattr(sp, "invoice_sent_at", None):
+        already_sent = True
+
+    # 2) vygeneruj PDF
+    pdf_bytes = build_invoice_pdf_bytes(sp)
+
+    # 3) ulož PDF na disk (ať máš archiv)
+    try:
+        inv_dir = os.path.join(current_app.root_path, "static", "invoices")
+        os.makedirs(inv_dir, exist_ok=True)
+        filename = f"invoice_order_{getattr(sp, 'order_id', 'x')}_sold_{sp.id}.pdf"
+        file_path = os.path.join(inv_dir, filename)
+        with open(file_path, "wb") as f:
+            f.write(pdf_bytes)
+        saved_rel = f"/static/invoices/{filename}"
+    except Exception:
+        saved_rel = None
+
+    result = {
+        "ok": True,
+        "emailed": False,
+        "sold_id": getattr(sp, "id", None),
+        "saved_path": saved_rel,
+        "already_sent": already_sent,
+    }
+
+    # 4) pokud už bylo dříve odesláno, skonči (jen informativně vrátíme)
+    if already_sent:
+        return result
+
+    # 5) pošli e-mail (jen pokud máme adresu)
+    to_addr = getattr(sp, "customer_email", None) or getattr(sp, "email", None)
+    if not to_addr:
+        return result
+
+    try:
+        subject = f"Faktura #{getattr(sp, 'id', '')} – Náramková Móda"
+        body = (
+            "Dobrý den,\n\n"
+            "v příloze zasíláme fakturu k Vaší objednávce.\n"
+            "Děkujeme za nákup.\n\n"
+            "S pozdravem\nNáramková Móda"
+        )
+        msg = Message(subject=subject, recipients=[to_addr], body=body)
+        # přiložíme stejné PDF, které jsme uložili
+        msg.attach(
+            filename=os.path.basename(saved_rel) if saved_rel else f"invoice_{sp.id}.pdf",
+            content_type="application/pdf",
+            data=pdf_bytes,
+        )
+        from backend.extensions import mail  # lokální import, aby se nerozbilo jinde
+        mail.send(msg)
+        result["emailed"] = True
+
+        # 6) zapíšeme do DB flag (pokud model má sloupce)
+        dirty = False
+        if hasattr(sp, "invoice_sent_at") and not getattr(sp, "invoice_sent_at", None):
+            sp.invoice_sent_at = datetime.utcnow()
+            dirty = True
+        if saved_rel and hasattr(sp, "invoice_filename") and not getattr(sp, "invoice_filename", None):
+            sp.invoice_filename = saved_rel
+            dirty = True
+        if dirty:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+    except Exception as e:
+        current_app.logger.exception(f"[invoice] send failed for order_id={order_id}: {e}")
+        return {"ok": False, "error": str(e), **result}
+
+    return result
+
+
+# -----------------------------
+# VOLITELNÉ: ruční spuštění podle ORDER_ID z UI
+# -----------------------------
+
+@admin_bp.route("/sold/order/<int:order_id>/email", methods=["POST"])
+@login_required
+def invoice_send_email_for_order(order_id: int):
+    """
+    Ruční odeslání faktury podle order_id (vezme první SoldProduct té objednávky).
+    Hodí se pro rychlé „přeposlání“, když došla změna e-mailu apod.
+    """
+    res = send_invoice_for_order(order_id)
+    if res.get("ok") and res.get("emailed"):
+        flash(f"Faktura byla odeslána na {res.get('to')}.", "success")
+    elif res.get("ok") and not res.get("emailed"):
+        flash("Faktura nebyla odeslána – u objednávky není e-mail zákazníka.", "warning")
+    else:
+        flash(f"Fakturu se nepodařilo odeslat: {res.get('error', 'neznámá chyba')}", "danger")
+
+    # zpět kamkoliv – ideálně na detail objednávky, pokud máš
+    return redirect(request.referrer or url_for("admin.sold_products"))

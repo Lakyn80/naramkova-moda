@@ -4,11 +4,18 @@ import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 
 const MERCHANT_IBAN = (import.meta.env.VITE_IBAN || "CZ6508000000001234567899").toUpperCase();
+const SHIPPING_FEE_CZK = Number(import.meta.env.VITE_SHIPPING_FEE_CZK ?? 89); // ✅ čte z .env, fallback 89
+
+function toMoney(n) {
+  // bezpečné zaokrouhlení na 2 decimály
+  const cents = Math.round(Number(n) * 100);
+  return cents / 100;
+}
 
 function buildSpdPayload({ iban, amount, vs, msg }) {
   if (!iban) throw new Error("Chybí IBAN.");
   const normIban = iban.replace(/\s+/g, "").toUpperCase();
-  const parts = ["SPD*1.0", `ACC:${normIban}`, `AM:${Number(amount).toFixed(2)}`, "CC:CZK"];
+  const parts = ["SPD*1.0", `ACC:${normIban}`, `AM:${toMoney(amount).toFixed(2)}`, "CC:CZK"];
   if (vs) parts.push(`X-VS:${String(vs).trim()}`);
   if (msg) {
     const safe = String(msg).replace(/[^\x20-\x7E]/g, "");
@@ -21,22 +28,26 @@ export default function Checkout() {
   const { cartItems, clearCart } = useCart();
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    address: "",
-    note: "",
-  });
-
+  const [formData, setFormData] = useState({ name: "", email: "", address: "", note: "" });
   const [phase, setPhase] = useState("form");
   const [vs, setVs] = useState(null);
   const [qrError, setQrError] = useState("");
   const canvasRef = useRef(null);
 
-  const total = useMemo(() => {
-    return cartItems.reduce((sum, item) => sum + item.quantity * parseFloat(item.price), 0);
+  // ── Výpočty ────────────────────────────────────────────────────────────────
+  const subtotal = useMemo(() => {
+    return cartItems.reduce((sum, item) => {
+      const q = Number(item.quantity) || 0;
+      const p = Number(item.price) || 0;
+      return sum + q * p;
+    }, 0);
   }, [cartItems]);
 
+  const total = useMemo(() => {
+    return toMoney(subtotal + SHIPPING_FEE_CZK); // ✅ vč. poštovného
+  }, [subtotal]);
+
+  // ── Form ──────────────────────────────────────────────────────────────────
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -50,6 +61,7 @@ export default function Checkout() {
     setPhase("qr");
   };
 
+  // ── QR generování ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (phase !== "qr") return;
     (async () => {
@@ -58,7 +70,7 @@ export default function Checkout() {
         if (!MERCHANT_IBAN || !total || total <= 0 || !vs) return;
         const payload = buildSpdPayload({
           iban: MERCHANT_IBAN,
-          amount: total,
+          amount: total, // ✅ QR AM = total vč. poštovného
           vs,
           msg: `Objednavka ${vs}`,
         });
@@ -69,6 +81,7 @@ export default function Checkout() {
     })();
   }, [phase, total, vs]);
 
+  // ── Odeslání objednávky ───────────────────────────────────────────────────
   const handleConfirmPaidAndSubmit = async () => {
     try {
       const orderData = {
@@ -77,12 +90,13 @@ export default function Checkout() {
         address: formData.address,
         note: formData.note,
         vs,
-        totalCzk: total,
+        totalCzk: total, // ✅ posíláme vč. poštovného
+        shippingCzk: SHIPPING_FEE_CZK, // (volitelné) pro přehled v adminu
         items: cartItems.map((item) => ({
           id: item.id,
           name: item.name,
-          quantity: item.quantity,
-          price: item.price,
+          quantity: Number(item.quantity) || 0,
+          price: Number(item.price) || 0,
         })),
       };
 
@@ -105,6 +119,7 @@ export default function Checkout() {
     }
   };
 
+  // ── UI ────────────────────────────────────────────────────────────────────
   if (phase === "submitted") {
     return (
       <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen text-center text-pink-900 bg-gradient-to-br from-pink-300 via-white to-pink-200">
@@ -127,7 +142,7 @@ export default function Checkout() {
           <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-center">Platba objednávky</h2>
           <p className="text-center text-pink-800 mb-6">
             Naskenujte QR kód ve své bankovní aplikaci. <br />
-            Částka: <b>{total.toFixed(2)} CZK</b>
+            Částka: <b>{toMoney(total).toFixed(2)} CZK</b>
           </p>
 
           <div className="flex flex-col items-center gap-4 bg-white rounded-2xl shadow p-6">
@@ -136,8 +151,6 @@ export default function Checkout() {
             ) : (
               <canvas ref={canvasRef} className="border rounded-lg shadow w-64 h-64" />
             )}
-
-            {/* IBAN záměrně n e z o b r a z u j e m e */}
 
             <div className="flex gap-3 pt-2">
               <button onClick={() => setPhase("form")} className="px-4 py-2 rounded-md border">
@@ -166,43 +179,11 @@ export default function Checkout() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <form onSubmit={handleShowQr} className="space-y-4">
-              <input
-                type="text"
-                name="name"
-                placeholder="Jméno a příjmení"
-                required
-                className="w-full border px-4 py-2 rounded-md"
-                value={formData.name}
-                onChange={handleChange}
-              />
-              <input
-                type="email"
-                name="email"
-                placeholder="Email"
-                required
-                className="w-full border px-4 py-2 rounded-md"
-                value={formData.email}
-                onChange={handleChange}
-              />
-              <textarea
-                name="address"
-                placeholder="Adresa"
-                required
-                className="w-full border px-4 py-2 rounded-md"
-                value={formData.address}
-                onChange={handleChange}
-              />
-              <textarea
-                name="note"
-                placeholder="Poznámka (volitelné)"
-                className="w-full border px-4 py-2 rounded-md"
-                value={formData.note}
-                onChange={handleChange}
-              />
-              <button
-                type="submit"
-                className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-6 rounded-md transition"
-              >
+              <input type="text" name="name" placeholder="Jméno a příjmení" required className="w-full border px-4 py-2 rounded-md" value={formData.name} onChange={handleChange} />
+              <input type="email" name="email" placeholder="Email" required className="w-full border px-4 py-2 rounded-md" value={formData.email} onChange={handleChange} />
+              <textarea name="address" placeholder="Adresa" required className="w-full border px-4 py-2 rounded-md" value={formData.address} onChange={handleChange} />
+              <textarea name="note" placeholder="Poznámka (volitelné)" className="w-full border px-4 py-2 rounded-md" value={formData.note} onChange={handleChange} />
+              <button type="submit" className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-6 rounded-md transition">
                 Zaplatit QR
               </button>
             </form>
@@ -212,14 +193,14 @@ export default function Checkout() {
               <ul className="space-y-2 text-pink-800 text-sm">
                 {cartItems.map((item, index) => (
                   <li key={index} className="flex justify-between">
-                    <span>{item.quantity}× {item.name}</span>
-                    <span>{(item.quantity * parseFloat(item.price)).toFixed(2)} Kč</span>
+                    <span>{Number(item.quantity)}× {item.name}</span>
+                    <span>{toMoney(Number(item.quantity) * Number(item.price)).toFixed(2)} Kč</span>
                   </li>
                 ))}
               </ul>
-              <div className="mt-4 font-bold text-right text-lg">
-                Celkem: {total.toFixed(2)} Kč
-              </div>
+              <div className="mt-4 text-right text-sm">Mezisoučet: {toMoney(subtotal).toFixed(2)} Kč</div>
+              <div className="text-right text-sm">Poštovné: {toMoney(SHIPPING_FEE_CZK).toFixed(2)} Kč</div>
+              <div className="mt-1 font-bold text-right text-lg">Celkem: {toMoney(total).toFixed(2)} Kč</div>
             </div>
           </div>
         )}

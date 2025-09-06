@@ -1,8 +1,8 @@
-# 📁 backend/api/routes/order_routes.py
 from flask import Blueprint, request, jsonify, current_app
 from decimal import Decimal, InvalidOperation
 from backend.extensions import db
 from backend.admin.models import Order, OrderItem, Payment  # ← přidán Payment
+import os  # ✅ kvůli ENV SHIPPING_FEE_CZK
 
 order_bp = Blueprint("order_bp", __name__, url_prefix="/api/orders")
 
@@ -24,7 +24,7 @@ def create_order():
       "email": "...",
       "address": "...",
       "note": "...",
-      "totalCzk": 1234.00,
+      "totalCzk": 1234.00,   # ← IGNORED (počítáme na serveru)
       "items": [
         {"id": 1, "name": "Náramek A", "quantity": 2, "price": 199.0},
         ...
@@ -47,16 +47,33 @@ def create_order():
         if Order.query.filter_by(vs=vs).first():
             return jsonify({"ok": False, "error": "Objednávka s tímto VS už existuje."}), 409
 
-        try:
-            total_czk = _to_decimal(data.get("totalCzk", "0"), "totalCzk")
-            if total_czk <= 0:
-                raise InvalidOperation("Částka musí být > 0")
-        except InvalidOperation:
-            return jsonify({"ok": False, "error": "Neplatná částka totalCzk."}), 400
-
+        # ✅ PŘEPOČET NA SERVERU: subtotal + SHIPPING_FEE_CZK (ENV/Config, default 89.00)
         items_in = data.get("items") or []
         if not isinstance(items_in, list) or not items_in:
             return jsonify({"ok": False, "error": "Chybí položky objednávky (items)."}), 400
+
+        # mezisoučet z položek
+        subtotal = Decimal("0.00")
+        for it in items_in:
+            try:
+                qty = int(it.get("quantity", 1))
+                price = _to_decimal(it.get("price", "0"), "price")
+            except Exception:
+                return jsonify({"ok": False, "error": "Neplatná položka (quantity/price)."}), 400
+            if qty <= 0 or price <= 0:
+                return jsonify({"ok": False, "error": "Položka musí mít quantity>0 a price>0."}), 400
+            subtotal += (price * qty)
+
+        # poštovné z ENV/Config (fallback 89.00)
+        fee_raw = os.getenv("SHIPPING_FEE_CZK") or current_app.config.get("SHIPPING_FEE_CZK", "89.00")
+        try:
+            shipping_fee = _to_decimal(fee_raw, "shipping_fee")
+        except InvalidOperation:
+            shipping_fee = Decimal("89.00")
+
+        total_czk = (subtotal + shipping_fee).quantize(Decimal("0.01"))
+        if total_czk <= 0:
+            return jsonify({"ok": False, "error": "Částka musí být > 0."}), 400
 
         # Vytvořit objednávku
         order = Order(
@@ -65,7 +82,7 @@ def create_order():
             customer_email=email,
             customer_address=address,
             note=note,
-            total_czk=total_czk,
+            total_czk=total_czk,  # ✅ už vč. poštovného
             status="awaiting_payment",
         )
         db.session.add(order)
@@ -97,7 +114,7 @@ def create_order():
         if not existing_p:
             db.session.add(Payment(
                 vs=vs,
-                amount_czk=total_czk,
+                amount_czk=total_czk,  # ✅ odpovídá uložené objednávce (vč. poštovného)
                 status="pending",
                 reference=f"Order #{order.id} created"
             ))

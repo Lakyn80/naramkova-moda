@@ -3,12 +3,14 @@ import io
 import os
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-
 from flask import Blueprint, request, jsonify, current_app, send_file
 import qrcode
-
 from backend.extensions import db
 from backend.admin.models import Order, Payment
+from backend.api.utils.csob_mail_sync import fetch_csob_incoming, fetch_from_imap
+from backend.api.utils.telegram import send_telegram_message
+
+
 
 payment_bp = Blueprint("payment_bp", __name__, url_prefix="/api/payments")
 
@@ -133,6 +135,51 @@ def _vs_display(vs, order_id):
     """
     vs = (vs or "").strip()
     return vs if vs else f"{int(order_id):08d}"
+
+
+# --- DOPLNĚNO: Poštovné a porovnání částek ---------------------------------
+
+def _shipping_fee() -> Decimal:
+    """
+    Poštovné v CZK:
+    1) ENV SHIPPING_FEE_CZK
+    2) current_app.config["SHIPPING_FEE_CZK"]
+    3) default 89.00
+    """
+    raw = os.getenv("SHIPPING_FEE_CZK")
+    if raw is None:
+        raw = current_app.config.get("SHIPPING_FEE_CZK", "89.00")
+    try:
+        return _to_decimal(raw)
+    except InvalidOperation:
+        return Decimal("89.00")
+
+
+def _amounts_equal(a: Decimal, b: Decimal, tol: Decimal = Decimal("0.50")) -> bool:
+    """Porovnání s tolerancí (např. odchylky/zaokrouhlení)."""
+    return abs(_to_decimal(a) - _to_decimal(b)) <= _to_decimal(tol)
+
+
+def _order_base_amount_czk(order: Order) -> Decimal | None:
+    """
+    Základní částka objednávky (bez poštovného):
+    - přednostně Order.total_czk (pokud je)
+    - jinak dopočítat z order_item pomocí _compute_amounts_for_orders
+    """
+    total = getattr(order, "total_czk", None)
+    if total is not None:
+        try:
+            return _to_decimal(total)
+        except InvalidOperation:
+            return None
+
+    comp = _compute_amounts_for_orders([order.id])
+    if comp.get(order.id) is not None:
+        try:
+            return _to_decimal(comp[order.id])
+        except InvalidOperation:
+            return None
+    return None
 
 
 # --- QR endpoints ----------------------------------------------------------
@@ -482,4 +529,130 @@ def get_status_by_vs(vs: str):
 
     except Exception as e:
         current_app.logger.exception("get_status_by_vs failed")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@payment_bp.post("/sync-csob-mail")
+def sync_csob_mail():
+    """
+    Ruční sync: načte notifikační e-maily z IMAPu, spáruje podle VS a označí objednávku jako 'paid'.
+    Používá výhradně bankovní odesílatele pro změny v DB.
+    Navíc vrátí diagnostiku z vlastních mailů (nepáruje).
+    """
+    try:
+        # volitelné override z body
+        cfg = request.get_json(silent=True) or {}
+        host     = cfg.get("host")
+        port     = cfg.get("port")
+        ssl      = cfg.get("ssl")
+        user     = cfg.get("user")
+        password = cfg.get("password")
+        folder   = cfg.get("folder") or "INBOX"
+        max_     = cfg.get("max", 50)
+
+        bank_senders = cfg.get("bank_senders") or [
+            "csob.cz","noreply@csob.cz","no-reply@csob.cz","notification@csob.cz","info@csob.cz"
+        ]
+        self_senders = cfg.get("self_senders") or [
+            "noreply@naramkovamoda.cz","naramkovamoda@email.cz"
+        ]
+
+        # 1) BANKA – tohle jediný používáme k párování
+        bank_pairs = fetch_csob_incoming(
+            host=host, port=port, ssl=ssl, user=user, password=password, folder=folder,
+            max_items=max_, bank_senders=bank_senders, mark_seen=True,
+        )
+
+        processed = []
+        unmatched = []  # ← DOPLNĚNO: záznamy, kde nesedí částka vs očekávané + poštovné
+        fee = _shipping_fee()
+
+        for vs, amount in bank_pairs:
+            order = Order.query.filter_by(vs=str(vs)).first()
+            if not order:
+                # pokud není objednávka, přeskočíme – beze změny
+                unmatched.append({
+                    "vs": str(vs),
+                    "reason": "order_not_found",
+                    "paid": float(amount),
+                })
+                continue
+
+            # Základ objednávky (bez poštovného)
+            base = _order_base_amount_czk(order)
+            if base is None:
+                unmatched.append({
+                    "vs": str(vs),
+                    "reason": "order_amount_missing",
+                    "paid": float(amount),
+                })
+                continue
+
+            expected = base + fee
+            paid_dec = _to_decimal(amount)
+
+            if _amounts_equal(paid_dec, expected):
+                # idempotence
+                if order.status != "paid":
+                    order.status = "paid"
+
+                pay = Payment.query.filter_by(vs=str(vs)).order_by(Payment.id.desc()).first()
+                if pay:
+                    pay.status = "received"
+                    pay.amount_czk = paid_dec
+                    if getattr(pay, "received_at", None) is None:
+                        pay.received_at = datetime.utcnow()
+                else:
+                    pay = Payment(vs=str(vs), amount_czk=paid_dec, status="received", received_at=datetime.utcnow())
+                    db.session.add(pay)
+
+                processed.append({"vs": str(vs), "amount": float(paid_dec), "expected": float(expected), "orderId": order.id})
+            else:
+                unmatched.append({
+                    "vs": str(vs),
+                    "reason": "amount_mismatch",
+                    "paid": float(paid_dec),
+                    "expected": float(expected),
+                    "orderId": order.id,
+                })
+
+        if processed:
+            db.session.commit()
+            # Telegram shrnutí
+            lines = [f"✅ Přijata platba VS {p['vs']} • {p['amount']:.2f} CZK (oček. {p['expected']:.2f}) • objednávka #{p['orderId']}" for p in processed]
+            try:
+                send_telegram_message("\n".join(lines))
+            except Exception:
+                current_app.logger.exception("Telegram notify failed")
+
+        # 2) DIAGNOSTIKA – naše vlastní notifikace (nepárujeme, jen zobrazíme nalezené VS/částky)
+        try:
+            self_rows = fetch_from_imap(
+                host=host or os.getenv("IMAP_HOST", "imap.seznam.cz"),
+                port=int(port or os.getenv("IMAP_PORT", "993")),
+                ssl=(ssl if ssl is not None else os.getenv("IMAP_SSL", "true").lower() == "true"),
+                user=user or os.getenv("IMAP_USER"),
+                password=password or os.getenv("IMAP_PASSWORD"),
+                folder=folder,
+                max_items=max_,
+                allow_senders=self_senders,
+                mark_seen=True,
+            )
+            diagnostic_self = [
+                {"vs": vs, "amount": float(amount), "sender": sender}
+                for (vs, amount, sender) in self_rows
+            ]
+        except Exception:
+            diagnostic_self = []
+
+        return jsonify({
+            "ok": True,
+            "shipping_fee_czk": float(fee),
+            "matched": processed,
+            "unmatched": unmatched,
+            "diagnostic_self": diagnostic_self
+        }), 200
+
+    except Exception as e:
+        current_app.logger.exception("sync_csob_mail failed")
+        db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500

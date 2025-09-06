@@ -27,7 +27,6 @@ function Arrow({ className = "", onClick, direction = "next" }) {
         "hover:from-white hover:to-white hover:shadow-2xl hover:scale-105",
         "transition-all duration-200",
         disabled ? "opacity-40 pointer-events-none" : "opacity-95",
-        // pro jistotu – ať neovlivní kliknutí na karty
         "focus:outline-none focus:ring-2 focus:ring-pink-400/60",
       ].join(" ")}
       style={{ lineHeight: 0 }}
@@ -95,7 +94,7 @@ export default function Gallery() {
       prevArrow: <Arrow direction="prev" />,
       infinite: count > showDesktop,
       autoplay: count > 1,
-      autoplaySpeed: 8000, // ✅ zpomaleno (12 s)
+      autoplaySpeed: 8000, // ✅ zpomaleno (8 s)
       speed: 900,
       cssEase: "ease-in-out",
       slidesToShow: Math.min(showDesktop, Math.max(1, count || 1)),
@@ -131,6 +130,26 @@ export default function Gallery() {
       id="galerie"
       className="relative py-20 px-3 sm:px-4 bg-gradient-to-b from-rose-light to-rose-mid overflow-hidden"
     >
+      {/* 🔧 vyrovnání výšek uvnitř slick-slide + efekty karet */}
+      <style>{`
+        .slick-slide > div { height: 100%; }
+
+        @keyframes nmGlow {
+          0%, 100% { box-shadow: 0 10px 25px rgba(236,72,153,0.15); }
+          50%      { box-shadow: 0 16px 40px rgba(217,70,239,0.28); }
+        }
+
+        @keyframes nmShine {
+          0%   { transform: translateX(-120%); }
+          100% { transform: translateX(120%); }
+        }
+
+        /* Respektování omezení animací */
+        @media (prefers-reduced-motion: reduce) {
+          .nm-anim { animation: none !important; transition: none !important; }
+        }
+      `}</style>
+
       <img
         src="/wave.svg"
         alt="Wave top"
@@ -146,24 +165,68 @@ export default function Gallery() {
             <div
               key={product.id ?? slugify(product.name)}
               onClick={() => navigate(`/shop/${slugify(product.name)}`)}
-              className="px-3"
+              className="px-3 h-full"
             >
-              <div className="rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden bg-transparent">
-                <div className="w-full aspect-square overflow-hidden">
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    loading="lazy"
-                    decoding="async"
-                    className="block w-full h-full object-cover object-center"
+              {/* OUTER: gradientní rámeček + „dýchání“ */}
+              <div
+                className={[
+                  "group h-full p-[1.5px] rounded-2xl",
+                  "bg-gradient-to-br from-pink-400/70 via-fuchsia-500/60 to-rose-400/70",
+                  "transition-all duration-300 nm-anim",
+                  "hover:from-pink-400 hover:via-fuchsia-500 hover:to-rose-400",
+                  "animate-[nmGlow_6s_ease-in-out_infinite]",
+                ].join(" ")}
+              >
+                {/* INNER: samotná karta */}
+                <div
+                  className={[
+                    "relative h-full flex flex-col rounded-2xl overflow-hidden cursor-pointer",
+                    "bg-white/5 backdrop-blur-sm",
+                    "shadow-lg transition-all duration-300 nm-anim",
+                    "group-hover:-translate-y-0.5 group-hover:shadow-2xl",
+                  ].join(" ")}
+                >
+                  {/* „shine“ – pohybový lesk přes kartu při hoveru */}
+                  <span
+                    aria-hidden
+                    className={[
+                      "pointer-events-none absolute inset-0 rounded-2xl opacity-0",
+                      "bg-[linear-gradient(120deg,transparent_30%,rgba(255,255,255,0.22)_50%,transparent_70%)]",
+                      "transition-opacity duration-300",
+                      "group-hover:opacity-100",
+                    ].join(" ")}
+                    style={{
+                      animation: "nmShine 1.2s ease-in-out 1",
+                    }}
                   />
-                </div>
-                <div className="px-2 sm:px-3 py-3 bg-transparent">
-                  <p className="text-center text-pink-50 md:text-pink-100 font-semibold text-sm sm:text-base line-clamp-2">
-                    {emojify(product.name)}
-                  </p>
+
+                  {/* Obrázek */}
+                  <div className="w-full aspect-square overflow-hidden">
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      loading="lazy"
+                      decoding="async"
+                      className="block w-full h-full object-cover object-center transition-transform duration-500 nm-anim group-hover:scale-[1.04]"
+                    />
+                  </div>
+
+                  {/* Spodní panel: dvouřádkový popisek → stejné výšky karet */}
+                  <div className="px-2 sm:px-3 py-3 bg-transparent">
+                    <p
+                      className="
+                        text-center text-pink-50 md:text-pink-100
+                        font-semibold text-sm sm:text-base
+                        line-clamp-2 leading-snug
+                        min-h-[2.75rem] sm:min-h-[3.25rem]
+                      "
+                    >
+                      {emojify(product.name)}
+                    </p>
+                  </div>
                 </div>
               </div>
+              {/* /OUTER */}
             </div>
           ))}
         </Slider>

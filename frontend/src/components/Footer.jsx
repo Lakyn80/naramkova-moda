@@ -1,11 +1,9 @@
+// src/components/Footer.jsx
 import React, { useEffect, useRef, useState } from "react";
 import qrCode from "../assets/qr_code_fb.jpg";
 import { Mail, Phone, Cookie, Shield, X } from "lucide-react";
 
 export default function Footer() {
-  const WA_NUMBER = "420776479747";
-  const WA_TEXT = encodeURIComponent("Dobrý den, mám dotaz k Náramkové módě 🙂");
-
   const PHONE_DISPLAY = "+420 776 47 97 47";
   const PHONE_TEL = "+420776479747";
   const EMAIL = "naramkovamoda@email.cz";
@@ -39,7 +37,7 @@ export default function Footer() {
 
   return (
     <>
-      <footer className="bg-black text-white py-3 px-4 text-center">
+      <footer className="bg-black text-white py-[7px] px-4 text-center">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-5 text-[11px] sm:text-sm">
           {/* Kontakt (klikací) */}
           <div className="space-y-0.5 text-left">
@@ -214,7 +212,9 @@ export default function Footer() {
                 ) : (
                   <div className="max-h-64 overflow-auto pr-1 space-y-2">
                     <h4 className="font-semibold text-pink-300">Informace o zpracování osobních údajů</h4>
-                    <p>Správce: Náramková Móda, kontakt {EMAIL}, {PHONE_DISPLAY}.</p>
+                    <p>
+                      Správce: Náramková Móda, kontakt {EMAIL}, {PHONE_DISPLAY}.
+                    </p>
                     <ul className="list-disc pl-4 space-y-1">
                       <li>Účel: vyřízení objednávek, komunikace, účetní evidence.</li>
                       <li>Právní základ: plnění smlouvy, oprávněný zájem, zákonná povinnost.</li>
@@ -238,22 +238,6 @@ export default function Footer() {
           </div>
         </div>
       </footer>
-
-      {/* WhatsApp plovoucí widget */}
-      <a
-        href={`https://wa.me/${WA_NUMBER}?text=${WA_TEXT}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-4 right-4 z-40 inline-flex items-center justify-center w-14 h-14 rounded-full shadow-lg hover:scale-105 transition transform duration-200"
-        aria-label="Napsat na WhatsApp"
-        style={{ background: "radial-gradient(60% 60% at 50% 50%, #25D366 0%, #128C7E 100%)" }}
-      >
-        {/* jednoduchá bublina zprávy jako ikonka */}
-        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="white" aria-hidden="true">
-          <path d="M20 2H4a2 2 0 0 0-2 2v14l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z" />
-        </svg>
-        <span className="sr-only">WhatsApp</span>
-      </a>
     </>
   );
 }

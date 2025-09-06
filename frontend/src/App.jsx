@@ -1,3 +1,4 @@
+// src/App.jsx
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import React, { useRef } from "react";
 import Navbar from "./components/Navbar";
@@ -12,14 +13,17 @@ import Checkout from "./pages/Checkout";
 import { CartProvider } from "./context/CartContext";
 import ScrollToTop from "./components/ScrollToTop";
 
+// ✅ WhatsApp widget
+import WhatsAppWidget from "./components/WhatsAppWidget";
+
 export default function App() {
   const heroRef = useRef();
   const shopRef = useRef();
-  const isProd = import.meta.env.MODE === "production"; // 👈 detekce buildu
+  const isProd = import.meta.env.MODE === "production"; // detekce buildu
 
   return (
     <CartProvider>
-      <Router basename={isProd ? "/naramkova-moda" : "/"}> {/* ✅ dynamický basename */}
+      <Router basename={isProd ? "/naramkova-moda" : "/"}>
         <ScrollToTop />
         <div className="bg-gradient-to-b from-pink-800 via-pink-600 to-pink-400 min-h-screen overflow-hidden text-pink-50">
           <Navbar heroRef={heroRef} shopRef={shopRef} />
@@ -41,6 +45,13 @@ export default function App() {
           </Routes>
           <Footer />
         </div>
+
+        {/* Plovoucí WhatsApp tlačítko (ladí s designem, bez QR) */}
+        <WhatsAppWidget
+          phone="420776479747"
+          defaultMessage="Dobrý den, rád/a bych se zeptal/a na…"
+          position="right"
+        />
       </Router>
     </CartProvider>
   );
