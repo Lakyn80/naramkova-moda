@@ -19,11 +19,11 @@ import WhatsAppWidget from "./components/WhatsAppWidget";
 export default function App() {
   const heroRef = useRef();
   const shopRef = useRef();
-  const isProd = import.meta.env.MODE === "production"; // detekce buildu
 
   return (
     <CartProvider>
-      <Router basename={isProd ? "/naramkova-moda" : "/"}>
+      {/* ✅ Aplikace běží na kořeni domény → basename jen "/" */}
+      <Router basename="/">
         <ScrollToTop />
         <div className="bg-gradient-to-b from-pink-800 via-pink-600 to-pink-400 min-h-screen overflow-hidden text-pink-50">
           <Navbar heroRef={heroRef} shopRef={shopRef} />

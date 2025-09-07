@@ -6,16 +6,16 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd());
   const isDev = mode === "development";
 
-  // 👇 jediná přidaná věc: default na localhost:5050, když není VITE_API_BASE_URL
+  // Dev proxy cíl – když není definováno, spadne to na localhost:5050
   const apiBase = env.VITE_API_BASE_URL || "http://localhost:5050";
-  
 
   return {
     plugins: [react()],
     define: {
       global: "window",
     },
-    base: isDev ? "/" : "/naramkova-moda/",
+    // ✅ V produkci servírujeme z kořene domény
+    base: isDev ? "/" : "/",
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "src"),
@@ -30,8 +30,9 @@ export default defineConfig(({ mode }) => {
         port: 3000,
       },
       proxy: {
+        // FE volá /api → v devu proxy na backend; v produkci to řeší Nginx
         "/api": {
-          target: apiBase,      // 👈 jen tohle jsem upravil
+          target: apiBase,
           changeOrigin: true,
           secure: false,
         },
