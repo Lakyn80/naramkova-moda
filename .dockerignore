@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+
+# Python venv, cache
+**/.venv
+**/__pycache__
+**/*.pyc
+
+# Node
+**/node_modules
+**/dist
+**/.parcel-cache
+
+# Frontend (nepotřebujeme ve backend image)
+frontend
+
+# Zálohy a binárky
+backups
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Lokální configy
+.env
+.env.*
+*.env
+.vscode
+.idea
+.DS_Store
