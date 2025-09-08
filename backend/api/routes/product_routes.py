@@ -3,7 +3,7 @@ from flask import Blueprint, jsonify, request, url_for, current_app
 from werkzeug.utils import secure_filename
 
 from backend.extensions import db
-from backend.models import Product, ProductMedia, Category  # ponecháno
+from backend.models import Product, ProductMedia, Category
 
 api_products = Blueprint("api_products", __name__, url_prefix="/api/products")
 
@@ -30,6 +30,7 @@ def _product_dict(product: Product):
         "name": product.name,
         "description": product.description,
         "price": product.price_czk,
+        "stock": product.stock,  # ✅ přidáno
         "category_id": product.category_id,
         "category_name": category_name,
         "image_url": (
@@ -47,7 +48,8 @@ def _product_dict(product: Product):
 
 @api_products.get("/")
 def get_products():
-    items = Product.query.order_by(Product.id.desc()).all()
+    # ✅ filtrujeme jen produkty se stock > 0
+    items = Product.query.filter(Product.stock > 0).order_by(Product.id.desc()).all()
     return jsonify([_product_dict(p) for p in items]), 200
 
 
@@ -62,6 +64,7 @@ def add_product():
     name = (request.form.get("name") or "").strip()
     description = (request.form.get("description") or "").strip()
     price_raw = (request.form.get("price") or "").strip()
+    stock_raw = (request.form.get("stock") or "").strip()
     category_id = request.form.get("category_id")
 
     if not name or not price_raw or not category_id:
@@ -72,10 +75,18 @@ def add_product():
     except ValueError:
         return jsonify({"error": "Invalid price"}), 400
 
+    try:
+        stock = int(stock_raw) if stock_raw else 1
+        if stock < 0:
+            raise ValueError
+    except ValueError:
+        return jsonify({"error": "Invalid stock"}), 400
+
     p = Product(
         name=name,
         description=(description or None),
         price_czk=price,
+        stock=stock,  # ✅ uložíme počet kusů
         category_id=int(category_id),
     )
 
@@ -111,6 +122,7 @@ def update_product(product_id: int):
     name = (request.form.get("name") or "").strip()
     description = (request.form.get("description") or "").strip()
     price_raw = (request.form.get("price") or "").strip()
+    stock_raw = (request.form.get("stock") or "").strip()
     category_id = request.form.get("category_id")
 
     if name:
@@ -121,6 +133,14 @@ def update_product(product_id: int):
             p.price_czk = float(price_raw)
         except ValueError:
             return jsonify({"error": "Invalid price"}), 400
+    if stock_raw:
+        try:
+            stock = int(stock_raw)
+            if stock < 0:
+                raise ValueError
+            p.stock = stock
+        except ValueError:
+            return jsonify({"error": "Invalid stock"}), 400
     if category_id:
         p.category_id = int(category_id)
 

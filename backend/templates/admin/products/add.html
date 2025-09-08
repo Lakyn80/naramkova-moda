@@ -4,7 +4,6 @@
 {% block content %}
 <h1 class="h3 mb-3">Přidat produkt</h1>
 
-<!-- Styl jen pro tuto stránku: thumbnail + hover „bublina“ -->
 <style>
   .thumb-wrap{
     position:relative; width:80px; height:80px; overflow:hidden;
@@ -28,26 +27,28 @@
   .thumbs-grid{ display:flex; flex-wrap:wrap; gap:10px; }
   .thumb-cell{ display:flex; flex-direction:column; align-items:center; gap:6px; }
   .thumb-label{ font-size:.8rem; color:#6c757d; max-width:80px; text-align:center; }
-  @media (max-width:576px){
-    .thumb-wrap .bubble{ left:84px; top:-6px; }
-    .thumb-wrap .bubble img{ width:260px; height:260px; }
-  }
 </style>
 
-<form action="{{ url_for('admin.add_product') }}" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+<form action="{{ url_for('admin.add_product') }}" method="post" enctype="multipart/form-data">
   <div class="mb-3">
     <label class="form-label">Název produktu</label>
-    <input type="text" name="name" class="form-control" placeholder="Např. Náramek pro maminku" required>
+    <input type="text" name="name" class="form-control" required>
   </div>
 
   <div class="mb-3">
     <label class="form-label">Popis</label>
-    <textarea name="description" class="form-control" rows="5" placeholder="Popis produktu, použití, materiál apod."></textarea>
+    <textarea name="description" class="form-control" rows="5"></textarea>
   </div>
 
   <div class="mb-3">
     <label class="form-label">Cena (Kč)</label>
-    <input type="number" step="0.01" min="0" name="price" class="form-control" placeholder="Např. 199.00" required>
+    <input type="number" step="0.01" min="0" name="price" class="form-control" required>
+  </div>
+
+  <!-- ✅ Nové pole pro počet kusů -->
+  <div class="mb-3">
+    <label class="form-label">Počet kusů (stock)</label>
+    <input type="number" min="0" name="stock" class="form-control" value="1" required>
   </div>
 
   <div class="mb-3">
@@ -58,25 +59,14 @@
         <option value="{{ c.id }}">{{ (c.group or "—") ~ " — " ~ c.name }}</option>
       {% endfor %}
     </select>
-    <div class="form-text">Do backendu se odešle ID kategorie (ne text).</div>
   </div>
 
-  <!-- ÚVODNÍ OBRÁZEK + LIVE NÁHLED -->
   <div class="mb-3">
     <label class="form-label">Úvodní obrázek</label>
     <input id="image-input" type="file" name="image" class="form-control" accept="image/*">
-    <div class="mt-2 thumbs-grid" id="image-preview" style="display:none;">
-      <div class="thumb-cell">
-        <div class="thumb-wrap">
-          <img class="thumb" id="image-thumb" alt="náhled">
-          <div class="bubble"><img id="image-bubble" alt="náhled velký"></div>
-        </div>
-        <div class="thumb-label">Úvodní</div>
-      </div>
-    </div>
+    <div class="mt-2 thumbs-grid" id="image-preview" style="display:none;"></div>
   </div>
 
-  <!-- DALŠÍ MÉDIA + LIVE NÁHLEDY -->
   <div class="mb-4">
     <label class="form-label">Další obrázky nebo videa</label>
     <input id="media-input" type="file" name="media" class="form-control" accept="image/*,video/*" multiple>
@@ -89,49 +79,51 @@
   </div>
 </form>
 
-<!-- Minimal JS pro live náhledy -->
 <script>
   const imageInput = document.getElementById('image-input');
   const imagePreview = document.getElementById('image-preview');
-  const imageThumb = document.getElementById('image-thumb');
-  const imageBubble = document.getElementById('image-bubble');
-
-  imageInput?.addEventListener('change', (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (!f || !f.type.startsWith('image/')) { imagePreview.style.display='none'; return; }
-    const url = URL.createObjectURL(f);
-    imageThumb.src = url; imageBubble.src = url; imagePreview.style.display = 'flex';
-  });
-
   const mediaInput = document.getElementById('media-input');
   const mediaPreview = document.getElementById('media-preview');
 
-  mediaInput?.addEventListener('change', (e) => {
+  imageInput?.addEventListener('change', e => {
+    const f = e.target.files?.[0];
+    if (!f?.type.startsWith('image/')) { imagePreview.style.display='none'; return; }
+    const url = URL.createObjectURL(f);
+    imagePreview.innerHTML = `
+      <div class="thumb-cell">
+        <div class="thumb-wrap">
+          <img class="thumb" src="${url}" alt="náhled">
+          <div class="bubble"><img src="${url}" alt="náhled velký"></div>
+        </div>
+        <div class="thumb-label">Úvodní</div>
+      </div>`;
+    imagePreview.style.display='flex';
+  });
+
+  mediaInput?.addEventListener('change', e => {
     const files = Array.from(e.target.files || []);
     mediaPreview.innerHTML = '';
     if (!files.length) { mediaPreview.style.display='none'; return; }
-    files.forEach((f, idx) => {
-      const cell = document.createElement('div');
-      cell.className = 'thumb-cell';
+    files.forEach((f, i) => {
+      const url = URL.createObjectURL(f);
       if (f.type.startsWith('image/')) {
-        const url = URL.createObjectURL(f);
-        cell.innerHTML = `
-          <div class="thumb-wrap">
-            <img class="thumb" src="${url}" alt="media">
-            <div class="bubble"><img src="${url}" alt="media velký"></div>
-          </div>
-          <div class="thumb-label">#${idx+1}</div>`;
+        mediaPreview.innerHTML += `
+          <div class="thumb-cell">
+            <div class="thumb-wrap">
+              <img class="thumb" src="${url}" alt="media">
+              <div class="bubble"><img src="${url}" alt="media velký"></div>
+            </div>
+            <div class="thumb-label">#${i+1}</div>
+          </div>`;
       } else if (f.type.startsWith('video/')) {
-        const url = URL.createObjectURL(f);
-        cell.innerHTML = `
-          <div style="width:80px; height:80px; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.15); background:#000;">
-            <video src="${url}" style="width:100%; height:100%; object-fit:cover;" muted></video>
-          </div>
-          <div class="thumb-label">Video #${idx+1}</div>`;
+        mediaPreview.innerHTML += `
+          <div class="thumb-cell">
+            <video src="${url}" style="width:80px;height:80px;border-radius:8px;object-fit:cover;" muted></video>
+            <div class="thumb-label">Video #${i+1}</div>
+          </div>`;
       }
-      mediaPreview.appendChild(cell);
     });
-    mediaPreview.style.display = 'flex';
+    mediaPreview.style.display='flex';
   });
 </script>
 {% endblock %}

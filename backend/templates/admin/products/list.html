@@ -6,53 +6,6 @@
 
 <a href="{{ url_for('admin.add_product') }}" class="btn btn-success mb-3">➕ Přidat produkt</a>
 
-<!-- FILTR (GET) -->
-<form method="get" class="row g-2 mb-3">
-  <div class="col-sm-4 col-md-3">
-    <input type="text"
-           name="q"
-           value="{{ q or '' }}"
-           class="form-control"
-           placeholder="Hledat podle názvu…">
-  </div>
-  <div class="col-sm-4 col-md-3">
-    <select name="category_id" class="form-select">
-      <option value="">— Všechny kategorie —</option>
-      {% for c in categories %}
-        <option value="{{ c.id }}" {% if selected_category_id==c.id %}selected{% endif %}>
-          {{ c.group or "—" }} — {{ c.name }}
-        </option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-sm-4 col-md-3 d-flex align-items-center gap-3">
-    <div class="form-check">
-      <input class="form-check-input" type="checkbox" id="has_image" name="has_image" value="1"
-             {% if selected_has_image %}checked{% endif %}>
-      <label class="form-check-label" for="has_image">Má hlavní obrázek</label>
-    </div>
-    <div class="form-check">
-      <input class="form-check-input" type="checkbox" id="has_media" name="has_media" value="1"
-             {% if selected_has_media %}checked{% endif %}>
-      <label class="form-check-label" for="has_media">Má média</label>
-    </div>
-  </div>
-  <div class="col-sm-4 col-md-3">
-    <select name="sort" class="form-select">
-      <option value="id_desc" {% if selected_sort=="id_desc" %}selected{% endif %}>ID ↓ (nové první)</option>
-      <option value="id_asc"  {% if selected_sort=="id_asc" %}selected{% endif %}>ID ↑ (staré první)</option>
-      <option value="name_asc" {% if selected_sort=="name_asc" %}selected{% endif %}>Název A–Z</option>
-      <option value="name_desc" {% if selected_sort=="name_desc" %}selected{% endif %}>Název Z–A</option>
-      <option value="price_asc" {% if selected_sort=="price_asc" %}selected{% endif %}>Cena ↑</option>
-      <option value="price_desc" {% if selected_sort=="price_desc" %}selected{% endif %}>Cena ↓</option>
-    </select>
-  </div>
-  <div class="col-sm-12 d-flex gap-2">
-    <button type="submit" class="btn btn-primary">Filtrovat</button>
-    <a href="{{ url_for('admin.products') }}" class="btn btn-outline-secondary">Reset</a>
-  </div>
-</form>
-
 <table class="table table-bordered table-striped align-middle">
   <thead>
     <tr>
@@ -60,6 +13,7 @@
       <th>Název</th>
       <th>Kategorie</th>
       <th>Cena</th>
+      <th>Sklad</th>
       <th>Obrázek</th>
       <th>Média</th>
       <th>Akce</th>
@@ -83,13 +37,16 @@
         {% endif %}
       </td>
       <td>
+        {% if p.stock > 0 %}
+          <span class="badge bg-success">Skladem: {{ p.stock }}</span>
+        {% else %}
+          <span class="badge bg-danger">Vyprodáno</span>
+        {% endif %}
+      </td>
+      <td>
         {% if p.image %}
-          <div style="width:60px; height:60px; overflow:hidden; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15); position:relative;">
-            <img src="{{ url_for('static', filename='uploads/' ~ p.image) }}"
-                 alt="náhled"
-                 style="width:100%; height:100%; object-fit:cover; transition: all 0.3s ease; position:relative; z-index:1;"
-                 onmouseover="this.style.transform='scale(3)'; this.style.position='absolute'; this.style.top='-50%'; this.style.left='-50%'; this.style.zIndex='1000'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.5)';"
-                 onmouseout="this.style.transform='scale(1)'; this.style.position='relative'; this.style.top='0'; this.style.left='0'; this.style.zIndex='1'; this.style.boxShadow='none';">
+          <div style="width:60px; height:60px; overflow:hidden; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+            <img src="{{ url_for('static', filename='uploads/' ~ p.image) }}" alt="náhled" style="width:100%; height:100%; object-fit:cover;">
           </div>
         {% endif %}
       </td>
@@ -111,34 +68,4 @@
     {% endfor %}
   </tbody>
 </table>
-
-<!-- PAGINACE -->
-<nav aria-label="Stránkování">
-  <ul class="pagination">
-    <li class="page-item {% if not has_prev %}disabled{% endif %}">
-      <a class="page-link"
-         href="{% if has_prev %}{{ url_for('admin.products',
-             q=q, category_id=selected_category_id,
-             has_image=(1 if selected_has_image else None),
-             has_media=(1 if selected_has_media else None),
-             sort=selected_sort, page=page-1) }}{% else %}#{% endif %}"
-         tabindex="-1">« Předchozí</a>
-    </li>
-
-    <li class="page-item disabled">
-      <span class="page-link">
-        Strana {{ page }} / {{ max_pages }} &nbsp;•&nbsp; Celkem {{ total }}
-      </span>
-    </li>
-
-    <li class="page-item {% if not has_next %}disabled{% endif %}">
-      <a class="page-link"
-         href="{% if has_next %}{{ url_for('admin.products',
-             q=q, category_id=selected_category_id,
-             has_image=(1 if selected_has_image else None),
-             has_media=(1 if selected_has_media else None),
-             sort=selected_sort, page=page+1) }}{% else %}#{% endif %}">Další »</a>
-    </li>
-  </ul>
-</nav>
 {% endblock %}

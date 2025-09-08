@@ -1,6 +1,7 @@
 from datetime import datetime
 from backend.extensions import db
 
+
 class Product(db.Model):
     __tablename__ = "product"
 
@@ -10,11 +11,14 @@ class Product(db.Model):
     price_czk = db.Column(db.Numeric(10, 2), nullable=False)
     image = db.Column(db.String(255), nullable=True)
 
+    # ✅ Nový sloupec – počet kusů na skladě
+    stock = db.Column(db.Integer, nullable=False, default=1)
+
     # FK na kategorii
     category_id = db.Column(db.Integer, db.ForeignKey("category.id"), nullable=True)
     category = db.relationship("Category", back_populates="products")
 
-    # 🔑 DŮLEŽITÉ: vztah na média produktu (aby šablony i API měly data)
+    # 🔑 Vztah na média produktu
     media = db.relationship(
         "ProductMedia",
         backref="product",
@@ -23,7 +27,14 @@ class Product(db.Model):
     )
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    @property
+    def is_in_stock(self) -> bool:
+        """Vrátí True, pokud je produkt skladem (>0 ks)."""
+        return self.stock > 0
 
     def __repr__(self) -> str:
         return f"<Product {self.name}>"

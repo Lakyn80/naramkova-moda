@@ -110,8 +110,6 @@ def products_list():
     )
 
 
-
-
 # -----------------------------------------------------------------------------
 # PŘIDÁNÍ PRODUKTU (proxy přes API)
 # -----------------------------------------------------------------------------
@@ -126,6 +124,7 @@ def add_product():
             "name": request.form.get("name", ""),
             "description": request.form.get("description") or "",
             "price": request.form.get("price", ""),
+            "stock": request.form.get("stock", "1"),  # ✅ nově posíláme stock
             "category_id": request.form.get("category_id") or "",
         }
 
@@ -171,6 +170,7 @@ def edit_product(product_id: int):
             "name": request.form.get("name", ""),
             "description": request.form.get("description") or "",
             "price": request.form.get("price", ""),
+            "stock": request.form.get("stock", ""),  # ✅ nově posíláme stock
             "category_id": request.form.get("category_id") or "",
         }
 

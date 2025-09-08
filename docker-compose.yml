@@ -1,13 +1,23 @@
 version: "3.9"
+
 services:
-  backend:
+  nmm-backend:
+    container_name: nmm-backend
     build:
       context: .
-      dockerfile: Dockerfile
-    image: nmm-backend
-    container_name: nmm-backend
-    ports:
-      - "8000:8000"
-    env_file:
-      - backend/.env
+      dockerfile: backend/Dockerfile.backend
     restart: unless-stopped
+    env_file:
+      - ./backend/.env.production
+    ports:
+      - "127.0.0.1:5050:5050"
+    # >>> KLÍČOVÁ ZMĚNA: mounty cílí na /app/backend/**
+    volumes:
+      - ./backend/instance:/app/backend/instance
+      - ./backend/static/uploads:/app/backend/static/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "python - <<'PY'\nimport socket,sys\ns=socket.socket(); s.settimeout(2)\ntry:\n  s.connect(('127.0.0.1',5050)); s.close(); sys.exit(0)\nexcept Exception:\n  sys.exit(1)\nPY"]
+      interval: 15s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
