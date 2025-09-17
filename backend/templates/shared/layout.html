@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Admin{% endblock %}</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='uploads/naramkova-moda-logo-pack/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="16x16"  href="{{ url_for('static', filename='uploads/naramkova-moda-logo-pack/icon_16.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32"  href="{{ url_for('static', filename='uploads/naramkova-moda-logo-pack/icon_32.png') }}">
+    <link rel="icon" type="image/png" sizes="48x48"  href="{{ url_for('static', filename='uploads/naramkova-moda-logo-pack/icon_48.png') }}">
+    <link rel="icon" type="image/png" sizes="96x96"  href="{{ url_for('static', filename='uploads/naramkova-moda-logo-pack/icon_96.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='uploads/naramkova-moda-logo-pack/icon_192.png') }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='uploads/naramkova-moda-logo-pack/icon_512.png') }}">
+
+    <!-- Apple iOS -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='uploads/naramkova-moda-logo-pack/icon_180.png') }}">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='uploads/naramkova-moda-logo-pack/site.webmanifest') }}">
+    <meta name="theme-color" content="#111111">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Náramková Móda">
+    <meta property="og:description" content="Ozdobte se jedinečností.">
+    <meta property="og:image" content="{{ url_for('static', filename='uploads/naramkova-moda-logo-pack/og_1200x630.png', _external=True) }}">
+    <meta property="og:type" content="website">
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Náramková Móda">
+    <meta name="twitter:description" content="Ozdobte se jedinečností.">
+    <meta name="twitter:image" content="{{ url_for('static', filename='uploads/naramkova-moda-logo-pack/og_1200x630.png', _external=True) }}">
+
+    <style>
+        :root { --nmm-navbar-h: 64px; }
+
+        /* ZÁKLAD */
+        .alert.fade-out { opacity: 1; transition: opacity 1s ease-in-out; }
+        .alert.fade-out.hide { opacity: 0; }
+        .flash-placeholder { min-height: 70px; }
+
+        /* Fixní navbar (moderní vzhled) */
+        .navbar-dark.bg-dark {
+            background: linear-gradient(135deg, rgba(15,23,42,.96), rgba(30,58,138,.96)) !important;
+            backdrop-filter: blur(6px);
+        }
+        .navbar .nav-link { opacity: .92; transition: opacity .15s ease, transform .15s ease; }
+        .navbar .nav-link:hover { opacity: 1; transform: translateY(-1px); }
+
+        /* Odsazení obsahu pod fixním navbarem */
+        body { padding-top: calc(var(--nmm-navbar-h) + 12px); }
+
+        /* Trochu vzduchu kolem obsahu */
+        .container { padding-bottom: 1.25rem; }
+        @media (min-width: 768px){ .container { padding-bottom: 2rem; } }
+    </style>
+
+    {# DŮLEŽITÉ: hook pro page-specific CSS (Dashboard apod.) #}
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <!-- Logo -->
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('admin.dashboard') }}">
+                <img src="{{ url_for('static', filename='uploads/naramkova-moda-logo-pack/header_logo_white.svg') }}"
+                     alt="Náramková Móda" height="36" style="display:block">
+                <span class="fw-semibold">Admin</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Přepnout navigaci">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.products') }}">📦 Produkty</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.list_categories') }}">📂 Kategorie</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.sold_products') }}">📊 Prodané</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.admin_payments_index') }}">💳 Platby</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">🚪 Odhlásit</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="flash-placeholder">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade-out show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Zavřít"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Dynamicky dopočítej výšku navbaru (včetně otevřeného hamburgeru)
+        (function(){
+            const root = document.documentElement;
+            const nav  = document.querySelector('.navbar');
+
+            function setPad(){
+                if(!nav) return;
+                const h = nav.getBoundingClientRect().height;
+                root.style.setProperty('--nmm-navbar-h', `${Math.ceil(h)}px`);
+            }
+
+            // Po načtení a při resize
+            window.addEventListener('load', setPad);
+            window.addEventListener('resize', setPad);
+
+            // Reakce na otevření/zavření collapse
+            const collapse = document.getElementById('navbarNav');
+            if(collapse){
+                collapse.addEventListener('shown.bs.collapse', setPad);
+                collapse.addEventListener('hidden.bs.collapse', setPad);
+            }
+        })();
+
+        // Auto-hide flashů po 3s (ponechá .keep)
+        setTimeout(() => {
+            document.querySelectorAll('.alert.fade-out:not(.keep)').forEach(alert => {
+                alert.classList.add('hide');
+                setTimeout(() => alert.remove(), 1000);
+            });
+        }, 3000);
+    </script>
+
+    {# Hook pro page-specific JS (pokud někde potřebuješ) #}
+    {% block scripts %}{% endblock %}
+</body>
+</html>

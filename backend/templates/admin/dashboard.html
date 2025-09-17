@@ -1,0 +1,126 @@
+{% extends "shared/layout.html" %}
+{% block title %}Admin – Dashboard{% endblock %}
+
+{# Volitelné drobné styly pro moderní vzhled karet #}
+{% block styles %}
+<style>
+  :root{
+    --nm-bg-glass: rgba(255,255,255,.85);
+    --nm-border: rgba(0,0,0,.06);
+    --nm-border-hover: rgba(0,0,0,.10);
+    --nm-shadow: 0 6px 18px rgba(0,0,0,.06);
+    --nm-shadow-hover: 0 10px 28px rgba(0,0,0,.10);
+  }
+
+  /* drobné zúžení kontejneru na velkých displejích, na mobilu full-width */
+  .dash-container { max-width: 1200px; }
+
+  /* KARTY – jemný glass efekt + animace */
+  .dash-card {
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
+    background: var(--nm-bg-glass);
+    border: 1px solid var(--nm-border)!important;
+    box-shadow: var(--nm-shadow);
+    backdrop-filter: blur(8px);
+  }
+  .dash-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--nm-shadow-hover)!important;
+    border-color: var(--nm-border-hover)!important;
+    background: rgba(255,255,255,.92);
+  }
+
+  /* IKONY – subtilní badge vzhled */
+  .dash-icon {
+    width: 42px; height: 42px; display:inline-flex; align-items:center; justify-content:center;
+    border-radius: 12px; font-size: 1.1rem; opacity: .95;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.04);
+  }
+  .bg-primary-subtle { background: rgba(37,117,252,.12)!important; }
+  .text-primary      { color: #2563eb!important; }
+  .bg-info-subtle    { background: rgba(6,182,212,.12)!important; }
+  .text-info         { color: #0ea5e9!important; }
+  .bg-warning-subtle { background: rgba(245,158,11,.14)!important; }
+  .text-warning      { color: #d97706!important; }
+  .bg-success-subtle { background: rgba(34,197,94,.12)!important; }
+  .text-success      { color: #16a34a!important; }
+
+  /* TLAČÍTKA – trochu kulatější a s lehkým hover stínem */
+  .btn { border-radius: .75rem; }
+  .btn-primary, .btn-info, .btn-warning, .btn-success {
+    box-shadow: 0 2px 8px rgba(0,0,0,.05);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .btn-primary:hover, .btn-info:hover, .btn-warning:hover, .btn-success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0,0,0,.10);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container dash-container py-3">
+  <h1 class="mb-4 fw-semibold">🏠 Dashboard</h1>
+
+  {# Rovnoměrné karty: každá col obsahuje .card.h-100 a uvnitř d-flex tak, aby tlačítko bylo dole #}
+  <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3">
+
+    <!-- Produkty -->
+    <div class="col">
+      <div class="card h-100 shadow-sm border-0 rounded-3 dash-card">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="dash-icon bg-primary-subtle text-primary">📦</span>
+            <h5 class="card-title mb-0">Produkty</h5>
+          </div>
+          <p class="text-muted mb-3">Počet: <span class="fw-semibold">{{ product_count }}</span></p>
+          <a href="{{ url_for('admin.products') }}" class="btn btn-primary mt-auto w-100">Zobrazit</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kategorie -->
+    <div class="col">
+      <div class="card h-100 shadow-sm border-0 rounded-3 dash-card">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="dash-icon bg-info-subtle text-info">📂</span>
+            <h5 class="card-title mb-0">Kategorie</h5>
+          </div>
+          <p class="text-muted mb-3">Počet: <span class="fw-semibold">{{ category_count }}</span></p>
+          <a href="{{ url_for('admin.list_categories') }}" class="btn btn-info mt-auto w-100">Zobrazit</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prodané -->
+    <div class="col">
+      <div class="card h-100 shadow-sm border-0 rounded-3 dash-card">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="dash-icon bg-warning-subtle text-warning">📊</span>
+            <h5 class="card-title mb-0">Prodané</h5>
+          </div>
+          <p class="text-muted mb-3">Přehled prodaných položek a reporty</p>
+          <a href="{{ url_for('admin.sold_products') }}" class="btn btn-warning mt-auto w-100">Zobrazit</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Platby -->
+    <div class="col">
+      <div class="card h-100 shadow-sm border-0 rounded-3 dash-card">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="dash-icon bg-success-subtle text-success">💳</span>
+            <h5 class="card-title mb-0">Platby</h5>
+          </div>
+          <p class="text-muted mb-3">Přehled plateb a exporty</p>
+          <a href="{{ url_for('admin.admin_payments_index') }}" class="btn btn-success mt-auto w-100">Zobrazit</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

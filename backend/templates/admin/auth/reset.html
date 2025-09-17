@@ -1,0 +1,30 @@
+{% extends "shared/layout.html" %}
+{% block title %}Nastavit nové heslo{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-sm-10 col-md-8 col-lg-6">
+    <div class="card shadow-sm border-0 rounded-3 mt-4">
+      <div class="card-body">
+        <h1 class="h4 mb-3">Nastavit nové heslo</h1>
+
+        <form method="post" action="{{ url_for('auth.reset_password_submit', token=token) }}" novalidate>
+          <div class="mb-3">
+            <label for="password" class="form-label">Nové heslo</label>
+            <input type="password" name="password" id="password" class="form-control" minlength="6" required autocomplete="new-password">
+          </div>
+          <div class="mb-3">
+            <label for="password2" class="form-label">Potvrzení hesla</label>
+            <input type="password" name="password2" id="password2" class="form-control" minlength="6" required autocomplete="new-password">
+          </div>
+          <button class="btn btn-success w-100" type="submit">Uložit heslo</button>
+        </form>
+
+        <div class="text-center mt-3">
+          <a href="{{ url_for('auth.forgot_password_form') }}" class="text-decoration-none">← Zpět na obnovu</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

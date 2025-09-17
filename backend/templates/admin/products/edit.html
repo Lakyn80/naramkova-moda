@@ -1,0 +1,195 @@
+{% extends "shared/layout.html" %}
+{% block title %}Upravit produkt{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">✏️ Upravit produkt</h1>
+
+<!-- Styl jen pro tuto stránku: thumbnail + hover „bublina“ -->
+<style>
+  .thumb-wrap{
+    position:relative; width:80px; height:80px; overflow:hidden;
+    border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.15); background:#f8f9fa;
+  }
+  .thumb-wrap img.thumb{ width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb-wrap .bubble{
+    position:absolute; display:none; top:-10px; left:90px;
+    background:#fff; padding:8px; border-radius:10px;
+    box-shadow:0 12px 28px rgba(0,0,0,0.30);
+    border:1px solid rgba(0,0,0,0.08); z-index:1000;
+  }
+  .thumb-wrap:hover .bubble{ display:block; }
+  .thumb-wrap .bubble img{ width:360px; height:360px; object-fit:cover; border-radius:8px; display:block; }
+  .thumb-wrap .bubble::after{
+    content:""; position:absolute; left:-10px; top:34px;
+    border-width:10px; border-style:solid;
+    border-color:transparent #fff transparent transparent;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.10));
+  }
+  .thumbs-grid{ display:flex; flex-wrap:wrap; gap:12px; }
+  .thumb-cell{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .thumb-label{ font-size:.8rem; color:#6c757d; max-width:80px; text-align:center; }
+  @media (max-width:576px){
+    .thumb-wrap .bubble{ left:84px; top:-6px; }
+    .thumb-wrap .bubble img{ width:260px; height:260px; }
+  }
+</style>
+
+<form id="product-edit-form" method="post" enctype="multipart/form-data">
+  <div class="mb-3">
+    <label class="form-label">Název</label>
+    <input type="text" name="name" value="{{ product.name }}" class="form-control" required>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Popis</label>
+    <textarea name="description" class="form-control">{{ product.description }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Cena</label>
+    <input type="number" step="0.01" name="price" value="{{ product.price_czk }}" class="form-control" required>
+  </div>
+
+  <!-- ✅ Nové pole STOCK -->
+  <div class="mb-3">
+    <label class="form-label">Počet kusů (stock)</label>
+    <input type="number" name="stock" min="0" value="{{ product.stock }}" class="form-control" required>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Kategorie</label>
+    <select name="category_id" class="form-select">
+      <option value="">— Vyber kategorii —</option>
+      {% for c in categories %}
+        <option value="{{ c.id }}" {% if product.category_id == c.id %}selected{% endif %}>
+          {{ c.group }} — {{ c.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- ÚVODNÍ OBRÁZEK – stávající + volba nového -->
+  <div class="mb-3">
+    <label class="form-label">Úvodní obrázek</label>
+    {% if product.image %}
+      <div class="mb-2 thumbs-grid">
+        <div class="thumb-cell">
+          <div class="thumb-wrap">
+            <img class="thumb"
+                 src="{{ url_for('static', filename='uploads/' ~ product.image) }}"
+                 alt="náhled">
+            <div class="bubble">
+              <img src="{{ url_for('static', filename='uploads/' ~ product.image) }}" alt="náhled velký">
+            </div>
+          </div>
+          <div class="thumb-label">Aktuální</div>
+        </div>
+      </div>
+    {% endif %}
+    <input id="image-input" type="file" name="image" class="form-control" accept="image/*">
+    <!-- live náhled nově zvoleného -->
+    <div class="mt-2 thumbs-grid" id="image-preview" style="display:none;">
+      <div class="thumb-cell">
+        <div class="thumb-wrap">
+          <img class="thumb" id="image-thumb" alt="náhled">
+          <div class="bubble"><img id="image-bubble" alt="náhled velký"></div>
+        </div>
+        <div class="thumb-label">Nový</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DALŠÍ MÉDIA – výpis existujících + mazání + možnost přidat -->
+  <div class="mb-3">
+    <label class="form-label">Další média</label>
+    {% if product.media %}
+      <div class="mb-2 thumbs-grid">
+        {% for m in product.media %}
+          {% set is_video = m.media_type and m.media_type.startswith('video') %}
+          <div class="thumb-cell">
+            {% if is_video %}
+              <div style="width:80px; height:80px; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.15); background:#000;">
+                <video src="{{ url_for('static', filename='uploads/' ~ m.filename) }}"
+                       style="width:100%; height:100%; object-fit:cover;" muted controls></video>
+              </div>
+              <div class="thumb-label">Video</div>
+            {% else %}
+              <div class="thumb-wrap">
+                <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ m.filename) }}" alt="media">
+                <div class="bubble"><img src="{{ url_for('static', filename='uploads/' ~ m.filename) }}" alt="media velký"></div>
+              </div>
+              <div class="thumb-label">Obrázek</div>
+            {% endif %}
+
+            <!-- tlačítko odešle POST na správný endpoint bez vnořeného <form> -->
+            <div class="mt-1">
+              <button type="submit"
+                      class="btn btn-sm btn-outline-danger"
+                      form="product-edit-form"
+                      formaction="{{ url_for('admin.delete_product_media', media_id=m.id) }}"
+                      formmethod="post"
+                      formnovalidate>
+                🗑️ Smazat
+              </button>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <input id="media-input" type="file" name="media" class="form-control" accept="image/*,video/*" multiple>
+    <!-- live náhled nově přidaných -->
+    <div class="mt-2 thumbs-grid" id="media-preview" style="display:none;"></div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">💾 Uložit</button>
+    <a href="{{ url_for('admin.products') }}" class="btn btn-secondary">Zpět</a>
+  </div>
+</form>
+
+<!-- Minimal JS pro live náhledy -->
+<script>
+  const imageInput = document.getElementById('image-input');
+  const imagePreview = document.getElementById('image-preview');
+  const imageThumb = document.getElementById('image-thumb');
+  const imageBubble = document.getElementById('image-bubble');
+
+  imageInput?.addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f || !f.type.startsWith('image/')) { imagePreview.style.display='none'; return; }
+    const url = URL.createObjectURL(f);
+    imageThumb.src = url; imageBubble.src = url; imagePreview.style.display = 'flex';
+  });
+
+  const mediaInput = document.getElementById('media-input');
+  const mediaPreview = document.getElementById('media-preview');
+
+  mediaInput?.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files || []);
+    mediaPreview.innerHTML = '';
+    if (!files.length) { mediaPreview.style.display='none'; return; }
+    files.forEach((f, idx) => {
+      const cell = document.createElement('div');
+      cell.className = 'thumb-cell';
+      if (f.type.startsWith('image/')) {
+        const url = URL.createObjectURL(f);
+        cell.innerHTML = `
+          <div class="thumb-wrap">
+            <img class="thumb" src="${url}" alt="media">
+            <div class="bubble"><img src="${url}" alt="media velký"></div>
+          </div>
+          <div class="thumb-label">Nové #${idx+1}</div>`;
+      } else if (f.type.startsWith('video/')) {
+        const url = URL.createObjectURL(f);
+        cell.innerHTML = `
+          <div style="width:80px; height:80px; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.15); background:#000;">
+            <video src="${url}" style="width:100%; height:100%; object-fit:cover;" muted></video>
+          </div>
+          <div class="thumb-label">Video #${idx+1}</div>`;
+      }
+      mediaPreview.appendChild(cell);
+    });
+    mediaPreview.style.display = 'flex';
+  });
+</script>
+{% endblock %}

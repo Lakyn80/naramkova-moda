@@ -1,0 +1,129 @@
+{% extends "shared/layout.html" %}
+{% block title %}Přidat produkt{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3">Přidat produkt</h1>
+
+<style>
+  .thumb-wrap{
+    position:relative; width:80px; height:80px; overflow:hidden;
+    border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.15); background:#f8f9fa;
+  }
+  .thumb-wrap img.thumb{ width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb-wrap .bubble{
+    position:absolute; display:none; top:-10px; left:90px;
+    background:#fff; padding:8px; border-radius:10px;
+    box-shadow:0 12px 28px rgba(0,0,0,0.30);
+    border:1px solid rgba(0,0,0,0.08); z-index:1000;
+  }
+  .thumb-wrap:hover .bubble{ display:block; }
+  .thumb-wrap .bubble img{ width:360px; height:360px; object-fit:cover; border-radius:8px; display:block; }
+  .thumb-wrap .bubble::after{
+    content:""; position:absolute; left:-10px; top:34px;
+    border-width:10px; border-style:solid;
+    border-color:transparent #fff transparent transparent;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.10));
+  }
+  .thumbs-grid{ display:flex; flex-wrap:wrap; gap:10px; }
+  .thumb-cell{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .thumb-label{ font-size:.8rem; color:#6c757d; max-width:80px; text-align:center; }
+</style>
+
+<form action="{{ url_for('admin.add_product') }}" method="post" enctype="multipart/form-data">
+  <div class="mb-3">
+    <label class="form-label">Název produktu</label>
+    <input type="text" name="name" class="form-control" required>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Popis</label>
+    <textarea name="description" class="form-control" rows="5"></textarea>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Cena (Kč)</label>
+    <input type="number" step="0.01" min="0" name="price" class="form-control" required>
+  </div>
+
+  <!-- ✅ Nové pole pro počet kusů -->
+  <div class="mb-3">
+    <label class="form-label">Počet kusů (stock)</label>
+    <input type="number" min="0" name="stock" class="form-control" value="1" required>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Kategorie</label>
+    <select name="category_id" class="form-select" required>
+      <option value="" selected disabled>-- Vyber kategorii --</option>
+      {% for c in categories %}
+        <option value="{{ c.id }}">{{ (c.group or "—") ~ " — " ~ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Úvodní obrázek</label>
+    <input id="image-input" type="file" name="image" class="form-control" accept="image/*">
+    <div class="mt-2 thumbs-grid" id="image-preview" style="display:none;"></div>
+  </div>
+
+  <div class="mb-4">
+    <label class="form-label">Další obrázky nebo videa</label>
+    <input id="media-input" type="file" name="media" class="form-control" accept="image/*,video/*" multiple>
+    <div class="mt-2 thumbs-grid" id="media-preview" style="display:none;"></div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('admin.products') }}" class="btn btn-outline-secondary">Zpět</a>
+    <button type="submit" class="btn btn-primary">Uložit</button>
+  </div>
+</form>
+
+<script>
+  const imageInput = document.getElementById('image-input');
+  const imagePreview = document.getElementById('image-preview');
+  const mediaInput = document.getElementById('media-input');
+  const mediaPreview = document.getElementById('media-preview');
+
+  imageInput?.addEventListener('change', e => {
+    const f = e.target.files?.[0];
+    if (!f?.type.startsWith('image/')) { imagePreview.style.display='none'; return; }
+    const url = URL.createObjectURL(f);
+    imagePreview.innerHTML = `
+      <div class="thumb-cell">
+        <div class="thumb-wrap">
+          <img class="thumb" src="${url}" alt="náhled">
+          <div class="bubble"><img src="${url}" alt="náhled velký"></div>
+        </div>
+        <div class="thumb-label">Úvodní</div>
+      </div>`;
+    imagePreview.style.display='flex';
+  });
+
+  mediaInput?.addEventListener('change', e => {
+    const files = Array.from(e.target.files || []);
+    mediaPreview.innerHTML = '';
+    if (!files.length) { mediaPreview.style.display='none'; return; }
+    files.forEach((f, i) => {
+      const url = URL.createObjectURL(f);
+      if (f.type.startsWith('image/')) {
+        mediaPreview.innerHTML += `
+          <div class="thumb-cell">
+            <div class="thumb-wrap">
+              <img class="thumb" src="${url}" alt="media">
+              <div class="bubble"><img src="${url}" alt="media velký"></div>
+            </div>
+            <div class="thumb-label">#${i+1}</div>
+          </div>`;
+      } else if (f.type.startsWith('video/')) {
+        mediaPreview.innerHTML += `
+          <div class="thumb-cell">
+            <video src="${url}" style="width:80px;height:80px;border-radius:8px;object-fit:cover;" muted></video>
+            <div class="thumb-label">Video #${i+1}</div>
+          </div>`;
+      }
+    });
+    mediaPreview.style.display='flex';
+  });
+</script>
+{% endblock %}

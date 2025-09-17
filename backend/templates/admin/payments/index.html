@@ -1,0 +1,160 @@
+{% extends "shared/layout.html" %}
+{% block title %}💳 Platby{% endblock %}
+
+{% block content %}
+<div class="container py-3 py-md-4">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0 d-flex align-items-center gap-2">
+      <span class="badge rounded-pill px-3 py-2" style="background: linear-gradient(135deg,#6a11cb,#2575fc);">💳</span>
+      <span class="fw-semibold">Platby</span>
+    </h1>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin.dashboard') }}">← Zpět do adminu</a>
+  </div>
+
+  {# Flash zprávy zde NErenderujeme – řeší je shared/layout.html, aby nebyly duplicitní #}
+
+  <!-- Filtry -->
+  <div class="card shadow-sm mb-3 border-0">
+    <div class="card-body">
+      <form method="get" class="row g-2 g-md-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label mb-1">Variabilní symbol</label>
+          <input name="vs" class="form-control" value="{{ filters.get('vs','') }}" placeholder="VS">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label mb-1">Stav platby</label>
+          <select name="status" class="form-select">
+            {% set st = filters.get('status','all') %}
+            <option value="all"      {{ 'selected' if st=='all' else '' }}>Všechny stavy</option>
+            <option value="pending"  {{ 'selected' if st=='pending' else '' }}>Čeká na platbu</option>
+            <option value="received" {{ 'selected' if st=='received' else '' }}>Přijato</option>
+            <option value="failed"   {{ 'selected' if st=='failed' else '' }}>Neúspěšné</option>
+            <option value="canceled" {{ 'selected' if st=='canceled' else '' }}>Zrušeno</option>
+            <option value="refunded" {{ 'selected' if st=='refunded' else '' }}>Vráceno</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label mb-1">Limit záznamů</label>
+          <input type="number" name="limit" class="form-control" min="1" max="1000" value="{{ filters.get('limit',100) }}">
+        </div>
+        <div class="col-12 col-md-auto d-flex gap-2">
+          <button class="btn btn-primary px-4">Filtrovat</button>
+          <a class="btn btn-outline-secondary" href="{{ url_for('admin.admin_payments_index') }}">Reset</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Souhrn -->
+  {% if summary %}
+  <div class="alert alert-info py-2 mb-3 border-0 shadow-sm">
+    <strong>Souhrn:</strong>
+    počet: {{ summary.count }} |
+    suma: {{ "%.2f"|format(summary.total_amount) }} Kč
+  </div>
+  {% endif %}
+
+  <!-- Tabulka -->
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table align-middle table-hover mb-0">
+          <thead class="table-light">
+            <tr class="text-nowrap">
+              <th>ID</th>
+              <th>VS</th>
+              <th>Částka</th>
+              <th>Status</th>
+              <th>Přijato</th>
+              <th>Objednávka</th>
+              <th class="text-end">Akce</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+              {% set p = r.p %}{% set o = r.o %}
+              <tr>
+                <td class="text-muted">#{{ p.id }}</td>
+                <td><code class="small">{{ p.vs }}</code></td>
+                <td>
+                  {% if p.amount_czk is not none %}
+                    <strong>{{ "%.2f"|format(p.amount_czk) }}</strong> Kč
+                  {% endif %}
+                </td>
+                <td>
+                  {% if p.status == 'pending' %}
+                    <span class="badge rounded-pill bg-warning text-dark">Čeká</span>
+                  {% elif p.status == 'received' %}
+                    <span class="badge rounded-pill bg-success">Přijato</span>
+                  {% elif p.status == 'failed' %}
+                    <span class="badge rounded-pill bg-danger">Neúspěšné</span>
+                  {% elif p.status == 'canceled' %}
+                    <span class="badge rounded-pill bg-secondary">Zrušeno</span>
+                  {% elif p.status == 'refunded' %}
+                    <span class="badge rounded-pill bg-secondary">Vráceno</span>
+                  {% else %}
+                    <span class="badge rounded-pill bg-secondary">{{ p.status }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-nowrap">
+                  {% if p.received_at %}{{ p.received_at }}{% endif %}
+                </td>
+                <td>
+                  {% if o %}
+                    {% if has_order_detail %}
+                      <a href="{{ url_for('admin.admin_payments_index') }}">#{{ o.id }}</a>
+                    {% else %}
+                      #{{ o.id }}
+                    {% endif %}
+                    <small class="text-muted">({{ o.status }}, {{ o.total_czk or '' }} Kč)</small>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <form method="post" action="{{ url_for('admin.admin_payment_update_status', payment_id=p.id) }}" class="d-inline-flex gap-2">
+                    <select name="status" class="form-select form-select-sm" style="width: 180px;">
+                      {% for st in allowed_statuses %}
+                        <option value="{{ st }}" {{ 'selected' if p.status==st else '' }}>
+                          {% if st=='pending' %}Čeká na platbu{% elif st=='received' %}Přijato{% elif st=='failed' %}Neúspěšné{% elif st=='canceled' %}Zrušeno{% elif st=='refunded' %}Vráceno{% else %}{{ st }}{% endif %}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <button class="btn btn-sm btn-primary">Uložit</button>
+                  </form>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="7" class="text-center text-muted py-4">Nic nenalezeno.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Drobný styling navíc – nezasahuje do logiky -->
+<style>
+  .table td, .table th { vertical-align: middle; }
+  .table thead th { font-weight: 600; }
+</style>
+
+<!-- Auto-hide flash zpráv po 5 s (nezasahuje do backendu ani layoutu) -->
+<script>
+  window.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () {
+      document.querySelectorAll('.alert').forEach(function (el) {
+        el.classList.remove('show');  // pro Bootstrap fade-out
+        el.classList.add('fade');
+        setTimeout(function(){ el.style.display = 'none'; }, 300);
+      });
+    }, 5000);
+  });
+</script>
+{% endblock %}
