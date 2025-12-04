@@ -1,7 +1,7 @@
 // src/components/Footer.jsx
 import React, { useEffect, useRef, useState } from "react";
 import qrCode from "../assets/qr_code_fb.jpg";
-import { Mail, Phone, Cookie, Shield, X } from "lucide-react";
+import { Mail, Phone, Cookie, Shield, X, MapPin } from "lucide-react";
 
 export default function Footer() {
   const PHONE_DISPLAY = "+420 776 47 97 47";
@@ -51,6 +51,19 @@ export default function Footer() {
               <Phone className="w-4 h-4 text-pink-400" aria-hidden="true" />
               <a href={`tel:${PHONE_TEL}`} className="font-semibold text-pink-500 hover:text-pink-300">
                 {PHONE_DISPLAY}
+              </a>
+            </p>
+            <p className="flex items-start gap-2">
+              <MapPin className="w-4 h-4 text-pink-400 mt-0.5" aria-hidden="true" />
+              <a
+                href="https://www.google.com/maps/embed?pb=!1m16!1m12!1m3!1d10456.935322313719!2d17.45560902150076!3d49.063189791767364!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!2m1!1zTmEgTW9yw6F2Y2UgZXYuIMSNLiAyMCwgVWhlcnNrw6kgSHJhZGnFoXTEmyA2ODYgMDE!5e0!3m2!1scs!2scz!4v1764883239087!5m2!1scs!2scz"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-white hover:text-pink-300 leading-tight"
+              >
+                Osobní vyzvednutí<br />
+                Na Morávce ev. č. 20<br />
+                Uherské Hradiště 686 01
               </a>
             </p>
           </div>

@@ -25,7 +25,7 @@ function buildSpdPayload({ iban, amount, vs, msg }) {
 }
 
 export default function Checkout() {
-  const { cartItems, clearCart } = useCart();
+  const { cartItems, clearCart, shippingMode } = useCart();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({ name: "", email: "", address: "", note: "" });
@@ -44,8 +44,9 @@ export default function Checkout() {
   }, [cartItems]);
 
   const total = useMemo(() => {
-    return toMoney(subtotal + SHIPPING_FEE_CZK); // ✅ vč. poštovného
-  }, [subtotal]);
+    const shipping = shippingMode === "pickup" ? 0 : SHIPPING_FEE_CZK;
+    return toMoney(subtotal + shipping); // ✅ vč. poštovného/pickupu
+  }, [subtotal, shippingMode]);
 
   // ── Form ──────────────────────────────────────────────────────────────────
   const handleChange = (e) => {
@@ -91,7 +92,8 @@ export default function Checkout() {
         note: formData.note,
         vs,
         totalCzk: total,              // ✅ posíláme vč. poštovného
-        shippingCzk: SHIPPING_FEE_CZK, // (volitelné) pro přehled v adminu
+        shippingCzk: shippingMode === "pickup" ? 0 : SHIPPING_FEE_CZK, // (volitelné) pro přehled v adminu
+        shippingMode,
         items: cartItems.map((item) => ({
           id: item.id,
           name: item.name,
@@ -176,21 +178,27 @@ export default function Checkout() {
   }
 
   return (
-    <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen text-pink-900 bg-gradient-to-br from-pink-300 via-white to-pink-200">
-      <div className="max-w-5xl mx-auto">
-        <h2 className="text-2xl sm:text-3xl font-bold mb-8 text-center">Pokladna</h2>
-
-        {cartItems.length === 0 ? (
-          <p className="text-center text-pink-600">Košík je prázdný.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <form onSubmit={handleShowQr} className="space-y-4">
+      <section className="pt-24 pb-12 px-3 sm:px-4 min-h-screen text-pink-900 bg-gradient-to-br from-pink-300 via-white to-pink-200">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-8 text-center">Pokladna</h2>
+          {cartItems.length === 0 ? (
+            <p className="text-center text-pink-600">Košík je prázdný.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <form onSubmit={handleShowQr} className="space-y-4">
               <input type="text" name="name" placeholder="Jméno a příjmení" required className="w-full border px-4 py-2 rounded-md" value={formData.name} onChange={handleChange} />
               <input type="email" name="email" placeholder="Email" required className="w-full border px-4 py-2 rounded-md" value={formData.email} onChange={handleChange} />
               <textarea name="address" placeholder="Adresa" required className="w-full border px-4 py-2 rounded-md" value={formData.address} onChange={handleChange} />
               <textarea name="note" placeholder="Poznámka (volitelné)" className="w-full border px-4 py-2 rounded-md" value={formData.note} onChange={handleChange} />
-              <button type="submit" className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-6 rounded-md transition">
+              <button type="submit" className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-6 rounded-md transition w-full sm:w-auto">
                 Zaplatit QR
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-white/70 border border-pink-200 text-pink-700 px-4 py-2 font-semibold shadow-sm hover:bg-white transition w-full sm:w-auto mt-3 sm:mt-0 sm:ml-3"
+              >
+                ⬅︎ Zpět do košíku
               </button>
             </form>
 
@@ -205,7 +213,9 @@ export default function Checkout() {
                 ))}
               </ul>
               <div className="mt-4 text-right text-sm">Mezisoučet: {toMoney(subtotal).toFixed(2)} Kč</div>
-              <div className="text-right text-sm">Poštovné: {toMoney(SHIPPING_FEE_CZK).toFixed(2)} Kč</div>
+              <div className="text-right text-sm">
+                Doprava: {shippingMode === "pickup" ? "Osobní vyzvednutí (0 Kč)" : `Poštou: ${toMoney(SHIPPING_FEE_CZK).toFixed(2)} Kč`}
+              </div>
               <div className="mt-1 font-bold text-right text-lg">Celkem: {toMoney(total).toFixed(2)} Kč</div>
             </div>
           </div>

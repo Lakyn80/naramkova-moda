@@ -12,7 +12,7 @@ function toMoney(n) {
 }
 
 export default function Cart() {
-  const { cartItems, removeFromCart, increaseQuantity, decreaseQuantity } = useCart();
+  const { cartItems, removeFromCart, increaseQuantity, decreaseQuantity, shippingMode, setShippingMode } = useCart();
 
   const subtotal = cartItems.reduce((sum, item) => {
     const q = Number(item.quantity) || 0;
@@ -20,7 +20,8 @@ export default function Cart() {
     return sum + q * p;
   }, 0);
 
-  const grandTotal = toMoney(subtotal + SHIPPING_FEE_CZK); // ✅
+  const shippingFee = shippingMode === "pickup" ? 0 : SHIPPING_FEE_CZK;
+  const grandTotal = toMoney(subtotal + shippingFee);
 
   useEffect(() => {
     console.log("🛒 cartItems:", cartItems);
@@ -80,11 +81,48 @@ export default function Cart() {
               })}
             </ul>
 
-            <div className="mt-6 text-right text-base">Mezisoučet: {toMoney(subtotal).toFixed(2)} Kč</div>
-            <div className="text-right text-base">Poštovné: {toMoney(SHIPPING_FEE_CZK).toFixed(2)} Kč</div>
-            <div className="mt-2 text-right text-xl font-bold">Celkem k úhradě: {toMoney(grandTotal).toFixed(2)} Kč</div>
+            <div className="mt-6 flex flex-col items-end gap-2 text-base">
+              <div className="w-full sm:w-auto text-right">Mezisoučet: {toMoney(subtotal).toFixed(2)} Kč</div>
+              <div className="w-full sm:w-auto flex flex-col gap-2 text-sm text-pink-800 items-start sm:items-end">
+                <span className="font-semibold text-base">Způsob doručení</span>
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="shipping"
+                    value="pickup"
+                    checked={shippingMode === "pickup"}
+                    onChange={() => setShippingMode("pickup")}
+                    className="h-4 w-4 rounded-full border-2 border-pink-500 text-pink-600 focus:ring-pink-400"
+                  />
+                  <span>Osobní vyzvednutí (0 Kč)</span>
+                </label>
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="shipping"
+                    value="post"
+                    checked={shippingMode === "post"}
+                    onChange={() => setShippingMode("post")}
+                    className="h-4 w-4 rounded-full border-2 border-pink-500 text-pink-600 focus:ring-pink-400"
+                  />
+                  <span>Poštovné (Zásilkovna) +{toMoney(SHIPPING_FEE_CZK).toFixed(2)} Kč</span>
+                </label>
+              </div>
+              <div className="w-full sm:w-auto text-right">
+                Doprava: {shippingMode === "pickup" ? "Osobní vyzvednutí (0 Kč)" : `Poštou ${toMoney(shippingFee).toFixed(2)} Kč`}
+              </div>
+              <div className="w-full sm:w-auto text-right text-xl font-bold">
+                Celkem k úhradě: {toMoney(grandTotal).toFixed(2)} Kč
+              </div>
+            </div>
 
-            <div className="mt-6 text-right">
+            <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <Link
+                to="/"
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-white/70 border border-pink-200 text-pink-700 px-4 py-2 font-semibold shadow-sm hover:bg-white transition"
+              >
+                ⬅︎ Zpět do obchodu
+              </Link>
               <Link to="/checkout" className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-6 rounded-md transition inline-block">
                 Přejít k pokladně
               </Link>

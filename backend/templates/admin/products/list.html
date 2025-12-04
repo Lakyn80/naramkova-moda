@@ -52,20 +52,20 @@
 
       <div class="col-6 col-md-2">
         <label for="price_min" class="form-label mb-1">Cena od</label>
-        <input type="number" step="0.01" class="form-control" id="price_min" name="price_min" value="{{ price_min }}">
+        <input type="number" step="0.01" class="form-control" id="price_min" name="price_min" value="{{ price_min or '' }}">
       </div>
       <div class="col-6 col-md-2">
         <label for="price_max" class="form-label mb-1">Cena do</label>
-        <input type="number" step="0.01" class="form-control" id="price_max" name="price_max" value="{{ price_max }}">
+        <input type="number" step="0.01" class="form-control" id="price_max" name="price_max" value="{{ price_max or '' }}">
       </div>
 
       <div class="col-6 col-md-2">
         <label for="stock_min" class="form-label mb-1">Sklad od</label>
-        <input type="number" class="form-control" id="stock_min" name="stock_min" value="{{ stock_min }}">
+        <input type="number" class="form-control" id="stock_min" name="stock_min" value="{{ stock_min or '' }}">
       </div>
       <div class="col-6 col-md-2">
         <label for="stock_max" class="form-label mb-1">Sklad do</label>
-        <input type="number" class="form-control" id="stock_max" name="stock_max" value="{{ stock_max }}">
+        <input type="number" class="form-control" id="stock_max" name="stock_max" value="{{ stock_max or '' }}">
       </div>
 
       <div class="col-12 col-md-3">

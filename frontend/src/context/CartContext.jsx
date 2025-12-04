@@ -7,10 +7,18 @@ export function CartProvider({ children }) {
     const stored = localStorage.getItem("cartItems");
     return stored ? JSON.parse(stored) : [];
   });
+  const [shippingMode, setShippingMode] = useState(() => {
+    const stored = localStorage.getItem("shippingMode");
+    return stored || "post"; // "post" | "pickup"
+  });
 
   useEffect(() => {
     localStorage.setItem("cartItems", JSON.stringify(cartItems));
   }, [cartItems]);
+
+  useEffect(() => {
+    localStorage.setItem("shippingMode", shippingMode);
+  }, [shippingMode]);
 
   const addToCart = (product, quantity = 1) => {
     // force number
@@ -71,7 +79,16 @@ export function CartProvider({ children }) {
 
   return (
     <CartContext.Provider
-      value={{ cartItems, addToCart, removeFromCart, increaseQuantity, decreaseQuantity, clearCart }}
+      value={{
+        cartItems,
+        addToCart,
+        removeFromCart,
+        increaseQuantity,
+        decreaseQuantity,
+        clearCart,
+        shippingMode,
+        setShippingMode,
+      }}
     >
       {children}
     </CartContext.Provider>
