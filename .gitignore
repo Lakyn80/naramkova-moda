@@ -37,3 +37,7 @@ backups/
 uploads/
 
 frontend_deploy/current
+
+*.tar.gz
+backend/uploads_manual_backup_*/
+nmm_source_manual_backup_*/
