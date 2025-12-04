@@ -113,14 +113,9 @@ def _product_dict(product: Product):
         "stock": product.stock,  # ✅ zachováno
         "category_id": product.category_id,
         "category_name": category_name,
-        "image_url": (
-            url_for("static", filename=f"uploads/{product.image}", _external=True)
-            if product.image else None
-        ),
-        "media": [
-            url_for("static", filename=f"uploads/{m.filename}", _external=True)
-            for m in (product.media or [])
-        ],
+        # Use relative URLs so frontend can prefix with its own origin/port
+        "image_url": f"/static/uploads/{product.image}" if product.image else None,
+        "media": [f"/static/uploads/{m.filename}" for m in (product.media or [])],
         "categories": ([category_name] if category_name else []),
         "category_group": category_group,
     }

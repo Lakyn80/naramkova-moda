@@ -1,8 +1,10 @@
-# backend/models/sold_product.py
+﻿# backend/models/sold_product.py
 from datetime import datetime
 from backend.extensions import db
 
 class SoldProduct(db.Model):
+    __tablename__ = 'soldproduct'
+    __table_args__ = {'extend_existing': True}
     __tablename__ = "sold_product"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -20,4 +22,5 @@ class SoldProduct(db.Model):
     sold_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
-        return f"<SoldProduct {self.name} – {self.customer_name}>"
+        return f"<SoldProduct {self.name} â€“ {self.customer_name}>"
+

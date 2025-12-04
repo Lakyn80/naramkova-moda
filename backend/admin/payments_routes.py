@@ -1,8 +1,8 @@
-from datetime import datetime
+﻿from datetime import datetime
 from flask import request, render_template, redirect, url_for, flash
 from backend.extensions import db
 from . import admin_bp
-from backend.admin.models import Payment, Order
+from backend.models import Payment, Order
 
 # jediný helper, který potřebujeme: automatické poslání faktury
 from backend.admin.sold_routes import send_invoice_for_order
@@ -95,4 +95,3 @@ def admin_payment_update_status(payment_id: int):
 
     flash(f"Status platby #{p.id} změněn na '{new_status}'.", "success")
     return redirect(url_for("admin.admin_payments_index"))
-

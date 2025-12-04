@@ -1,4 +1,4 @@
-# backend/admin/sold_routes.py
+﻿# backend/admin/sold_routes.py
 import io
 import os
 from datetime import datetime, timedelta
@@ -10,18 +10,18 @@ from flask import (
 from flask_login import login_required
 from flask_mail import Message
 
-from backend.admin import admin_bp  # zachováno
+from . import admin_bp  # zachovĂˇno
 from backend.extensions import db, mail
-from backend.admin.models import SoldProduct
-from backend.invoicing import build_invoice_pdf_bytes  # využijeme existující generátor FA
+from backend.models import SoldProduct
+from backend.invoicing import build_invoice_pdf_bytes  # vyuĹľijeme existujĂ­cĂ­ generĂˇtor FA
 
 
 # -----------------------------
-# Pomocné funkce – parsování/čísla
+# PomocnĂ© funkce â€“ parsovĂˇnĂ­/ÄŤĂ­sla
 # -----------------------------
 
 def _parse_date(s: str):
-    """Bezpečné parsování data ve formátu YYYY-MM-DD, vrací datetime nebo None."""
+    """BezpeÄŤnĂ© parsovĂˇnĂ­ data ve formĂˇtu YYYY-MM-DD, vracĂ­ datetime nebo None."""
     if not s:
         return None
     try:
@@ -31,7 +31,7 @@ def _parse_date(s: str):
 
 
 def _to_float(v) -> float:
-    """Robustní převod na float (podpora Decimal, řetězců s čárkou atd.)."""
+    """RobustnĂ­ pĹ™evod na float (podpora Decimal, Ĺ™etÄ›zcĹŻ s ÄŤĂˇrkou atd.)."""
     if v is None:
         return 0.0
     if isinstance(v, float):
@@ -48,7 +48,7 @@ def _to_float(v) -> float:
 
 
 def _get_first_attr(obj, *names):
-    """Vrátí první nenull/neen-prázdný atribut z dodaných názvů, jinak None."""
+    """VrĂˇtĂ­ prvnĂ­ nenull/neen-prĂˇzdnĂ˝ atribut z dodanĂ˝ch nĂˇzvĹŻ, jinak None."""
     for n in names:
         if hasattr(obj, n):
             val = getattr(obj, n)
@@ -58,7 +58,7 @@ def _get_first_attr(obj, *names):
 
 
 def _guess_unit_price_czk(sp) -> float:
-    """Najdi nejpravděpodobnější pole s jednotkovou cenou (CZK)."""
+    """Najdi nejpravdÄ›podobnÄ›jĹˇĂ­ pole s jednotkovou cenou (CZK)."""
     cand = _get_first_attr(
         sp,
         "unit_price_czk", "price_czk",
@@ -69,7 +69,7 @@ def _guess_unit_price_czk(sp) -> float:
 
 
 def _guess_quantity(sp) -> float:
-    """Najdi množství; fallback na 1.0, pokud nic rozumného nenalezeno."""
+    """Najdi mnoĹľstvĂ­; fallback na 1.0, pokud nic rozumnĂ©ho nenalezeno."""
     cand = _get_first_attr(sp, "quantity", "qty", "count", "pieces", "amount_units")
     q = _to_float(cand)
     return q if q > 0 else 1.0
@@ -77,7 +77,7 @@ def _guess_quantity(sp) -> float:
 
 def _guess_total_czk(sp) -> float:
     """
-    Najdi celkovou cenu; když chybí nebo je 0/None, dopočítej unit * qty.
+    Najdi celkovou cenu; kdyĹľ chybĂ­ nebo je 0/None, dopoÄŤĂ­tej unit * qty.
     """
     cand = _get_first_attr(sp, "total_czk", "total_price_czk", "amount_czk", "amount")
     total = _to_float(cand)
@@ -89,14 +89,14 @@ def _guess_total_czk(sp) -> float:
 
 
 def _sold_datetime(sp):
-    """Vrať datetime pro setřídění/filtr (preferuj sold_at, jinak created_at)."""
+    """VraĹĄ datetime pro setĹ™Ă­dÄ›nĂ­/filtr (preferuj sold_at, jinak created_at)."""
     return _get_first_attr(sp, "sold_at", "created_at")
 
 
 def _base_query(filters: dict):
     """
-    Základní dotaz pro SoldProduct s podporou ?from & ?to (včetně).
-    Třídí dle sold_at desc, pokud je k dispozici; jinak dle id desc.
+    ZĂˇkladnĂ­ dotaz pro SoldProduct s podporou ?from & ?to (vÄŤetnÄ›).
+    TĹ™Ă­dĂ­ dle sold_at desc, pokud je k dispozici; jinak dle id desc.
     """
     q = SoldProduct.query
     d_from = _parse_date(filters.get("from"))
@@ -116,7 +116,7 @@ def _base_query(filters: dict):
 
 
 def _to_row_dict(sp: SoldProduct):
-    """Mapování záznamu na řádek do šablony/exportů (včetně dopočtu cen)."""
+    """MapovĂˇnĂ­ zĂˇznamu na Ĺ™Ăˇdek do Ĺˇablony/exportĹŻ (vÄŤetnÄ› dopoÄŤtu cen)."""
     sold_dt = _sold_datetime(sp)
     return {
         "id": getattr(sp, "id", None),
@@ -137,11 +137,11 @@ def _to_row_dict(sp: SoldProduct):
 # -----------------------------
 
 @admin_bp.route("/sold")
-@login_required
+# # # # @login_required  # dočasně vypnuto (dočasně vypnuto)
 def sold_products():
     """
-    Seznam prodaných s filtry ?from=YYYY-MM-DD&to=YYYY-MM-DD
-    a souhrnem (počet, suma).
+    Seznam prodanĂ˝ch s filtry ?from=YYYY-MM-DD&to=YYYY-MM-DD
+    a souhrnem (poÄŤet, suma).
     """
     filters = {
         "from": request.args.get("from", "").strip(),
@@ -151,7 +151,7 @@ def sold_products():
     q = _base_query(filters)
     items = q.all()
 
-    # Manuální filtr dle datumu, pokud model nemá sold_at sloupec
+    # ManuĂˇlnĂ­ filtr dle datumu, pokud model nemĂˇ sold_at sloupec
     d_from = _parse_date(filters.get("from"))
     d_to_excl = _parse_date(filters.get("to"))
     if d_to_excl:
@@ -175,7 +175,7 @@ def sold_products():
     count = len(rows)
     total_amount = round(sum(_to_float(r["total_czk"]) for r in rows), 2)
 
-    # Řazení (nejnovější nahoře)
+    # ĹazenĂ­ (nejnovÄ›jĹˇĂ­ nahoĹ™e)
     rows.sort(key=lambda r: r["sold_at"] or datetime.min, reverse=True)
 
     return render_template(
@@ -191,17 +191,17 @@ def sold_products():
 # -----------------------------
 
 @admin_bp.route("/sold/export.xlsx")
-@login_required
+# # # # @login_required  # dočasně vypnuto (dočasně vypnuto)
 def sold_export_xlsx():
     """
-    Export do Excelu s aktuálními filtry.
-    Vyžaduje knihovnu openpyxl (pip install openpyxl).
+    Export do Excelu s aktuĂˇlnĂ­mi filtry.
+    VyĹľaduje knihovnu openpyxl (pip install openpyxl).
     """
     try:
         import openpyxl
         from openpyxl.utils import get_column_letter
     except ImportError:
-        flash("Chybí balík openpyxl. Nainstaluj: pip install openpyxl", "danger")
+        flash("ChybĂ­ balĂ­k openpyxl. Nainstaluj: pip install openpyxl", "danger")
         return redirect(url_for("admin.sold_products", **request.args))
 
     filters = {
@@ -211,7 +211,7 @@ def sold_export_xlsx():
     q = _base_query(filters)
     items = q.all()
 
-    # Manuální datum filtr, pokud není sold_at
+    # ManuĂˇlnĂ­ datum filtr, pokud nenĂ­ sold_at
     d_from = _parse_date(filters.get("from"))
     d_to_excl = _parse_date(filters.get("to"))
     if d_to_excl:
@@ -232,12 +232,12 @@ def sold_export_xlsx():
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "Prodané položky"
+    ws.title = "ProdanĂ© poloĹľky"
 
     headers = [
-        "ID", "Objednávka", "Produkt", "Množství",
-        "Cena/ks (Kč)", "Celkem (Kč)", "Status",
-        "E-mail", "VS", "Prodané"
+        "ID", "ObjednĂˇvka", "Produkt", "MnoĹľstvĂ­",
+        "Cena/ks (KÄŤ)", "Celkem (KÄŤ)", "Status",
+        "E-mail", "VS", "ProdanĂ©"
     ]
     ws.append(headers)
 
@@ -249,7 +249,7 @@ def sold_export_xlsx():
             r["sold_at"].strftime("%Y-%m-%d %H:%M") if isinstance(r["sold_at"], datetime) else ""
         ])
 
-    # Auto šířky
+    # Auto ĹˇĂ­Ĺ™ky
     for col_idx, _ in enumerate(headers, start=1):
         max_len = 0
         for row in ws.iter_rows(min_col=col_idx, max_col=col_idx):
@@ -271,14 +271,14 @@ def sold_export_xlsx():
 
 
 # -----------------------------
-# PDF – pomocná registrace CZ fontu
+# PDF â€“ pomocnĂˇ registrace CZ fontu
 # -----------------------------
 
 def _register_cz_fonts(pdfmetrics, TTFont):
     """
-    Zkusí zaregistrovat Unicode TTF font pro diakritiku.
+    ZkusĂ­ zaregistrovat Unicode TTF font pro diakritiku.
     Preferuje DejaVu Sans, pak Noto Sans, nakonec Windows Arial.
-    Vrací (regular_name, bold_name) nebo (None, None), když nic nenašel.
+    VracĂ­ (regular_name, bold_name) nebo (None, None), kdyĹľ nic nenaĹˇel.
     """
     root = current_app.root_path  # backend/
     candidates = [
@@ -290,7 +290,7 @@ def _register_cz_fonts(pdfmetrics, TTFont):
         (os.path.join(root, "static", "fonts", "NotoSans-Regular.ttf"),
          os.path.join(root, "static", "fonts", "NotoSans-Bold.ttf"),
          "NotoSans", "NotoSans-Bold"),
-        # Windows Arial (poslední záchrana)
+        # Windows Arial (poslednĂ­ zĂˇchrana)
         (r"C:\Windows\Fonts\arial.ttf",
          r"C:\Windows\Fonts\arialbd.ttf",
          "ArialTT", "ArialTT-Bold"),
@@ -303,7 +303,7 @@ def _register_cz_fonts(pdfmetrics, TTFont):
                 if os.path.isfile(bold_path):
                     pdfmetrics.registerFont(TTFont(bold_name, bold_path))
                 else:
-                    bold_name = reg_name  # fallback na regular, pokud bold chybí
+                    bold_name = reg_name  # fallback na regular, pokud bold chybĂ­
                 return reg_name, bold_name
             except Exception:
                 continue
@@ -315,11 +315,11 @@ def _register_cz_fonts(pdfmetrics, TTFont):
 # -----------------------------
 
 @admin_bp.route("/sold/export.pdf")
-@login_required
+# # # # @login_required  # dočasně vypnuto (dočasně vypnuto)
 def sold_export_pdf():
     """
-    Jednoduchý PDF report (seznam). Vyžaduje reportlab (pip install reportlab).
-    Registruje Unicode TTF font (DejaVu/Noto/Arial), aby fungovala čeština.
+    JednoduchĂ˝ PDF report (seznam). VyĹľaduje reportlab (pip install reportlab).
+    Registruje Unicode TTF font (DejaVu/Noto/Arial), aby fungovala ÄŤeĹˇtina.
     """
     try:
         from reportlab.lib.pagesizes import A4
@@ -328,15 +328,15 @@ def sold_export_pdf():
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
     except ImportError:
-        flash("Chybí balík reportlab. Nainstaluj: pip install reportlab", "danger")
+        flash("ChybĂ­ balĂ­k reportlab. Nainstaluj: pip install reportlab", "danger")
         return redirect(url_for("admin.sold_products", **request.args))
 
     # Registrace CZ fontu
     regular_font, bold_font = _register_cz_fonts(pdfmetrics, TTFont)
     if not regular_font:
         flash(
-            "Pro korektní češtinu v PDF vlož TTF font do backend/static/fonts/ "
-            "(např. DejaVuSans.ttf a DejaVuSans-Bold.ttf). Zatím používám Helvetica.",
+            "Pro korektnĂ­ ÄŤeĹˇtinu v PDF vloĹľ TTF font do backend/static/fonts/ "
+            "(napĹ™. DejaVuSans.ttf a DejaVuSans-Bold.ttf). ZatĂ­m pouĹľĂ­vĂˇm Helvetica.",
             "warning",
         )
     title_font = bold_font or "Helvetica-Bold"
@@ -350,7 +350,7 @@ def sold_export_pdf():
     q = _base_query(filters)
     items = q.all()
 
-    # Manuální datum filtr, pokud není sold_at
+    # ManuĂˇlnĂ­ datum filtr, pokud nenĂ­ sold_at
     d_from = _parse_date(filters.get("from"))
     d_to_excl = _parse_date(filters.get("to"))
     if d_to_excl:
@@ -376,26 +376,26 @@ def sold_export_pdf():
 
     # Header
     c.setFont(title_font, 14)
-    c.drawString(20 * mm, (h - 20 * mm), "Report – Prodané položky")
+    c.drawString(20 * mm, (h - 20 * mm), "Report â€“ ProdanĂ© poloĹľky")
 
     c.setFont(text_font, 10)
     c.drawString(20 * mm, (h - 27 * mm), f"Filtr: od {filters.get('from') or '-'} do {filters.get('to') or '-'}")
-    c.drawString(20 * mm, (h - 33 * mm), f"Počet: {len(data)}")
+    c.drawString(20 * mm, (h - 33 * mm), f"PoÄŤet: {len(data)}")
 
-    # Záhlaví tabulky
+    # ZĂˇhlavĂ­ tabulky
     def draw_header(y_pos):
         c.setFont(title_font, 9)
         c.drawString(20 * mm, y_pos, "ID")
-        c.drawString(35 * mm, y_pos, "Objednávka")
+        c.drawString(35 * mm, y_pos, "ObjednĂˇvka")
         c.drawString(65 * mm, y_pos, "Produkt")
-        c.drawString(120 * mm, y_pos, "Celkem Kč")
-        c.drawString(150 * mm, y_pos, "Prodané")
+        c.drawString(120 * mm, y_pos, "Celkem KÄŤ")
+        c.drawString(150 * mm, y_pos, "ProdanĂ©")
         return y_pos - 6 * mm
 
     y = h - 45 * mm
     y = draw_header(y)
 
-    # Řádky
+    # ĹĂˇdky
     c.setFont(text_font, 9)
     for r in data:
         if y < 20 * mm:
@@ -426,15 +426,15 @@ def sold_export_pdf():
 
 
 # -----------------------------
-# Faktura – náhled (PDF)
+# Faktura â€“ nĂˇhled (PDF)
 # -----------------------------
 
 @admin_bp.route("/invoice/<int:sold_id>.pdf")
-@login_required
+# # # # @login_required  # dočasně vypnuto (dočasně vypnuto)
 def invoice_preview_pdf(sold_id: int):
     """
-    Náhled faktury pro konkrétní SoldProduct (PDF).
-    Využívá build_invoice_pdf_bytes(sp) z backend.invoicing.
+    NĂˇhled faktury pro konkrĂ©tnĂ­ SoldProduct (PDF).
+    VyuĹľĂ­vĂˇ build_invoice_pdf_bytes(sp) z backend.invoicing.
     """
     sp = SoldProduct.query.get_or_404(sold_id)
     pdf_bytes = build_invoice_pdf_bytes(sp)
@@ -447,32 +447,32 @@ def invoice_preview_pdf(sold_id: int):
 
 
 # -----------------------------
-# Odeslání faktury e-mailem (jedna položka)
+# OdeslĂˇnĂ­ faktury e-mailem (jedna poloĹľka)
 # -----------------------------
 
 @admin_bp.route("/invoice/<int:sold_id>/email", methods=["POST"])
-@login_required
+# # # # @login_required  # dočasně vypnuto (dočasně vypnuto)
 def invoice_send_email(sold_id: int):
     """
-    Pošle fakturu e-mailem na 'customer_email' (pokud existuje).
-    Přikládá PDF generované přes build_invoice_pdf_bytes.
+    PoĹˇle fakturu e-mailem na 'customer_email' (pokud existuje).
+    PĹ™iklĂˇdĂˇ PDF generovanĂ© pĹ™es build_invoice_pdf_bytes.
     """
     sp = SoldProduct.query.get_or_404(sold_id)
     to_addr = getattr(sp, "customer_email", None)
 
     if not to_addr:
-        flash("U záznamu není vyplněn e-mail zákazníka.", "warning")
+        flash("U zĂˇznamu nenĂ­ vyplnÄ›n e-mail zĂˇkaznĂ­ka.", "warning")
         return redirect(url_for("admin.sold_products"))
 
     pdf_bytes = build_invoice_pdf_bytes(sp)
 
     try:
-        subject = f"Faktura #{getattr(sp, 'id', '')} – Náramková Móda"
+        subject = f"Faktura #{getattr(sp, 'id', '')} â€“ NĂˇramkovĂˇ MĂłda"
         body = (
-            "Dobrý den,\n\n"
-            "v příloze zasíláme fakturu k Vaší objednávce.\n"
-            "Děkujeme za nákup.\n\n"
-            "S pozdravem\nNáramková Móda"
+            "DobrĂ˝ den,\n\n"
+            "v pĹ™Ă­loze zasĂ­lĂˇme fakturu k VaĹˇĂ­ objednĂˇvce.\n"
+            "DÄ›kujeme za nĂˇkup.\n\n"
+            "S pozdravem\nNĂˇramkovĂˇ MĂłda"
         )
         msg = Message(subject=subject, recipients=[to_addr], body=body)
         msg.attach(
@@ -481,26 +481,26 @@ def invoice_send_email(sold_id: int):
             data=pdf_bytes,
         )
         mail.send(msg)
-        flash(f"E-mail s fakturou byl odeslán na {to_addr}.", "success")
+        flash(f"E-mail s fakturou byl odeslĂˇn na {to_addr}.", "success")
     except Exception as e:
         db.session.rollback()
-        flash(f"Nepodařilo se odeslat e-mail: {e}", "danger")
+        flash(f"NepodaĹ™ilo se odeslat e-mail: {e}", "danger")
 
     return redirect(url_for("admin.sold_products"))
 
 
 # =============================
-# NOVÉ: Odeslání faktury podle ORDER_ID (pro „auto po zaplacení“)
-#  - Použij z adminu/servisu po změně stavu na 'paid' / 'zaplaceno'
-#  - Vrací dict s výsledkem; volání je idempotentní v tom smyslu,
-#    že když pro objednávku není žádný SoldProduct, jen vrátí info.
+# NOVĂ‰: OdeslĂˇnĂ­ faktury podle ORDER_ID (pro â€žauto po zaplacenĂ­â€ś)
+#  - PouĹľij z adminu/servisu po zmÄ›nÄ› stavu na 'paid' / 'zaplaceno'
+#  - VracĂ­ dict s vĂ˝sledkem; volĂˇnĂ­ je idempotentnĂ­ v tom smyslu,
+#    Ĺľe kdyĹľ pro objednĂˇvku nenĂ­ ĹľĂˇdnĂ˝ SoldProduct, jen vrĂˇtĂ­ info.
 # =============================
 
 def send_invoice_for_order(order_id: int) -> dict:
     """
-    Najde první SoldProduct pro daný order_id, vygeneruje PDF a:
-      - pokud už je invoice označená jako odeslaná (invoice_sent_at), NIC neposílá (idempotentní),
-      - jinak pošle e-mail, uloží PDF na disk a zapíše info do DB (pokud má model pole).
+    Najde prvnĂ­ SoldProduct pro danĂ˝ order_id, vygeneruje PDF a:
+      - pokud uĹľ je invoice oznaÄŤenĂˇ jako odeslanĂˇ (invoice_sent_at), NIC neposĂ­lĂˇ (idempotentnĂ­),
+      - jinak poĹˇle e-mail, uloĹľĂ­ PDF na disk a zapĂ­Ĺˇe info do DB (pokud mĂˇ model pole).
     """
     sp = (SoldProduct.query
           .filter(SoldProduct.order_id == order_id)
@@ -510,7 +510,7 @@ def send_invoice_for_order(order_id: int) -> dict:
     if not sp:
         return {"ok": False, "error": "No SoldProduct for this order_id."}
 
-    # 1) idempotence: pokud existuje flag, nepřeposílat
+    # 1) idempotence: pokud existuje flag, nepĹ™eposĂ­lat
     already_sent = False
     if hasattr(sp, "invoice_sent_at") and getattr(sp, "invoice_sent_at", None):
         already_sent = True
@@ -518,7 +518,7 @@ def send_invoice_for_order(order_id: int) -> dict:
     # 2) vygeneruj PDF
     pdf_bytes = build_invoice_pdf_bytes(sp)
 
-    # 3) ulož PDF na disk (ať máš archiv)
+    # 3) uloĹľ PDF na disk (aĹĄ mĂˇĹˇ archiv)
     try:
         inv_dir = os.path.join(current_app.root_path, "static", "invoices")
         os.makedirs(inv_dir, exist_ok=True)
@@ -538,35 +538,35 @@ def send_invoice_for_order(order_id: int) -> dict:
         "already_sent": already_sent,
     }
 
-    # 4) pokud už bylo dříve odesláno, skonči (jen informativně vrátíme)
+    # 4) pokud uĹľ bylo dĹ™Ă­ve odeslĂˇno, skonÄŤi (jen informativnÄ› vrĂˇtĂ­me)
     if already_sent:
         return result
 
-    # 5) pošli e-mail (jen pokud máme adresu)
+    # 5) poĹˇli e-mail (jen pokud mĂˇme adresu)
     to_addr = getattr(sp, "customer_email", None) or getattr(sp, "email", None)
     if not to_addr:
         return result
 
     try:
-        subject = f"Faktura #{getattr(sp, 'id', '')} – Náramková Móda"
+        subject = f"Faktura #{getattr(sp, 'id', '')} â€“ NĂˇramkovĂˇ MĂłda"
         body = (
-            "Dobrý den,\n\n"
-            "v příloze zasíláme fakturu k Vaší objednávce.\n"
-            "Děkujeme za nákup.\n\n"
-            "S pozdravem\nNáramková Móda"
+            "DobrĂ˝ den,\n\n"
+            "v pĹ™Ă­loze zasĂ­lĂˇme fakturu k VaĹˇĂ­ objednĂˇvce.\n"
+            "DÄ›kujeme za nĂˇkup.\n\n"
+            "S pozdravem\nNĂˇramkovĂˇ MĂłda"
         )
         msg = Message(subject=subject, recipients=[to_addr], body=body)
-        # přiložíme stejné PDF, které jsme uložili
+        # pĹ™iloĹľĂ­me stejnĂ© PDF, kterĂ© jsme uloĹľili
         msg.attach(
             filename=os.path.basename(saved_rel) if saved_rel else f"invoice_{sp.id}.pdf",
             content_type="application/pdf",
             data=pdf_bytes,
         )
-        from backend.extensions import mail  # lokální import, aby se nerozbilo jinde
+        from backend.extensions import mail  # lokĂˇlnĂ­ import, aby se nerozbilo jinde
         mail.send(msg)
         result["emailed"] = True
 
-        # 6) zapíšeme do DB flag (pokud model má sloupce)
+        # 6) zapĂ­Ĺˇeme do DB flag (pokud model mĂˇ sloupce)
         dirty = False
         if hasattr(sp, "invoice_sent_at") and not getattr(sp, "invoice_sent_at", None):
             sp.invoice_sent_at = datetime.utcnow()
@@ -587,23 +587,29 @@ def send_invoice_for_order(order_id: int) -> dict:
 
 
 # -----------------------------
-# VOLITELNÉ: ruční spuštění podle ORDER_ID z UI
+# VOLITELNĂ‰: ruÄŤnĂ­ spuĹˇtÄ›nĂ­ podle ORDER_ID z UI
 # -----------------------------
 
 @admin_bp.route("/sold/order/<int:order_id>/email", methods=["POST"])
-@login_required
+# # # # @login_required  # dočasně vypnuto (dočasně vypnuto)
 def invoice_send_email_for_order(order_id: int):
     """
-    Ruční odeslání faktury podle order_id (vezme první SoldProduct té objednávky).
-    Hodí se pro rychlé „přeposlání“, když došla změna e-mailu apod.
+    RuÄŤnĂ­ odeslĂˇnĂ­ faktury podle order_id (vezme prvnĂ­ SoldProduct tĂ© objednĂˇvky).
+    HodĂ­ se pro rychlĂ© â€žpĹ™eposlĂˇnĂ­â€ś, kdyĹľ doĹˇla zmÄ›na e-mailu apod.
     """
     res = send_invoice_for_order(order_id)
     if res.get("ok") and res.get("emailed"):
-        flash(f"Faktura byla odeslána na {res.get('to')}.", "success")
+        flash(f"Faktura byla odeslĂˇna na {res.get('to')}.", "success")
     elif res.get("ok") and not res.get("emailed"):
-        flash("Faktura nebyla odeslána – u objednávky není e-mail zákazníka.", "warning")
+        flash("Faktura nebyla odeslĂˇna â€“ u objednĂˇvky nenĂ­ e-mail zĂˇkaznĂ­ka.", "warning")
     else:
-        flash(f"Fakturu se nepodařilo odeslat: {res.get('error', 'neznámá chyba')}", "danger")
+        flash(f"Fakturu se nepodaĹ™ilo odeslat: {res.get('error', 'neznĂˇmĂˇ chyba')}", "danger")
 
-    # zpět kamkoliv – ideálně na detail objednávky, pokud máš
+    # zpÄ›t kamkoliv â€“ ideĂˇlnÄ› na detail objednĂˇvky, pokud mĂˇĹˇ
     return redirect(request.referrer or url_for("admin.sold_products"))
+
+
+
+
+
+

@@ -1,7 +1,9 @@
-from datetime import datetime
+﻿from datetime import datetime
 from backend.extensions import db
 
 class Payment(db.Model):
+    __tablename__ = 'payment'
+    __table_args__ = {'extend_existing': True}
     __tablename__ = "payment"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -13,3 +15,4 @@ class Payment(db.Model):
 
     def __repr__(self):
         return f"<Payment VS:{self.vs} {self.amount_czk} CZK>"
+

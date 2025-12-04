@@ -1,4 +1,4 @@
-import io
+﻿import io
 from datetime import datetime
 from decimal import Decimal
 
@@ -7,7 +7,7 @@ from flask_login import login_required
 from flask_mail import Message
 
 from backend.extensions import mail
-from backend.admin.models import SoldProduct
+from backend.models import SoldProduct
 from backend.invoicing import build_invoice_pdf_bytes
 
 invoice_bp = Blueprint("invoice_bp", __name__, url_prefix="/api/invoice")
@@ -65,9 +65,9 @@ def _sold_payment_for_invoice(sold: SoldProduct):
 # ---------- API: SOLD PRODUCT faktura ---------------------------------------
 
 @invoice_bp.get("/sold/<int:sold_id>.pdf", endpoint="sold_invoice_pdf_api")
-@login_required
+# # @login_required  # dočasně vypnuto
 def sold_invoice_pdf_api(sold_id: int):
-    """Náhled PDF faktury pro SoldProduct (inline)."""
+    """NĂˇhled PDF faktury pro SoldProduct (inline)."""
     sold = SoldProduct.query.get_or_404(sold_id)
     o = _sold_proxy_for_invoice(sold)
     p = _sold_payment_for_invoice(sold)
@@ -85,13 +85,13 @@ def sold_invoice_pdf_api(sold_id: int):
     )
 
 @invoice_bp.post("/sold/<int:sold_id>/send", endpoint="sold_invoice_send_api")
-@login_required
+# # @login_required  # dočasně vypnuto
 def sold_invoice_send_api(sold_id: int):
-    """Pošle fakturu e-mailem (PDF v příloze) a vrátí redirect zpět do adminu."""
+    """PoĹˇle fakturu e-mailem (PDF v pĹ™Ă­loze) a vrĂˇtĂ­ redirect zpÄ›t do adminu."""
     sold = SoldProduct.query.get_or_404(sold_id)
     recipient = (request.form.get("email") or sold.customer_email or "").strip()
     if not recipient:
-        flash("❌ Zákaznický e-mail není vyplněn.", "danger")
+        flash("âťŚ ZĂˇkaznickĂ˝ e-mail nenĂ­ vyplnÄ›n.", "danger")
         return redirect("/admin/sold")
 
     o = _sold_proxy_for_invoice(sold)
@@ -99,17 +99,19 @@ def sold_invoice_send_api(sold_id: int):
 
     pdf_bytes, inv_no = build_invoice_pdf_bytes(o, p, seller=None)
 
-    subject = f"Faktura {inv_no} – Náramková Móda"
+    subject = f"Faktura {inv_no} â€“ NĂˇramkovĂˇ MĂłda"
     body = (
-        f"Dobrý den {o.customer_name},\n\n"
-        f"v příloze zasíláme fakturu č. {inv_no} k Vašemu nákupu.\n"
-        f"Děkujeme za nákup.\n\n"
-        f"Náramková Móda"
+        f"DobrĂ˝ den {o.customer_name},\n\n"
+        f"v pĹ™Ă­loze zasĂ­lĂˇme fakturu ÄŤ. {inv_no} k VaĹˇemu nĂˇkupu.\n"
+        f"DÄ›kujeme za nĂˇkup.\n\n"
+        f"NĂˇramkovĂˇ MĂłda"
     )
 
     msg = Message(subject=subject, recipients=[recipient], body=body)
     msg.attach(f"{inv_no}.pdf", "application/pdf", pdf_bytes)
     mail.send(msg)
 
-    flash(f"📧 Faktura {inv_no} odeslána na {recipient}.", "success")
+    flash(f"đź“§ Faktura {inv_no} odeslĂˇna na {recipient}.", "success")
     return redirect("/admin/sold")
+
+

@@ -6,6 +6,9 @@ import "slick-carousel/slick/slick-theme.css";
 import { slugify } from "../utils/slugify";
 import { emojify } from "../utils/emojify";
 
+// API base follows current origin so it works on localhost:3000 behind nginx proxy
+const API_BASE = `${window.location.origin}/api`;
+
 // Hezká šipka mimo slider (bez dalších knihoven)
 function Arrow({ className = "", onClick, direction = "next" }) {
   const isNext = direction === "next";
@@ -57,7 +60,7 @@ export default function Gallery() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/products");
+        const res = await fetch(`${API_BASE}/products/`);
         const data = await res.json();
         setProducts(Array.isArray(data) ? data : []);
       } catch (e) {

@@ -250,7 +250,7 @@ def fetch_csob_incoming(
 # ============================================================================
 
 from backend.extensions import db
-from backend.admin.models import Payment, Order
+from backend.models import Payment, Order
 from backend.admin.sold_routes import send_invoice_for_order
 from backend.api.utils.telegram import send_telegram_message  # tvůj helper „přes skript“
 
@@ -359,3 +359,4 @@ if __name__ == "__main__":
     # Jednoduchý test běhu (např. python -m backend.api.utils.csob_mail_sync)
     out = csob_sync(mark_seen=True)
     print(out)
+

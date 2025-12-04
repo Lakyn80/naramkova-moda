@@ -1,18 +1,20 @@
-# backend/models/order.py
+﻿# backend/models/order.py
 from datetime import datetime
 from backend.extensions import db
 
 class Order(db.Model):
+    __tablename__ = 'order'
+    __table_args__ = {'extend_existing': True}
     __tablename__ = "order"
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # párování plateb
+    # pĂˇrovĂˇnĂ­ plateb
     vs = db.Column(db.String(10), unique=True, index=True, nullable=True)
     total_czk = db.Column(db.Numeric(10, 2), nullable=True)
     status = db.Column(db.String(32), nullable=False, default="awaiting_payment")
 
-    # zákazník
+    # zĂˇkaznĂ­k
     customer_name = db.Column(db.String(120), nullable=False)
     customer_email = db.Column(db.String(120), nullable=False)
     customer_address = db.Column(db.Text, nullable=False)
@@ -23,4 +25,5 @@ class Order(db.Model):
     items = db.relationship("OrderItem", backref="order", lazy=True, cascade="all, delete")
 
     def __repr__(self):
-        return f"<Order #{self.id} – {self.customer_name} – VS:{self.vs}>"
+        return f"<Order #{self.id} â€“ {self.customer_name} â€“ VS:{self.vs}>"
+

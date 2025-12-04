@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  backend:
+    build: .
+    container_name: nmm-backend
+    ports:
+      - "5050:5050"
+    volumes:
+      # Cesty musí odpovídat struktuře v kontejneru
+      - ./backend/instance:/app/backend/instance
+      - ./backend/static/uploads:/app/backend/static/uploads
+    environment:
+      - FLASK_ENV=production
+      # DŮLEŽITÉ: PYTHONPATH musí obsahovat /app
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    # Pro diagnostiku můžeš přidat:
+    # stdin_open: true
+    # tty: true
+
+  frontend:
+    build: ./frontend
+    container_name: nmm-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

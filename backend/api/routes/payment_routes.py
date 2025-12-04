@@ -1,4 +1,4 @@
-# backend/api/routes/payment_routes.py
+﻿# backend/api/routes/payment_routes.py
 import io
 import os
 from datetime import datetime
@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, request, jsonify, current_app, send_file
 import qrcode
 from backend.extensions import db
-from backend.admin.models import Order, Payment
+from backend.models import Order, Payment
 from backend.api.utils.csob_mail_sync import fetch_csob_incoming, fetch_from_imap
 from backend.api.utils.telegram import send_telegram_message
 
@@ -18,35 +18,35 @@ payment_bp = Blueprint("payment_bp", __name__, url_prefix="/api/payments")
 # --- Helpers ---------------------------------------------------------------
 
 def _get_iban() -> str:
-    """IBAN obchodníka (ENV MERCHANT_IBAN > Flask config MERCHANT_IBAN)."""
+    """IBAN obchodnĂ­ka (ENV MERCHANT_IBAN > Flask config MERCHANT_IBAN)."""
     iban = os.getenv("MERCHANT_IBAN") or current_app.config.get("MERCHANT_IBAN")
     if not iban:
-        raise RuntimeError("MERCHANT_IBAN není nastaven (ENV nebo Config).")
+        raise RuntimeError("MERCHANT_IBAN nenĂ­ nastaven (ENV nebo Config).")
     return iban.replace(" ", "").upper()
 
 
 def _to_decimal(val) -> Decimal:
-    """Bezpečný převod na Decimal; vyhazuje InvalidOperation na neplatnou hodnotu."""
+    """BezpeÄŤnĂ˝ pĹ™evod na Decimal; vyhazuje InvalidOperation na neplatnou hodnotu."""
     return Decimal(str(val))
 
 
 def _build_spd_payload(iban: str, amount: Decimal, vs: str | None, msg: str | None) -> str:
     """
-    SPD 1.0 payload pro české QR platby (CZK):
+    SPD 1.0 payload pro ÄŤeskĂ© QR platby (CZK):
     SPD*1.0*ACC:...*AM:...*CC:CZK*X-VS:...*MSG:...
     """
     parts = ["SPD*1.0", f"ACC:{iban}", f"AM:{amount:.2f}", "CC:CZK"]
     if vs:
         parts.append(f"X-VS:{vs}")
     if msg:
-        # SPD povoluje ASCII; vynecháme diakritiku/emoji a zkrátíme.
+        # SPD povoluje ASCII; vynechĂˇme diakritiku/emoji a zkrĂˇtĂ­me.
         safe_msg = "".join(ch for ch in (msg or "") if 32 <= ord(ch) <= 126)
         parts.append(f"MSG:{safe_msg[:60]}")
     return "*".join(parts)
 
 
 def _safe_int(value, default):
-    """Bezpečný převod na int s dolní hranicí 0."""
+    """BezpeÄŤnĂ˝ pĹ™evod na int s dolnĂ­ hranicĂ­ 0."""
     try:
         v = int(value)
         return v if v >= 0 else default
@@ -56,20 +56,20 @@ def _safe_int(value, default):
 
 def _detect_order_item_schema():
     """
-    Prohlédne schéma tabulky 'order_item' a vrátí slovník s tím,
-    jaké sloupce jsou k dispozici pro výpočet součtu.
+    ProhlĂ©dne schĂ©ma tabulky 'order_item' a vrĂˇtĂ­ slovnĂ­k s tĂ­m,
+    jakĂ© sloupce jsou k dispozici pro vĂ˝poÄŤet souÄŤtu.
     """
     cols = db.session.execute(db.text("PRAGMA table_info('order_item');")).fetchall()
     colnames = {c[1] for c in cols}
 
-    # kandidáti pro jednotkovou cenu
+    # kandidĂˇti pro jednotkovou cenu
     price_cols = [c for c in ("price_czk", "unit_price_czk", "unit_price") if c in colnames]
-    # kandidáti pro množství
+    # kandidĂˇti pro mnoĹľstvĂ­
     qty_cols = [c for c in ("quantity", "qty", "count") if c in colnames]
-    # přímý sloupec s částkou položky (fallback)
+    # pĹ™Ă­mĂ˝ sloupec s ÄŤĂˇstkou poloĹľky (fallback)
     amount_cols = [c for c in ("amount_czk",) if c in colnames]
 
-    # název FK na order (typicky order_id)
+    # nĂˇzev FK na order (typicky order_id)
     fk_col = "order_id" if "order_id" in colnames else None
 
     return {
@@ -83,8 +83,8 @@ def _detect_order_item_schema():
 
 def _compute_amounts_for_orders(order_ids):
     """
-    Vrátí dict {order_id: sum_amount} sečtený z 'order_item'.
-    Pokud nelze spočítat (chybějící tabulka/sloupce), vrátí prázdný dict.
+    VrĂˇtĂ­ dict {order_id: sum_amount} seÄŤtenĂ˝ z 'order_item'.
+    Pokud nelze spoÄŤĂ­tat (chybÄ›jĂ­cĂ­ tabulka/sloupce), vrĂˇtĂ­ prĂˇzdnĂ˝ dict.
     """
     if not order_ids:
         return {}
@@ -94,7 +94,7 @@ def _compute_amounts_for_orders(order_ids):
         return {}
 
     fk = schema["fk_col"]
-    # Pokus 1: amount_czk přímo
+    # Pokus 1: amount_czk pĹ™Ă­mo
     if schema["amount_cols"]:
         amount_col = schema["amount_cols"][0]
         sql = f"""
@@ -130,18 +130,18 @@ def _compute_amounts_for_orders(order_ids):
 
 def _vs_display(vs, order_id):
     """
-    VS pro výstup: pokud vs je prázdné/NULL, použij fallback z id (osmimístný).
-    DB se tímto NEUPRAVUJE.
+    VS pro vĂ˝stup: pokud vs je prĂˇzdnĂ©/NULL, pouĹľij fallback z id (osmimĂ­stnĂ˝).
+    DB se tĂ­mto NEUPRAVUJE.
     """
     vs = (vs or "").strip()
     return vs if vs else f"{int(order_id):08d}"
 
 
-# --- DOPLNĚNO: Poštovné a porovnání částek ---------------------------------
+# --- DOPLNÄšNO: PoĹˇtovnĂ© a porovnĂˇnĂ­ ÄŤĂˇstek ---------------------------------
 
 def _shipping_fee() -> Decimal:
     """
-    Poštovné v CZK:
+    PoĹˇtovnĂ© v CZK:
     1) ENV SHIPPING_FEE_CZK
     2) current_app.config["SHIPPING_FEE_CZK"]
     3) default 89.00
@@ -156,15 +156,15 @@ def _shipping_fee() -> Decimal:
 
 
 def _amounts_equal(a: Decimal, b: Decimal, tol: Decimal = Decimal("0.50")) -> bool:
-    """Porovnání s tolerancí (např. odchylky/zaokrouhlení)."""
+    """PorovnĂˇnĂ­ s tolerancĂ­ (napĹ™. odchylky/zaokrouhlenĂ­)."""
     return abs(_to_decimal(a) - _to_decimal(b)) <= _to_decimal(tol)
 
 
 def _order_base_amount_czk(order: Order) -> Decimal | None:
     """
-    Základní částka objednávky (bez poštovného):
-    - přednostně Order.total_czk (pokud je)
-    - jinak dopočítat z order_item pomocí _compute_amounts_for_orders
+    ZĂˇkladnĂ­ ÄŤĂˇstka objednĂˇvky (bez poĹˇtovnĂ©ho):
+    - pĹ™ednostnÄ› Order.total_czk (pokud je)
+    - jinak dopoÄŤĂ­tat z order_item pomocĂ­ _compute_amounts_for_orders
     """
     total = getattr(order, "total_czk", None)
     if total is not None:
@@ -188,19 +188,19 @@ def _order_base_amount_czk(order: Order) -> Decimal | None:
 def payment_qr_png():
     """
     GET /api/payments/qr?amount=1234.00&vs=20250814&msg=Objednavka%20123
-    Vrací PNG s QR kódem (MIME image/png).
+    VracĂ­ PNG s QR kĂłdem (MIME image/png).
     """
     try:
         amount_raw = (request.args.get("amount") or "").strip()
         if not amount_raw:
-            return jsonify({"ok": False, "error": "Chybí query param 'amount'."}), 400
+            return jsonify({"ok": False, "error": "ChybĂ­ query param 'amount'."}), 400
 
         try:
             amount = _to_decimal(amount_raw)
         except InvalidOperation:
-            return jsonify({"ok": False, "error": "Neplatná částka 'amount'."}), 400
+            return jsonify({"ok": False, "error": "NeplatnĂˇ ÄŤĂˇstka 'amount'."}), 400
         if amount <= 0:
-            return jsonify({"ok": False, "error": "Částka musí být > 0."}), 400
+            return jsonify({"ok": False, "error": "ÄŚĂˇstka musĂ­ bĂ˝t > 0."}), 400
 
         vs = (request.args.get("vs") or "").strip() or None
         msg = (request.args.get("msg") or "").strip() or None
@@ -229,17 +229,17 @@ def payment_qr_png():
 
 @payment_bp.get("/qr/payload")
 def payment_qr_payload():
-    """GET /api/payments/qr/payload?amount=...&vs=...&msg=... → JSON s SPD payloadem."""
+    """GET /api/payments/qr/payload?amount=...&vs=...&msg=... â†’ JSON s SPD payloadem."""
     try:
         amount_raw = (request.args.get("amount") or "").strip()
         if not amount_raw:
-            return jsonify({"ok": False, "error": "Chybí query param 'amount'."}), 400
+            return jsonify({"ok": False, "error": "ChybĂ­ query param 'amount'."}), 400
         try:
             amount = _to_decimal(amount_raw)
         except InvalidOperation:
-            return jsonify({"ok": False, "error": "Neplatná částka 'amount'."}), 400
+            return jsonify({"ok": False, "error": "NeplatnĂˇ ÄŤĂˇstka 'amount'."}), 400
         if amount <= 0:
-            return jsonify({"ok": False, "error": "Částka musí být > 0."}), 400
+            return jsonify({"ok": False, "error": "ÄŚĂˇstka musĂ­ bĂ˝t > 0."}), 400
 
         vs = (request.args.get("vs") or "").strip() or None
         msg = (request.args.get("msg") or "").strip() or None
@@ -252,21 +252,21 @@ def payment_qr_payload():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-# --- NOVÉ: Čtení plateb z tabulky ORDER (pro UI) ---------------------------
+# --- NOVĂ‰: ÄŚtenĂ­ plateb z tabulky ORDER (pro UI) ---------------------------
 
 @payment_bp.get("/summary")
 def payments_summary():
     """
-    Souhrn „plateb“ z tabulky Order.
+    Souhrn â€žplatebâ€ś z tabulky Order.
     - count
-    - sample (max 5 řádků) s mapováním: id, vs, status, amount, received_at
-      * amount = Order.total_czk nebo součet order_item (pokud total_czk je NULL)
-      * vs     = Order.vs nebo fallback z id (osmimístné)
+    - sample (max 5 Ĺ™ĂˇdkĹŻ) s mapovĂˇnĂ­m: id, vs, status, amount, received_at
+      * amount = Order.total_czk nebo souÄŤet order_item (pokud total_czk je NULL)
+      * vs     = Order.vs nebo fallback z id (osmimĂ­stnĂ©)
     """
     try:
         total = db.session.query(Order).count()
 
-        # sample 5 nejnovějších podle id
+        # sample 5 nejnovÄ›jĹˇĂ­ch podle id
         items = (
             db.session.query(Order)
             .order_by(Order.id.desc())
@@ -275,7 +275,7 @@ def payments_summary():
         )
 
         ids = [o.id for o in items]
-        # pokud total_czk chybí, dopočítáme z order_item
+        # pokud total_czk chybĂ­, dopoÄŤĂ­tĂˇme z order_item
         computed = _compute_amounts_for_orders(ids) if ids else {}
 
         def map_order(o: Order):
@@ -312,7 +312,7 @@ def payments_summary():
 @payment_bp.get("")
 def payments_list():
     """
-    Stránkovaný seznam „plateb“ z Order.
+    StrĂˇnkovanĂ˝ seznam â€žplatebâ€ś z Order.
     Query:
       - page (default 1)
       - per_page (default 20, max 200)
@@ -380,33 +380,33 @@ def payments_list():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-# --- Platby / párování -----------------------------------------------------
+# --- Platby / pĂˇrovĂˇnĂ­ -----------------------------------------------------
 
 @payment_bp.post("/mark-paid")
 def mark_paid_by_vs():
     """
-    Potvrzení přijetí platby podle VS (idempotentní).
+    PotvrzenĂ­ pĹ™ijetĂ­ platby podle VS (idempotentnĂ­).
     Body JSON: { "vs": "123456", "amountCzk": 1234.00, "reference": "FIO 2025-08-14" }
-    - pokud Payment(VS) existuje → nastaví 'received', doplní částku/reference
-    - jinak vytvoří nový Payment(received)
-    - pokud existuje Order(VS) → nastaví Order.status='paid'
+    - pokud Payment(VS) existuje â†’ nastavĂ­ 'received', doplnĂ­ ÄŤĂˇstku/reference
+    - jinak vytvoĹ™Ă­ novĂ˝ Payment(received)
+    - pokud existuje Order(VS) â†’ nastavĂ­ Order.status='paid'
     """
     try:
         data = request.get_json(force=True) or {}
         vs = str(data.get("vs", "")).strip()
         if not vs:
-            return jsonify({"ok": False, "error": "Chybí VS."}), 400
+            return jsonify({"ok": False, "error": "ChybĂ­ VS."}), 400
 
-        # amount je volitelný
+        # amount je volitelnĂ˝
         amount = None
         amount_in = data.get("amountCzk", None)
         if amount_in is not None and str(amount_in).strip() != "":
             try:
                 amount = _to_decimal(amount_in)
                 if amount < 0:
-                    return jsonify({"ok": False, "error": "Částka nesmí být záporná."}), 400
+                    return jsonify({"ok": False, "error": "ÄŚĂˇstka nesmĂ­ bĂ˝t zĂˇpornĂˇ."}), 400
             except InvalidOperation:
-                return jsonify({"ok": False, "error": "Neplatná částka 'amountCzk'."}), 400
+                return jsonify({"ok": False, "error": "NeplatnĂˇ ÄŤĂˇstka 'amountCzk'."}), 400
 
         ref = str(data.get("reference", "") or "").strip()
         if len(ref) > 255:
@@ -457,9 +457,9 @@ def mark_paid_by_vs():
 @payment_bp.post("/sync-from-orders")
 def sync_from_orders():
     """
-    Backfill: pro všechny Order.status='awaiting_payment' bez existujícího Payment stejného VS
-    založí Payment(status='pending', amount_czk=order.total_czk).
-    Bezpečné proti NULL VS / NULL total_czk.
+    Backfill: pro vĹˇechny Order.status='awaiting_payment' bez existujĂ­cĂ­ho Payment stejnĂ©ho VS
+    zaloĹľĂ­ Payment(status='pending', amount_czk=order.total_czk).
+    BezpeÄŤnĂ© proti NULL VS / NULL total_czk.
     """
     try:
         created = 0
@@ -498,13 +498,13 @@ def sync_from_orders():
 @payment_bp.get("/status/by-vs/<vs>")
 def get_status_by_vs(vs: str):
     """
-    Jednoduchý status endpoint pro front-end (díky/thank-you stránka apod.).
-    Vrací poslední payment a navázanou objednávku (pokud existují).
+    JednoduchĂ˝ status endpoint pro front-end (dĂ­ky/thank-you strĂˇnka apod.).
+    VracĂ­ poslednĂ­ payment a navĂˇzanou objednĂˇvku (pokud existujĂ­).
     """
     try:
         vs = (vs or "").strip()
         if not vs:
-            return jsonify({"ok": False, "error": "Chybí VS."}), 400
+            return jsonify({"ok": False, "error": "ChybĂ­ VS."}), 400
 
         pay = Payment.query.filter_by(vs=vs).order_by(Payment.id.desc()).first()
         order = Order.query.filter_by(vs=vs).first()
@@ -534,12 +534,12 @@ def get_status_by_vs(vs: str):
 @payment_bp.post("/sync-csob-mail")
 def sync_csob_mail():
     """
-    Ruční sync: načte notifikační e-maily z IMAPu, spáruje podle VS a označí objednávku jako 'paid'.
-    Používá výhradně bankovní odesílatele pro změny v DB.
-    Navíc vrátí diagnostiku z vlastních mailů (nepáruje).
+    RuÄŤnĂ­ sync: naÄŤte notifikaÄŤnĂ­ e-maily z IMAPu, spĂˇruje podle VS a oznaÄŤĂ­ objednĂˇvku jako 'paid'.
+    PouĹľĂ­vĂˇ vĂ˝hradnÄ› bankovnĂ­ odesĂ­latele pro zmÄ›ny v DB.
+    NavĂ­c vrĂˇtĂ­ diagnostiku z vlastnĂ­ch mailĹŻ (nepĂˇruje).
     """
     try:
-        # volitelné override z body
+        # volitelnĂ© override z body
         cfg = request.get_json(silent=True) or {}
         host     = cfg.get("host")
         port     = cfg.get("port")
@@ -556,7 +556,7 @@ def sync_csob_mail():
             "noreply@naramkovamoda.cz","naramkovamoda@email.cz"
         ]
 
-        # 1) BANKA – tohle jediný používáme k párování
+        # 1) BANKA â€“ tohle jedinĂ˝ pouĹľĂ­vĂˇme k pĂˇrovĂˇnĂ­
         bank_pairs = fetch_csob_incoming(
             host=host, port=port, ssl=ssl, user=user, password=password, folder=folder,
             max_items=max_, bank_senders=bank_senders, mark_seen=True,
@@ -576,7 +576,7 @@ def sync_csob_mail():
                 })
                 continue
 
-            # === NOVĚ: očekávaná částka = primárně order.total_czk; fallback base+fee ===
+            # === NOVÄš: oÄŤekĂˇvanĂˇ ÄŤĂˇstka = primĂˇrnÄ› order.total_czk; fallback base+fee ===
             expected_dec = None
             total_czk_val = getattr(order, "total_czk", None)
             if total_czk_val is not None:
@@ -630,14 +630,14 @@ def sync_csob_mail():
 
         if processed:
             db.session.commit()
-            # Telegram shrnutí
-            lines = [f"✅ Přijata platba VS {p['vs']} • {p['amount']:.2f} CZK (oček. {p['expected']:.2f}) • objednávka #{p['orderId']}" for p in processed]
+            # Telegram shrnutĂ­
+            lines = [f"âś… PĹ™ijata platba VS {p['vs']} â€˘ {p['amount']:.2f} CZK (oÄŤek. {p['expected']:.2f}) â€˘ objednĂˇvka #{p['orderId']}" for p in processed]
             try:
                 send_telegram_message("\n".join(lines))
             except Exception:
                 current_app.logger.exception("Telegram notify failed")
 
-        # 2) DIAGNOSTIKA – naše vlastní notifikace (nepárujeme, jen zobrazíme nalezené VS/částky)
+        # 2) DIAGNOSTIKA â€“ naĹˇe vlastnĂ­ notifikace (nepĂˇrujeme, jen zobrazĂ­me nalezenĂ© VS/ÄŤĂˇstky)
         try:
             self_rows = fetch_from_imap(
                 host=host or os.getenv("IMAP_HOST", "imap.seznam.cz"),
@@ -669,3 +669,4 @@ def sync_csob_mail():
         current_app.logger.exception("sync_csob_mail failed")
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
+

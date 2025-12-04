@@ -9,6 +9,8 @@ import { useCart } from "../context/CartContext";
 import { slugify } from "../utils/slugify";
 import { emojify } from "../utils/emojify";
 
+const API_BASE = `${window.location.origin}/api`;
+
 // ✅ emoji vykreslí mimo gradient
 function renderEmojiSafe(text) {
   const s = String(text ?? "");
@@ -30,7 +32,7 @@ export default function ProductDetail() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/products");
+        const res = await fetch(`${API_BASE}/products/`);
         const data = await res.json();
 
         const found = (data || []).find((p) => slugify(p?.name || "") === slug);

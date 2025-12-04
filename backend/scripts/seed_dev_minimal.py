@@ -1,4 +1,4 @@
-Ôªø# backend/scripts/seed_dev_minimal.py
+# backend/scripts/seed_dev_minimal.py
 import os, sys, importlib
 from datetime import datetime, UTC
 
@@ -10,7 +10,7 @@ PROJECT_ROOT = os.path.dirname(BACKEND_DIR)                 # <root>
 # ENV
 os.environ.setdefault("DATABASE_URL", "sqlite:///instance/database.db")
 
-# Importy p≈ôes bal√≠ƒçek backend.*
+# Importy p¯es balÌËek backend.*
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -23,7 +23,7 @@ def get_app_db_models():
         app = getattr(backend_app, "app")
     ext = importlib.import_module("backend.extensions")
     db = ext.db
-    models = importlib.import_module("backend.admin.models")
+    models = importlib.import_module("backend.models")
     # Fallback: kdyby create_app nevolalo db.init_app(app)
     if not getattr(app, "extensions", None) or "sqlalchemy" not in app.extensions:
         db.init_app(app)
@@ -38,7 +38,7 @@ def main():
     vs  = "00000001"
 
     with app.app_context():
-        # VYTVO≈ò OBJEDN√ÅVKU ‚Äì dopl≈à povinn√© √∫daje
+        # VYTVOÿ OBJEDN¡VKU ñ doplÚ povinnÈ ˙daje
         o = Order(
             vs=vs,
             status="awaiting_payment",
@@ -50,9 +50,9 @@ def main():
             created_at=now,
         )
         db.session.add(o)
-        db.session.flush()  # pro jistotu m√≠t o.id
+        db.session.flush()  # pro jistotu mÌt o.id
 
-        # VYTVO≈ò PLATBU
+        # VYTVOÿ PLATBU
         p = Payment(
             vs=vs,
             status="pending",

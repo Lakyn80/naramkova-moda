@@ -1,6 +1,7 @@
 // utils/image.js
 
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
+// Use current origin so it works behind nginx proxy (frontend on 3000, proxied to backend)
+const API_BASE = window.location.origin;
 
 /**
  * Vrátí absolutní URL obrázku pro React (aby fungovalo z 3000 → 5000).

@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from flask import current_app
 from backend.extensions import db
-from backend.admin.models import Order, OrderItem, SoldProduct
+from backend.models import Order, OrderItem, SoldProduct
 from backend.api.utils.email import send_email
 from backend.invoicing import build_invoice_pdf_bytes
 
