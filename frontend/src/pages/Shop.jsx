@@ -169,22 +169,12 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
       };
     };
 
-    if (forcedCategory) {
-      const qs = wristSizeParam ? `?wrist_size=${encodeURIComponent(wristSizeParam)}` : "";
-      fetch(`${API_BASE}/categories/${forcedCategory}${qs}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const list = Array.isArray(data?.products) ? data.products : [];
-          setProducts(list.map(mapProduct));
-        })
-        .catch((err) => console.error("Chyba načtení produktů kategorie:", err));
-    } else {
-      fetch(`${API_BASE}/products/`) // ✅ base je /api, proto bez dalšího /api
-        .then((res) => res.json())
-        .then((data) => setProducts((data || []).map(mapProduct)))
-        .catch((err) => console.error("Chyba načtení produktů:", err));
-    }
-  }, [forcedCategory, wristSizeParam]);
+    const qs = wristSizeParam ? `?wrist_size=${encodeURIComponent(wristSizeParam)}` : "";
+    fetch(`${API_BASE}/products/${qs}`)
+      .then((res) => res.json())
+      .then((data) => setProducts((data || []).map(mapProduct)))
+      .catch((err) => console.error("Chyba načtení produktů:", err));
+  }, [wristSizeParam]);
 
   useEffect(() => {
     const storedRaw = localStorage.getItem(persistKey);

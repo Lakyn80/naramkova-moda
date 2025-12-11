@@ -1,22 +1,43 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { slugify } from "../utils/slugify";
 
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.origin}/api`;
+
 export default function Categories() {
   const navigate = useNavigate();
+  const [categories, setCategories] = useState([]);
 
-  const categories = [
-    "Maminka", "Babička", "Bratr", "Sestra", "Děti", "Svatba", "Jen pro radost",
-    "Tatínek", "Dědeček", "Kamarádka", "Láska", "Pro děti", "Pro páry", "Výročí", "Přátelství"
-  ];
+  useEffect(() => {
+    fetch(`${API_BASE}/categories/`)
+      .then((res) => res.json())
+      .then((data) => {
+        const mapped = (data || [])
+          .map((cat) => {
+            const label = cat?.name || "";
+            const slug = cat?.slug || slugify(label);
+            return label ? { label, slug } : null;
+          })
+          .filter(Boolean);
+        setCategories(mapped);
+      })
+      .catch((err) => {
+        console.error("Chyba načtení kategorií:", err);
+        setCategories([]);
+      });
+  }, []);
 
-  const handleClick = (label) => {
-    const slug = slugify(label || "");
+  const handleClick = (slug) => {
     navigate(`/category/${encodeURIComponent(slug)}`);
   };
 
+  const marqueeList = categories.length ? [...categories, ...categories] : [];
+
   return (
-    <section id="kategorie" className="relative py-20 px-4 bg-gradient-to-b from-rose-mid to-rose-light overflow-hidden">
+    <section
+      id="kategorie"
+      className="relative py-20 px-4 bg-gradient-to-b from-rose-mid to-rose-light overflow-hidden"
+    >
       <img
         src="/wave.svg"
         alt="Wave top"
@@ -28,19 +49,23 @@ export default function Categories() {
           Kategorie
         </h2>
 
-        <div className="overflow-hidden relative">
-          <div className="flex gap-3 sm:gap-6 animate-scroll whitespace-nowrap">
-            {[...categories, ...categories].map((label, index) => (
-              <button
-                key={index}
-                onClick={() => handleClick(label)}
-                className="bg-white/20 hover:bg-pink-100 text-white shadow-md backdrop-blur-sm rounded-full px-4 sm:px-6 py-2 sm:py-3 text-sm font-medium transition-all duration-300 whitespace-nowrap"
-              >
-                {label}
-              </button>
-            ))}
+        {marqueeList.length ? (
+          <div className="overflow-hidden relative">
+            <div className="flex gap-3 sm:gap-6 animate-scroll whitespace-nowrap">
+              {marqueeList.map((cat, index) => (
+                <button
+                  key={`${cat.slug}-${index}`}
+                  onClick={() => handleClick(cat.slug)}
+                  className="bg-white/20 hover:bg-pink-100 text-white shadow-md backdrop-blur-sm rounded-full px-4 sm:px-6 py-2 sm:py-3 text-sm font-medium transition-all duration-300 whitespace-nowrap"
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          <p className="text-center text-white/80">Načítám kategorie…</p>
+        )}
       </div>
 
       <img
