@@ -28,7 +28,7 @@ export default function Categories() {
   }, []);
 
   const handleClick = (slug) => {
-    navigate(`/category/${encodeURIComponent(slug)}`);
+    navigate(`/shop?categories=${encodeURIComponent(slug)}`);
   };
 
   const marqueeList = categories.length ? [...categories, ...categories] : [];

@@ -13,6 +13,7 @@ class ProductVariant(db.Model):
     variant_name = db.Column(db.String(150), nullable=True)
     wrist_size = db.Column(db.String(50), nullable=True)
     image = db.Column(db.String(255), nullable=True)
+    stock = db.Column(db.Integer, nullable=False, default=0)
 
     product = db.relationship(Product, back_populates="variants")
     media = db.relationship(

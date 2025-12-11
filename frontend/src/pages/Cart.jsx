@@ -54,16 +54,16 @@ export default function Cart() {
                       onError={(e) => { e.currentTarget.src = "/placeholder.png"; }}
                     />
                     <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{emojify(item.name)}</h3>
+                      <h3 className="font-semibold text-lg text-gray-900">{emojify(item.name)}</h3>
                       {(item.variantName || item.wristSize) && (
-                        <div className="text-sm text-pink-200">
+                        <div className="text-sm text-gray-700">
                           {item.variantName && <span>Varianta: {item.variantName}</span>}
                           {item.wristSize && (
-                            <span className="ml-1 text-pink-100/80">({item.wristSize})</span>
+                            <span className="ml-1 text-gray-600">({item.wristSize})</span>
                           )}
                         </div>
                       )}
-                      <div className="flex items-center gap-2 text-sm text-pink-700 mt-2 flex-wrap">
+                      <div className="flex items-center gap-2 text-sm text-gray-800 mt-2 flex-wrap">
                         <button onClick={() => decreaseQuantity(item)} className="px-2 py-1 bg-pink-100 hover:bg-pink-200 rounded">-</button>
                         <span>{Number(item.quantity)}</span>
                         <button

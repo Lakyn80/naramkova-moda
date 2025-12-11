@@ -4,7 +4,7 @@ import "yet-another-react-lightbox/styles.css";
 import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails";
 import "yet-another-react-lightbox/plugins/thumbnails.css";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
-import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { slugify } from "../utils/slugify";
 import { emojify } from "../utils/emojify";
@@ -25,6 +25,7 @@ export default function ProductDetail() {
   const { slug } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const { addToCart } = useCart();
   const backTarget = location.state?.from || "/shop";
 
@@ -32,6 +33,7 @@ export default function ProductDetail() {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState(null);
+  const [variantsOpen, setVariantsOpen] = useState(false);
   const variantParam = searchParams.get("variant");
   const wristParam = searchParams.get("wrist") || searchParams.get("wrist_size");
 
@@ -47,6 +49,7 @@ export default function ProductDetail() {
       image_url: baseImage,
       image: baseImage,
       media: Array.isArray(product.media) ? product.media : [],
+      stock: Number(product.stock ?? 0),
       isBase: true,
     };
 
@@ -54,6 +57,7 @@ export default function ProductDetail() {
       ? product.variants.map((v) => ({
           ...v,
           image_url: v.image_url || v.image,
+          stock: Number(v.stock ?? 0),
         }))
       : [];
 
@@ -165,8 +169,9 @@ export default function ProductDetail() {
 
     if (next && String(next.id) !== String(selectedVariantId)) {
       setSelectedVariantId(String(next.id));
+      setVariantsOpen(false);
     }
-  }, [variantOptions, variantParam, wristParam, selectedVariantId]);
+  }, [variantOptions, variantParam, wristParam]);
 
   const selectedVariant = useMemo(
     () =>
@@ -231,7 +236,10 @@ export default function ProductDetail() {
   }, [displayImages, selectedVariant]);
 
   const handleAddToCart = () => {
-    if (!product || Number(product.stock) === 0) return;
+    const activeStock = Number.isFinite(Number(selectedVariant?.stock))
+      ? Number(selectedVariant.stock)
+      : Number(product?.stock);
+    if (!product || activeStock === 0) return;
 
     const activeVariant = selectedVariant || variantOptions[0] || null;
     const isBase = activeVariant?.id === "__base__";
@@ -243,6 +251,7 @@ export default function ProductDetail() {
             variantName: activeVariant.variant_name,
             wristSize: activeVariant.wrist_size,
             image: activeVariant.image_url || activeVariant.image,
+            stock: activeStock,
           }
         : {};
 
@@ -252,7 +261,7 @@ export default function ProductDetail() {
       price: product.price,
       quantity: 1,
       image: variantPayload.image || product.image_url,
-      stock: product.stock,
+      stock: activeStock,
       ...variantPayload,
     });
   };
@@ -268,7 +277,10 @@ export default function ProductDetail() {
   }
 
   const slides = displayImages.map((src) => ({ src }));
-  const out = Number(product.stock) === 0;
+  const activeStock = Number.isFinite(Number(selectedVariant?.stock))
+    ? Number(selectedVariant.stock)
+    : Number(product.stock);
+  const out = Number(activeStock) === 0;
 
   return (
     <section className="pt-28 pb-12 bg-gradient-to-br from-pink-300 to-pink-200 min-h-screen">
@@ -294,7 +306,7 @@ export default function ProductDetail() {
                   </span>
                 ) : (
                   <span className="px-2 py-1 text-xs font-semibold rounded bg-emerald-600/90 text-white">
-                    Skladem: {product.stock}
+                    Skladem: {activeStock}
                   </span>
                 )}
               </div>
@@ -331,56 +343,98 @@ export default function ProductDetail() {
                 {product.price.toFixed(2)} Kč
               </p>
 
+              <button
+                type="button"
+                onClick={() => navigate(backTarget)}
+                className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-pink-800 hover:text-pink-900 underline decoration-2"
+              >
+                ← Zpět do obchodu
+              </button>
+
               {/* --- ZDE NOVÉ VARIANTY --- */}
               {variantOptions.length > 1 && (
-                <div className="mt-4">
+                <div className="mt-4 relative">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Vyberte variantu
                   </label>
 
-                  <div className="flex flex-col gap-2">
-                    {variantOptions.map((v) => {
-                      const active = String(v.id) === String(selectedVariantId);
+                  <button
+                    type="button"
+                    onClick={() => setVariantsOpen((v) => !v)}
+                    className="w-full border border-amber-300 rounded-xl bg-gradient-to-r from-stone-100 to-amber-50 px-4 py-3 shadow-sm hover:shadow-md flex items-center justify-between gap-3 transition"
+                  >
+                    <div className="flex items-center gap-3 text-left">
+                      {selectedVariant?.image_url && (
+                        <img
+                          src={selectedVariant.image_url}
+                          alt={selectedVariant.variant_name}
+                          className="w-12 h-12 object-cover rounded-lg border border-amber-200"
+                        />
+                      )}
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          {selectedVariant?.variant_name || "Varianta"}
+                        </div>
+                        {selectedVariant?.wrist_size && (
+                          <div className="text-xs text-gray-600">
+                            {selectedVariant.wrist_size}
+                          </div>
+                        )}
+                        {Number.isFinite(Number(selectedVariant?.stock)) && (
+                          <div className="text-xs text-emerald-700">
+                            Skladem: {Number(selectedVariant.stock)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-amber-700 text-lg leading-none">
+                      {variantsOpen ? "^" : "v"}
+                    </span>
+                  </button>
 
-                      return (
-                        <label
-                          key={v.id}
-                          className={`cursor-pointer border rounded-lg px-3 py-2 flex items-center gap-3 shadow-sm transition ${
-                            active
-                              ? "border-pink-500 bg-pink-50"
-                              : "border-gray-300 hover:bg-gray-100"
-                          }`}
-                          onClick={() => setSelectedVariantId(String(v.id))}
-                        >
-                          <input
-                            type="radio"
-                            name="variant"
-                            value={v.id}
-                            className="h-4 w-4 text-pink-600 focus:ring-pink-500"
-                            checked={active}
-                            onChange={() => setSelectedVariantId(String(v.id))}
-                          />
-
-                          {v.image_url && (
-                            <img
-                              src={v.image_url}
-                              alt={v.variant_name}
-                              className="w-10 h-10 object-cover rounded-md"
-                            />
-                          )}
-
-                          <div className="text-sm font-medium text-gray-800">
+                  {variantsOpen && (
+                    <div className="absolute z-30 mt-2 w-full rounded-xl border border-amber-200 bg-white shadow-xl max-h-64 overflow-auto">
+                      {variantOptions.map((v) => {
+                        const active = String(v.id) === String(selectedVariantId);
+                        return (
+                          <button
+                            type="button"
+                            key={v.id}
+                            onClick={() => {
+                              setSelectedVariantId(String(v.id));
+                              setVariantsOpen(false);
+                            }}
+                            className={`w-full px-4 py-3 flex items-center gap-3 text-left transition ${
+                              active
+                                ? "bg-gradient-to-r from-amber-100 to-orange-50 border-l-4 border-amber-500"
+                                : "hover:bg-amber-50"
+                            }`}
+                          >
+                            {v.image_url && (
+                              <img
+                                src={v.image_url}
+                                alt={v.variant_name}
+                                className="w-10 h-10 object-cover rounded-md border border-amber-100"
+                              />
+                            )}
+                            <div className="text-sm font-medium text-gray-900">
                             {v.variant_name || "Varianta"}
                             {v.wrist_size && (
-                              <span className="text-xs text-gray-500 block">
+                              <span className="text-xs text-gray-600 block">
                                 {v.wrist_size}
                               </span>
                             )}
+                            {Number.isFinite(Number(v.stock)) && (
+                              <span className="text-[11px] text-emerald-700 block">
+                                Skladem: {Number(v.stock)}
+                              </span>
+                            )}
                           </div>
-                        </label>
+                        </button>
                       );
                     })}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
 

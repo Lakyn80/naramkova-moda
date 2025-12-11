@@ -94,6 +94,7 @@ def product_add():
                 product_id=product.id,
                 variant_name=variant.get("variant_name"),
                 wrist_size=variant.get("wrist_size"),
+                stock=variant.get("stock") or 0,
                 image=img_name,
             )
             db.session.add(v_obj)
@@ -182,6 +183,7 @@ def product_edit(product_id):
                     product_id=product.id,
                     variant_name=variant.get("variant_name"),
                     wrist_size=variant.get("wrist_size"),
+                    stock=variant.get("stock") or 0,
                     image=img_name,
                 )
                 db.session.add(v_obj)

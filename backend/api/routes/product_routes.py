@@ -117,6 +117,12 @@ def _parse_variants_from_request():
     variants: list[dict] = []
     explicit = False
 
+    def _to_int(val, default=None):
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return default
+
     payload_json = request.get_json(silent=True) if request.is_json else None
     if isinstance(payload_json, dict) and "variants" in payload_json:
         explicit = True
@@ -129,6 +135,7 @@ def _parse_variants_from_request():
                     {
                         "variant_name": (v.get("variant_name") or v.get("name") or "").strip() or None,
                         "wrist_size": (v.get("wrist_size") or "").strip() or None,
+                        "stock": _to_int(v.get("stock"), default=0),
                         "image": (v.get("image") or "").strip() or None,
                     }
                 )
@@ -144,25 +151,29 @@ def _parse_variants_from_request():
                         continue
                     variants.append(
                         {
-                            "variant_name": (v.get("variant_name") or v.get("name") or "").strip() or None,
-                            "wrist_size": (v.get("wrist_size") or "").strip() or None,
-                            "image": (v.get("image") or "").strip() or None,
-                        }
-                    )
+                        "variant_name": (v.get("variant_name") or v.get("name") or "").strip() or None,
+                        "wrist_size": (v.get("wrist_size") or "").strip() or None,
+                        "stock": _to_int(v.get("stock"), default=0),
+                        "image": (v.get("image") or "").strip() or None,
+                    }
+                )
         except Exception:
             # pokud JSON parsování selže, prostě ignoruj
             pass
 
     names = request.form.getlist("variant_name[]")
     wrists = request.form.getlist("variant_wrist_size[]")
+    stocks = request.form.getlist("variant_stock[]")
     files = request.files.getlist("variant_image[]")
     if names or wrists or files:
         explicit = True
-    max_len = max(len(names), len(wrists), len(files))
+    max_len = max(len(names), len(wrists), len(files), len(stocks))
     existing_main_list = request.form.getlist("variant_image_existing[]")
     for i in range(max_len):
         n = names[i] if i < len(names) else ""
         w = wrists[i] if i < len(wrists) else ""
+        s_raw = stocks[i] if i < len(stocks) else None
+        s_val = _to_int(s_raw, default=0)
         f = files[i] if i < len(files) else None
         has_file = bool(f and getattr(f, "filename", None))
         existing_main = existing_main_list[i] if i < len(existing_main_list) else None
@@ -174,6 +185,7 @@ def _parse_variants_from_request():
             {
                 "variant_name": (n or None),
                 "wrist_size": (w or None),
+                "stock": s_val if s_val is not None else 0,
                 "image_file": f if has_file else None,
                 "existing_image": (existing_main or None),
                 "extra_files": [ef for ef in extra_files if getattr(ef, "filename", None)],
@@ -197,6 +209,7 @@ def _variant_dict(variant: ProductVariant):
         "id": variant.id,
         "variant_name": variant.variant_name,
         "wrist_size": variant.wrist_size,
+        "stock": variant.stock,
         "image": variant.image,
         "image_url": f"/static/uploads/{variant.image}" if variant.image else None,
         "media": [_variant_media_dict(m) for m in (variant.media or [])],
@@ -318,6 +331,7 @@ def add_product():
             product_id=p.id,
             variant_name=variant.get("variant_name"),
             wrist_size=variant.get("wrist_size"),
+            stock=variant.get("stock") or 0,
             image=img_name,
         )
         db.session.add(v_obj)
@@ -413,6 +427,7 @@ def update_product(product_id: int):
                 product_id=p.id,
                 variant_name=variant.get("variant_name"),
                 wrist_size=variant.get("wrist_size"),
+                stock=variant.get("stock") or 0,
                 image=img_name,
             )
             db.session.add(v_obj)

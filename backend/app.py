@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 # Show INFO logs even outside the werkzeug access log
 logging.basicConfig(level=logging.INFO)
 
-from flask import Flask
+from flask import Flask, send_from_directory
 from backend.config import Config
 
 # Extensions
@@ -68,6 +68,14 @@ def create_app() -> Flask:
     app.register_blueprint(client_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(debug_bp)
+
+    @app.route("/favicon.ico")
+    def favicon():
+        fav_dir = os.path.join(app.root_path, "static")
+        fav_path = os.path.join(fav_dir, "favicon.ico")
+        if os.path.exists(fav_path):
+            return send_from_directory(fav_dir, "favicon.ico", mimetype="image/vnd.microsoft.icon")
+        return ("", 204)
 
     # Diagnostics: list all routes
     @app.get("/__routes")

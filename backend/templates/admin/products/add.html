@@ -86,15 +86,19 @@
             <label class="form-label">Název varianty</label>
             <input type="text" name="variant_name[]" class="form-control" placeholder="Např. Růžová">
           </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label">Obvod / velikost</label>
-            <input type="text" name="variant_wrist_size[]" class="form-control" placeholder="16 cm">
-          </div>
-        <div class="col-12 col-md-4">
-          <label class="form-label d-flex justify-content-between align-items-center">
-            <span>Obrázek varianty</span>
-            <small class="text-muted">Nový nahradí stávající</small>
-          </label>
+      <div class="col-12 col-md-4">
+        <label class="form-label">Obvod / velikost</label>
+        <input type="text" name="variant_wrist_size[]" class="form-control" placeholder="16 cm">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label">Sklad varianty</label>
+        <input type="number" min="0" name="variant_stock[]" class="form-control" value="0" placeholder="0">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label d-flex justify-content-between align-items-center">
+          <span>Obrázek varianty</span>
+          <small class="text-muted">Nový nahradí stávající</small>
+        </label>
           <input type="file" name="variant_image[]" class="form-control variant-main-input" accept="image/*">
           <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
             <div class="variant-main-preview" style="display:none;"></div>
@@ -225,6 +229,10 @@
         <div class="col-12 col-md-4">
           <label class="form-label">Obvod / velikost</label>
           <input type="text" name="variant_wrist_size[]" class="form-control" placeholder="17 cm">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Sklad varianty</label>
+          <input type="number" min="0" name="variant_stock[]" class="form-control" value="0" placeholder="0">
         </div>
         <div class="col-12 col-md-4">
           <label class="form-label d-flex justify-content-between align-items-center">
