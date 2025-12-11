@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { slugify } from "../utils/slugify";
 
 export default function Categories() {
   const navigate = useNavigate();
@@ -9,28 +10,9 @@ export default function Categories() {
     "Tatínek", "Dědeček", "Kamarádka", "Láska", "Pro děti", "Pro páry", "Výročí", "Přátelství"
   ];
 
-  const categoryAliases = {
-    "maminka": "maminka",
-    "babička": "babička",
-    "bratr": "bratr",
-    "sestra": "sestra",
-    "děti": "děti",
-    "svatba": "svatba",
-    "jen pro radost": "jen pro radost",
-    "tatínek": "tatínek",
-    "dědeček": "dědeček",
-    "kamarádka": "kamarádka",
-    "láska": "láska",
-    "pro děti": "pro děti",
-    "pro páry": "pro páry",
-    "výročí": "výročí",
-    "přátelství": "přátelství",
-  };
-
   const handleClick = (label) => {
-    const key = (label || "").toLowerCase().trim();
-    const alias = categoryAliases[key] || key;
-    navigate(`/shop?category=${encodeURIComponent(alias)}`);
+    const slug = slugify(label || "");
+    navigate(`/category/${encodeURIComponent(slug)}`);
   };
 
   return (

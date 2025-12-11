@@ -73,6 +73,46 @@
     <div class="mt-2 thumbs-grid" id="media-preview" style="display:none;"></div>
   </div>
 
+  <!-- Varianty produktu -->
+  <div class="mb-4">
+    <label class="form-label d-flex align-items-center gap-2">
+      Varianty
+      <button type="button" class="btn btn-sm btn-outline-primary" id="add-variant-btn">+ Přidat variantu</button>
+    </label>
+    <div id="variants-container" class="d-flex flex-column gap-3">
+      <div class="border rounded p-3 variant-row">
+        <div class="row g-2">
+          <div class="col-12 col-md-4">
+            <label class="form-label">Název varianty</label>
+            <input type="text" name="variant_name[]" class="form-control" placeholder="Např. Růžová">
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">Obvod / velikost</label>
+            <input type="text" name="variant_wrist_size[]" class="form-control" placeholder="16 cm">
+          </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label d-flex justify-content-between align-items-center">
+            <span>Obrázek varianty</span>
+            <small class="text-muted">Nový nahradí stávající</small>
+          </label>
+          <input type="file" name="variant_image[]" class="form-control variant-main-input" accept="image/*">
+          <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
+            <div class="variant-main-preview" style="display:none;"></div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label">Další fotky</label>
+            <input type="file" class="form-control variant-extra-input" accept="image/*" multiple data-extra-input>
+            <div class="mt-2 d-flex flex-wrap gap-2" data-extra-preview></div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-2 text-end">
+        <button type="button" class="btn btn-sm btn-outline-danger remove-variant-btn">Odstranit</button>
+      </div>
+      </div>
+    </div>
+  </div>
+
   <div class="d-flex gap-2">
     <a href="{{ url_for('admin.products') }}" class="btn btn-outline-secondary">Zpět</a>
     <button type="submit" class="btn btn-primary">Uložit</button>
@@ -125,5 +165,102 @@
     });
     mediaPreview.style.display='flex';
   });
+</script>
+
+<script>
+  const variantsContainer = document.getElementById('variants-container');
+  const addVariantBtn = document.getElementById('add-variant-btn');
+
+  const reindexVariantRows = () => {
+    variantsContainer?.querySelectorAll('.variant-row').forEach((row, idx) => {
+      row.querySelectorAll('[data-extra-input]').forEach((inp) => {
+        inp.name = `variant_image_multi_${idx}[]`;
+      });
+      row.querySelectorAll('[data-extra-existing]').forEach((inp) => {
+        inp.name = `variant_image_existing_multi_${idx}[]`;
+      });
+    });
+  };
+
+  const bindVariantPreview = (row) => {
+    const mainInput = row.querySelector('.variant-main-input');
+    const mainPreview = row.querySelector('.variant-main-preview');
+    mainInput?.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f || !f.type.startsWith('image/')) { mainPreview.style.display = 'none'; return; }
+      const url = URL.createObjectURL(f);
+      mainPreview.innerHTML = `
+        <div class="thumb-wrap">
+          <img class="thumb" src="${url}" alt="variant new">
+          <div class="bubble"><img src="${url}" alt="variant new"></div>
+        </div>`;
+      mainPreview.style.display = 'block';
+    });
+
+    const extraInput = row.querySelector('.variant-extra-input');
+    const extraPreview = row.querySelector('[data-extra-preview]');
+    extraInput?.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files || []);
+      extraPreview.innerHTML = '';
+      files.forEach((f) => {
+        if (!f.type.startsWith('image/')) return;
+        const url = URL.createObjectURL(f);
+        const cell = document.createElement('div');
+        cell.className = 'thumb-wrap';
+        cell.innerHTML = `<img class="thumb" src="${url}" alt="variant extra"><div class="bubble"><img src="${url}" alt="variant extra big"></div>`;
+        extraPreview.appendChild(cell);
+      });
+    });
+  };
+
+  addVariantBtn?.addEventListener('click', () => {
+    const tpl = document.createElement('div');
+    tpl.className = 'border rounded p-3 variant-row';
+    tpl.innerHTML = `
+      <div class="row g-2">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Název varianty</label>
+          <input type="text" name="variant_name[]" class="form-control" placeholder="Např. Modrá">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Obvod / velikost</label>
+          <input type="text" name="variant_wrist_size[]" class="form-control" placeholder="17 cm">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label d-flex justify-content-between align-items-center">
+            <span>Obrázek varianty</span>
+            <small class="text-muted">Nový nahradí stávající</small>
+          </label>
+          <input type="file" name="variant_image[]" class="form-control variant-main-input" accept="image/*">
+          <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
+            <div class="variant-main-preview" style="display:none;"></div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label">Další fotky</label>
+            <input type="file" class="form-control variant-extra-input" accept="image/*" multiple data-extra-input>
+            <div class="mt-2 d-flex flex-wrap gap-2" data-extra-preview></div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-2 text-end">
+        <button type="button" class="btn btn-sm btn-outline-danger remove-variant-btn">Odstranit</button>
+      </div>`;
+    variantsContainer.appendChild(tpl);
+    bindVariantPreview(tpl);
+    reindexVariantRows();
+  });
+
+  variantsContainer?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('remove-variant-btn')) {
+      const row = e.target.closest('.variant-row');
+      if (row && variantsContainer.children.length > 1) {
+        row.remove();
+        reindexVariantRows();
+      }
+    }
+  });
+
+  variantsContainer?.querySelectorAll('.variant-row').forEach((row) => bindVariantPreview(row));
+  reindexVariantRows();
 </script>
 {% endblock %}

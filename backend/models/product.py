@@ -28,6 +28,14 @@ class Product(db.Model):
         cascade="all, delete-orphan",
     )
 
+    variants = db.relationship(
+        "ProductVariant",
+        back_populates="product",
+        lazy=True,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

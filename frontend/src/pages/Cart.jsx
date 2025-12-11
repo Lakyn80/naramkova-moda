@@ -40,12 +40,13 @@ export default function Cart() {
         ) : (
           <>
             <ul className="space-y-6">
-              {cartItems.map((item, index) => {
+              {cartItems.map((item) => {
                 const imageUrl = absoluteUploadUrl(item.image);
                 const max = Number.isFinite(Number(item.stock)) ? Number(item.stock) : undefined;
                 const atMax = typeof max === "number" ? Number(item.quantity) >= max : false;
+                const key = item.lineKey || item.id || item.name;
                 return (
-                  <li key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-2">
+                  <li key={key} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-2">
                     <img
                       src={imageUrl || "/placeholder.png"}
                       alt={item.name}
@@ -54,8 +55,16 @@ export default function Cart() {
                     />
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg">{emojify(item.name)}</h3>
+                      {(item.variantName || item.wristSize) && (
+                        <div className="text-sm text-pink-200">
+                          {item.variantName && <span>Varianta: {item.variantName}</span>}
+                          {item.wristSize && (
+                            <span className="ml-1 text-pink-100/80">({item.wristSize})</span>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center gap-2 text-sm text-pink-700 mt-2 flex-wrap">
-                        <button onClick={() => decreaseQuantity(item)} className="px-2 py-1 bg-pink-100 hover:bg-pink-200 rounded">−</button>
+                        <button onClick={() => decreaseQuantity(item)} className="px-2 py-1 bg-pink-100 hover:bg-pink-200 rounded">-</button>
                         <span>{Number(item.quantity)}</span>
                         <button
                           onClick={() => !atMax && increaseQuantity(item)}
@@ -118,7 +127,7 @@ export default function Cart() {
 
             <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <Link
-                to="/"
+                to="/shop"
                 className="inline-flex items-center justify-center gap-2 rounded-md bg-white/70 border border-pink-200 text-pink-700 px-4 py-2 font-semibold shadow-sm hover:bg-white transition"
               >
                 ⬅︎ Zpět do obchodu

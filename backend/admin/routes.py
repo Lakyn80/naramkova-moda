@@ -3,7 +3,14 @@ from flask import render_template, request, redirect, url_for, flash, current_ap
 from flask_login import login_required
 from . import admin_bp
 from backend.extensions import db
-from backend.models import Product, Category, ProductMedia
+from backend.models import Product, Category, ProductMedia, ProductVariant, ProductVariantMedia
+from backend.api.routes.product_routes import (
+    _parse_variants_from_request,
+    _process_and_save_image,
+    _detect_media_type,
+    _save_raw,
+)
+from backend.api.routes.product_routes import _process_and_save_image
 
 
 @admin_bp.route("/")
@@ -49,7 +56,7 @@ def product_list():
 def product_add():
     if request.method == "POST":
         name = request.form.get("name")
-        price = request.form.get("price_czk")
+        price = request.form.get("price") or request.form.get("price_czk")
         category_id = request.form.get("category_id")
 
         product = Product()
@@ -58,6 +65,45 @@ def product_add():
         product.category_id = category_id
 
         db.session.add(product)
+        db.session.flush()
+
+        image_file = request.files.get("image")
+        if image_file and image_file.filename:
+            product.image = _process_and_save_image(image_file)
+
+        for mf in request.files.getlist("media"):
+            if not mf or not mf.filename:
+                continue
+            media_type = _detect_media_type(mf.filename, mf.mimetype)
+            if media_type == "image":
+                saved_name = _process_and_save_image(mf)
+            else:
+                saved_name = _save_raw(mf)
+            db.session.add(ProductMedia(product_id=product.id, filename=saved_name, media_type=media_type))
+
+        variants_payload, _ = _parse_variants_from_request()
+        for variant in variants_payload:
+            img_name = variant.get("image") or variant.get("existing_image") or None
+            if variant.get("image_file"):
+                img_name = _process_and_save_image(variant["image_file"])
+
+            if not (variant.get("variant_name") or variant.get("wrist_size") or img_name):
+                continue
+
+            v_obj = ProductVariant(
+                product_id=product.id,
+                variant_name=variant.get("variant_name"),
+                wrist_size=variant.get("wrist_size"),
+                image=img_name,
+            )
+            db.session.add(v_obj)
+
+            for ef in variant.get("extra_files") or []:
+                saved = _process_and_save_image(ef)
+                db.session.add(ProductVariantMedia(variant=v_obj, filename=saved))
+            for keep in variant.get("existing_extra") or []:
+                db.session.add(ProductVariantMedia(variant=v_obj, filename=keep))
+
         db.session.commit()
 
         flash("Produkt byl pridan.", "success")
@@ -74,13 +120,86 @@ def product_edit(product_id):
 
     if request.method == "POST":
         product.name = request.form.get("name")
-        product.price_czk = request.form.get("price_czk")
+        price_val = request.form.get("price") or request.form.get("price_czk")
+        product.price_czk = price_val
         product.category_id = request.form.get("category_id")
+
+        image_file = request.files.get("image")
+        if image_file and image_file.filename:
+            old_image = product.image
+            product.image = _process_and_save_image(image_file)
+            if old_image and old_image != product.image:
+                try:
+                    os.remove(os.path.join(current_app.root_path, "static", "uploads", old_image))
+                except Exception:
+                    pass
+
+        for mf in request.files.getlist("media"):
+            if not mf or not mf.filename:
+                continue
+            media_type = _detect_media_type(mf.filename, mf.mimetype)
+            if media_type == "image":
+                saved_name = _process_and_save_image(mf)
+            else:
+                saved_name = _save_raw(mf)
+            db.session.add(ProductMedia(product_id=product.id, filename=saved_name, media_type=media_type))
+
+        variants_payload, variants_explicit = _parse_variants_from_request()
+
+        if variants_explicit:
+            old_variants = list(product.variants or [])
+            existing_files: set[str] = set()
+            for ov in old_variants:
+                if ov.image:
+                    existing_files.add(ov.image)
+                for mv in list(ov.media or []):
+                    if mv.filename:
+                        existing_files.add(mv.filename)
+
+            product.variants.clear()
+            new_files: set[str] = set()
+
+            for variant in variants_payload:
+                img_name = variant.get("image") or variant.get("existing_image") or None
+                if variant.get("image_file"):
+                    img_name = _process_and_save_image(variant["image_file"])
+
+                if not (variant.get("variant_name") or variant.get("wrist_size") or img_name):
+                    continue
+
+                if img_name:
+                    new_files.add(img_name)
+
+                extra_existing = variant.get("existing_extra") or []
+                extra_saved: list[str] = []
+                for ef in variant.get("extra_files") or []:
+                    extra_saved.append(_process_and_save_image(ef))
+
+                new_files.update(extra_existing)
+                new_files.update(extra_saved)
+
+                v_obj = ProductVariant(
+                    product_id=product.id,
+                    variant_name=variant.get("variant_name"),
+                    wrist_size=variant.get("wrist_size"),
+                    image=img_name,
+                )
+                db.session.add(v_obj)
+                for fn in extra_existing:
+                    db.session.add(ProductVariantMedia(variant=v_obj, filename=fn))
+                for fn in extra_saved:
+                    db.session.add(ProductVariantMedia(variant=v_obj, filename=fn))
+
+            for fname in existing_files - new_files:
+                try:
+                    os.remove(os.path.join(current_app.root_path, "static", "uploads", fname))
+                except Exception:
+                    pass
 
         db.session.commit()
 
         flash("Produkt upraven.", "success")
-        return redirect(url_for("admin.products"))
+        return redirect(url_for("admin.edit_product", product_id=product.id))
 
     categories = Category.query.all()
     return render_template("admin/products/edit.html", product=product, categories=categories)

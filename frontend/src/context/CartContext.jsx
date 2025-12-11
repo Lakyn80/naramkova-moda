@@ -3,9 +3,22 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
+  const buildLineKey = (item) => {
+    if (!item) return "";
+    if (item.variantId) return `variant-${item.variantId}`;
+    if (item.id) return `product-${item.id}`;
+    return `name-${item.name || Math.random()}`;
+  };
+
+  const normalizeItem = (item) => {
+    if (!item) return null;
+    return { ...item, lineKey: item.lineKey || buildLineKey(item) };
+  };
+
   const [cartItems, setCartItems] = useState(() => {
     const stored = localStorage.getItem("cartItems");
-    return stored ? JSON.parse(stored) : [];
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeItem).filter(Boolean) : [];
   });
   const [shippingMode, setShippingMode] = useState(() => {
     const stored = localStorage.getItem("shippingMode");
@@ -26,16 +39,17 @@ export function CartProvider({ children }) {
       ? product.price
       : parseFloat(String(product.price || product.price_czk || 0).toString().replace(",", "."));
 
-    const itemToAdd = { ...product, price: priceNum, quantity };
+    const itemToAdd = normalizeItem({ ...product, price: priceNum, quantity });
+    if (!itemToAdd) return;
 
     setCartItems((prev) => {
-      const existing = prev.find((item) => item.name === itemToAdd.name);
+      const existing = prev.find((item) => item.lineKey === itemToAdd.lineKey);
       if (existing) {
         const max = Number.isFinite(Number(existing.stock)) ? Number(existing.stock) : undefined;
         const nextQty = existing.quantity + quantity;
         const cappedQty = typeof max === "number" ? Math.min(nextQty, max) : nextQty;
         return prev.map((item) =>
-          item.name === itemToAdd.name
+          item.lineKey === itemToAdd.lineKey
             ? { ...item, quantity: cappedQty }
             : item
         );
@@ -46,13 +60,15 @@ export function CartProvider({ children }) {
   };
 
   const removeFromCart = (product) => {
-    setCartItems((prev) => prev.filter((item) => item.name !== product.name));
+    const key = product?.lineKey || buildLineKey(product);
+    setCartItems((prev) => prev.filter((item) => item.lineKey !== key));
   };
 
   const increaseQuantity = (product) => {
+    const key = product?.lineKey || buildLineKey(product);
     setCartItems((prev) =>
       prev.map((item) => {
-        if (item.name !== product.name) return item;
+        if (item.lineKey !== key) return item;
         const max = Number.isFinite(Number(item.stock)) ? Number(item.stock) : undefined;
         const next = item.quantity + 1;
         return typeof max === "number" ? { ...item, quantity: Math.min(next, max) } : { ...item, quantity: next };
@@ -61,10 +77,11 @@ export function CartProvider({ children }) {
   };
 
   const decreaseQuantity = (product) => {
+    const key = product?.lineKey || buildLineKey(product);
     setCartItems((prev) =>
       prev
         .map((item) =>
-          item.name === product.name
+          item.lineKey === key
             ? { ...item, quantity: item.quantity - 1 }
             : item
         )

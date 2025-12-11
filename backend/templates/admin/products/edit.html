@@ -4,7 +4,6 @@
 {% block content %}
 <h1 class="mb-4">✏️ Upravit produkt</h1>
 
-<!-- Styl jen pro tuto stránku: thumbnail + hover „bublina“ -->
 <style>
   .thumb-wrap{
     position:relative; width:80px; height:80px; overflow:hidden;
@@ -50,7 +49,6 @@
     <input type="number" step="0.01" name="price" value="{{ product.price_czk }}" class="form-control" required>
   </div>
 
-  <!-- ✅ Nové pole STOCK -->
   <div class="mb-3">
     <label class="form-label">Počet kusů (stock)</label>
     <input type="number" name="stock" min="0" value="{{ product.stock }}" class="form-control" required>
@@ -68,7 +66,6 @@
     </select>
   </div>
 
-  <!-- ÚVODNÍ OBRÁZEK – stávající + volba nového -->
   <div class="mb-3">
     <label class="form-label">Úvodní obrázek</label>
     {% if product.image %}
@@ -87,7 +84,6 @@
       </div>
     {% endif %}
     <input id="image-input" type="file" name="image" class="form-control" accept="image/*">
-    <!-- live náhled nově zvoleného -->
     <div class="mt-2 thumbs-grid" id="image-preview" style="display:none;">
       <div class="thumb-cell">
         <div class="thumb-wrap">
@@ -99,7 +95,6 @@
     </div>
   </div>
 
-  <!-- DALŠÍ MÉDIA – výpis existujících + mazání + možnost přidat -->
   <div class="mb-3">
     <label class="form-label">Další média</label>
     {% if product.media %}
@@ -121,7 +116,6 @@
               <div class="thumb-label">Obrázek</div>
             {% endif %}
 
-            <!-- tlačítko odešle POST na správný endpoint bez vnořeného <form> -->
             <div class="mt-1">
               <button type="submit"
                       class="btn btn-sm btn-outline-danger"
@@ -137,8 +131,99 @@
       </div>
     {% endif %}
     <input id="media-input" type="file" name="media" class="form-control" accept="image/*,video/*" multiple>
-    <!-- live náhled nově přidaných -->
     <div class="mt-2 thumbs-grid" id="media-preview" style="display:none;"></div>
+  </div>
+
+  <div class="mb-4">
+    <label class="form-label d-flex align-items-center gap-2">
+      Varianty
+      <button type="button" class="btn btn-sm btn-outline-primary" id="add-variant-btn">+ Přidat variantu</button>
+    </label>
+    <div id="variants-container" class="d-flex flex-column gap-3">
+      {% if product.variants %}
+        {% for v in product.variants %}
+          <div class="border rounded p-3 variant-row">
+          <div class="row g-2">
+            <div class="col-12 col-md-4">
+              <label class="form-label">Název varianty</label>
+              <input type="text" name="variant_name[]" class="form-control" value="{{ v.variant_name or '' }}" placeholder="Např. Růžová">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Obvod / velikost</label>
+              <input type="text" name="variant_wrist_size[]" class="form-control" value="{{ v.wrist_size or '' }}" placeholder="16 cm">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label d-flex justify-content-between align-items-center">
+                <span>Obrázek varianty</span>
+                <small class="text-muted">Nový nahradí stávající</small>
+              </label>
+              <input type="file" name="variant_image[]" class="form-control variant-main-input" accept="image/*">
+              <input type="hidden" name="variant_image_existing[]" value="{{ v.image }}">
+              <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
+                {% if v.image %}
+                  <div class="thumb-wrap">
+                    <img src="{{ url_for('static', filename='uploads/' ~ v.image) }}" alt="variant image" class="thumb">
+                    <div class="bubble"><img src="{{ url_for('static', filename='uploads/' ~ v.image) }}" alt="variant image"></div>
+                  </div>
+                {% endif %}
+                <div class="variant-main-preview" style="display:none;"></div>
+              </div>
+              <div class="mt-3">
+                <label class="form-label">Další fotky</label>
+                <input type="file" class="form-control variant-extra-input" accept="image/*" multiple data-extra-input>
+                <div class="mt-2 d-flex flex-wrap gap-2" data-extra-preview>
+                  {% for m in v.media %}
+                    {% if m.filename %}
+                      <input type="hidden" name="variant_image_existing_multi_{{ loop.parent.index0 }}[]" value="{{ m.filename }}" data-extra-existing>
+                      <div class="thumb-wrap">
+                        <img src="{{ url_for('static', filename='uploads/' ~ m.filename) }}" class="thumb" alt="variant media">
+                        <div class="bubble"><img src="{{ url_for('static', filename='uploads/' ~ m.filename) }}" alt="variant media"></div>
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+            <div class="mt-2 text-end">
+              <button type="button" class="btn btn-sm btn-outline-danger remove-variant-btn">Odstranit</button>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="border rounded p-3 variant-row">
+          <div class="row g-2">
+            <div class="col-12 col-md-4">
+              <label class="form-label">Název varianty</label>
+              <input type="text" name="variant_name[]" class="form-control" placeholder="Např. Modrá">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Obvod / velikost</label>
+              <input type="text" name="variant_wrist_size[]" class="form-control" placeholder="17 cm">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label d-flex justify-content-between align-items-center">
+                <span>Obrázek varianty</span>
+                <small class="text-muted">Nový nahradí stávající</small>
+              </label>
+              <input type="file" name="variant_image[]" class="form-control variant-main-input" accept="image/*">
+              <input type="hidden" name="variant_image_existing[]" value="">
+              <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
+                <div class="variant-main-preview" style="display:none;"></div>
+              </div>
+              <div class="mt-3">
+                <label class="form-label">Další fotky</label>
+                <input type="file" class="form-control variant-extra-input" accept="image/*" multiple data-extra-input>
+                <div class="mt-2 d-flex flex-wrap gap-2" data-extra-preview></div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-2 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-variant-btn">Odstranit</button>
+          </div>
+        </div>
+      {% endif %}
+    </div>
   </div>
 
   <div class="d-flex gap-2">
@@ -147,7 +232,6 @@
   </div>
 </form>
 
-<!-- Minimal JS pro live náhledy -->
 <script>
   const imageInput = document.getElementById('image-input');
   const imagePreview = document.getElementById('image-preview');
@@ -191,5 +275,104 @@
     });
     mediaPreview.style.display = 'flex';
   });
+</script>
+
+<script>
+  const variantsContainer = document.getElementById('variants-container');
+  const addVariantBtn = document.getElementById('add-variant-btn');
+
+  const reindexVariantRows = () => {
+    variantsContainer?.querySelectorAll('.variant-row').forEach((row, idx) => {
+      row.querySelectorAll('[data-extra-input]').forEach((inp) => {
+        inp.name = `variant_image_multi_${idx}[]`;
+      });
+      row.querySelectorAll('[data-extra-existing]').forEach((inp) => {
+        inp.name = `variant_image_existing_multi_${idx}[]`;
+      });
+    });
+  };
+
+  const bindVariantPreview = (row) => {
+    const mainInput = row.querySelector('.variant-main-input');
+    const mainPreview = row.querySelector('.variant-main-preview');
+    mainInput?.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f || !f.type.startsWith('image/')) { mainPreview.style.display = 'none'; return; }
+      const url = URL.createObjectURL(f);
+      mainPreview.innerHTML = `
+        <div class="thumb-wrap">
+          <img class="thumb" src="${url}" alt="variant new">
+          <div class="bubble"><img src="${url}" alt="variant new"></div>
+        </div>`;
+      mainPreview.style.display = 'block';
+    });
+
+    const extraInput = row.querySelector('.variant-extra-input');
+    const extraPreview = row.querySelector('[data-extra-preview]');
+    extraInput?.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files || []);
+      extraPreview.innerHTML = '';
+      files.forEach((f) => {
+        if (!f.type.startsWith('image/')) return;
+        const url = URL.createObjectURL(f);
+        const cell = document.createElement('div');
+        cell.className = 'thumb-wrap';
+        cell.innerHTML = `<img class="thumb" src="${url}" alt="variant extra"><div class="bubble"><img src="${url}" alt="variant extra big"></div>`;
+        extraPreview.appendChild(cell);
+      });
+    });
+  };
+
+  addVariantBtn?.addEventListener('click', () => {
+    const tpl = document.createElement('div');
+    tpl.className = 'border rounded p-3 variant-row';
+    tpl.innerHTML = `
+      <div class="row g-2">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Název varianty</label>
+          <input type="text" name="variant_name[]" class="form-control" placeholder="Např. Modrá">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Obvod / velikost</label>
+          <input type="text" name="variant_wrist_size[]" class="form-control" placeholder="17 cm">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label d-flex justify-content-between align-items-center">
+            <span>Obrázek varianty</span>
+            <small class="text-muted">Nový nahradí stávající</small>
+          </label>
+          <input type="file" name="variant_image[]" class="form-control variant-main-input" accept="image/*">
+          <input type="hidden" name="variant_image_existing[]" value="">
+          <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
+            <div class="variant-main-preview" style="display:none;"></div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label">Další fotky</label>
+            <input type="file" class="form-control variant-extra-input" accept="image/*" multiple data-extra-input>
+            <div class="mt-2 d-flex flex-wrap gap-2" data-extra-preview></div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-2 text-end">
+        <button type="button" class="btn btn-sm btn-outline-danger remove-variant-btn">Odstranit</button>
+      </div>`;
+    variantsContainer.appendChild(tpl);
+    bindVariantPreview(tpl);
+    reindexVariantRows();
+  });
+
+  variantsContainer?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('remove-variant-btn')) {
+      const row = e.target.closest('.variant-row');
+      if (row && variantsContainer.children.length > 1) {
+        row.remove();
+        reindexVariantRows();
+      }
+    }
+  });
+
+  // init previews + indexes
+  variantsContainer?.querySelectorAll('.variant-row').forEach((row) => bindVariantPreview(row));
+  reindexVariantRows();
 </script>
 {% endblock %}

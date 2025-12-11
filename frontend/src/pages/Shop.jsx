@@ -1,8 +1,15 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, {
+  useState,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  useMemo,
+} from "react";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { emojify } from "../utils/emojify";
-import { slugify } from "../utils/slugify"; // ✅ přidáno
+import { slugify } from "../utils/slugify";
 
 // aliasy kategorií (ponecháno pro kompatibilitu)
 const categoryAliases = {
@@ -43,13 +50,12 @@ const PAGE_SIZE = COLS * ROWS;
 
 // pomocná funkce pro pěkné stránkování s elipsami
 function getPageList(current, total) {
-  const pages = [];
-  const delta = 1; // sousedé kolem aktuální stránky
+  const delta = 1; // sousedící kolem aktuální stránky
   const range = [];
   const rangeWithDots = [];
   let l;
 
-  // vždy ukážeme 1, poslední, aktuální ±1 a „kotvy“ 2 a total-1 podle potřeby
+  // vždy ukážeme 1, poslední, aktuální ±1 a případně 2 a total-1 podle potřeby
   for (let i = 1; i <= total; i++) {
     if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
       range.push(i);
@@ -77,19 +83,35 @@ function getPageList(current, total) {
   return rangeWithDots;
 }
 
-const Shop = forwardRef(function Shop(_, ref) {
+const Shop = forwardRef(function Shop({ categorySlug }, ref) {
   const { addToCart } = useCart();
+  const params = useParams();
   const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const urlCategory = params.get("category");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const routeCategorySlug = params?.slug;
+  const forcedCategory = categorySlug || routeCategorySlug || null;
+  const wristSizeParam = searchParams.get("wrist_size") || searchParams.get("wrist") || "";
+  const persistKey = forcedCategory ? `filters-${forcedCategory}` : "filters-shop";
 
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("");
+  const [wristFilter, setWristFilter] = useState("");
 
   // pagination
   const [page, setPage] = useState(1);
+  const [filtersReady, setFiltersReady] = useState(false);
+  const hydratedRef = useRef(false);
+
+  const normalizeList = (arr = []) => Array.from(new Set((arr || []).filter(Boolean)));
+  const arraysEqual = (a = [], b = []) => {
+    const na = normalizeList(a).sort();
+    const nb = normalizeList(b).sort();
+    if (na.length !== nb.length) return false;
+    return na.every((v, idx) => v === nb[idx]);
+  };
 
   useImperativeHandle(ref, () => ({
     scrollIntoView: () => {
@@ -99,46 +121,197 @@ const Shop = forwardRef(function Shop(_, ref) {
   }));
 
   useEffect(() => {
-    // fetch(`${API_BASE}/api/categories/`)
     fetch(`${API_BASE}/categories/`) // ✅ base je /api, proto bez dalšího /api
       .then((res) => res.json())
       .then((data) => {
-        setCategories(data);
-        const all = data.map((cat) => toAlias((cat.name || "").toLowerCase()));
-        if (urlCategory && all.includes(urlCategory)) {
-          setSelectedCategories([urlCategory]);
-        } else {
-          setSelectedCategories(all);
-        }
+        const mapped = (data || []).map((cat) => {
+          const alias = toAlias((cat.name || "").toLowerCase());
+          const slug = cat.slug || slugify(cat.name || "");
+          return { ...cat, alias, slug, key: slug || alias };
+        });
+        setCategories(mapped);
       })
-      .catch((err) => console.error("Chyba při načítání kategorií:", err));
-  }, [urlCategory]);
+      .catch((err) => console.error("Chyba při načtení kategorií:", err));
+  }, []);
 
   useEffect(() => {
-    // fetch(`${API_BASE}/api/products/`)
-    fetch(`${API_BASE}/products/`) // ✅ base je /api, proto bez dalšího /api
-      .then((res) => res.json())
-      .then((data) => {
-        const mapped = (data || []).map((p) => {
-          const priceNumber =
-            typeof p.price === "number"
-              ? p.price
-              : typeof p.price_czk === "number"
-              ? p.price_czk
-              : Number(p.price) || 0;
+    const mapProduct = (p) => {
+      const priceNumber =
+        typeof p.price === "number"
+          ? p.price
+          : typeof p.price_czk === "number"
+          ? p.price_czk
+          : Number(p.price) || 0;
 
-          return {
-            ...p,
-            image: absoluteUploadUrl(p.image_url || p.image),
-            price: priceNumber,
-            stock: Number(p.stock ?? 0), // ✅ přenést stock
-            category: { name: p.category_name || "" },
-          };
-        });
-        setProducts(mapped);
+      const categoryKey = p.category_slug || toAlias((p.category_name || "").toLowerCase());
+      const variants = Array.isArray(p.variants)
+        ? p.variants.map((v) => ({
+            ...v,
+            image_url: absoluteUploadUrl(v.image_url || v.image),
+            media: Array.isArray(v.media)
+              ? v.media.map((m) => ({
+                  ...m,
+                  image_url: absoluteUploadUrl(m.image_url || m.image),
+                }))
+              : [],
+          }))
+        : [];
+
+      return {
+        ...p,
+        image: absoluteUploadUrl(p.image_url || p.image),
+        price: priceNumber,
+        stock: Number(p.stock ?? 0),
+        category: { name: p.category_name || "", slug: p.category_slug || categoryKey },
+        category_key: categoryKey,
+        media: Array.isArray(p.media) ? p.media.map((m) => absoluteUploadUrl(m)) : [],
+        variants,
+      };
+    };
+
+    if (forcedCategory) {
+      const qs = wristSizeParam ? `?wrist_size=${encodeURIComponent(wristSizeParam)}` : "";
+      fetch(`${API_BASE}/categories/${forcedCategory}${qs}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const list = Array.isArray(data?.products) ? data.products : [];
+          setProducts(list.map(mapProduct));
+        })
+        .catch((err) => console.error("Chyba načtení produktů kategorie:", err));
+    } else {
+      fetch(`${API_BASE}/products/`) // ✅ base je /api, proto bez dalšího /api
+        .then((res) => res.json())
+        .then((data) => setProducts((data || []).map(mapProduct)))
+        .catch((err) => console.error("Chyba načtení produktů:", err));
+    }
+  }, [forcedCategory, wristSizeParam]);
+
+  useEffect(() => {
+    const storedRaw = localStorage.getItem(persistKey);
+    const stored = storedRaw ? JSON.parse(storedRaw) : null;
+    const hasParamCategories = searchParams.has("categories");
+    const rawParamCategories = searchParams.get("categories");
+    const legacyCategory = searchParams.get("category");
+    const parsedCats =
+      hasParamCategories && rawParamCategories !== null
+        ? rawParamCategories
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean)
+        : null;
+    const allKeys = categories.map((cat) => cat.key);
+    const storedPage = parseInt(searchParams.get("page") || stored?.page || "1", 10);
+    const storedSort = searchParams.get("sort") || stored?.sortBy || "";
+    const storedWrist =
+      searchParams.get("wrist") ||
+      searchParams.get("wrist_size") ||
+      stored?.wristFilter ||
+      "";
+
+    let nextCats;
+    if (parsedCats !== null) {
+      nextCats = parsedCats;
+    } else {
+      nextCats = (legacyCategory ? [legacyCategory] : null) || stored?.categories || null;
+      if (!nextCats || !nextCats.length) {
+        nextCats = forcedCategory ? [forcedCategory] : allKeys;
+      }
+      if (forcedCategory && nextCats && !nextCats.includes(forcedCategory)) {
+        nextCats = [forcedCategory, ...nextCats];
+      }
+    }
+
+    if (!arraysEqual(selectedCategories, nextCats)) {
+      setSelectedCategories(normalizeList(nextCats));
+    }
+
+    const urlSearch = searchParams.get("q");
+    const nextSearch = urlSearch !== null ? urlSearch : stored?.searchTerm || "";
+    if (searchTerm !== nextSearch) {
+      setSearchTerm(nextSearch);
+    }
+
+    if (sortBy !== storedSort) {
+      setSortBy(storedSort);
+    }
+
+    if (wristFilter !== storedWrist) {
+      setWristFilter(storedWrist);
+    }
+
+    if (!Number.isNaN(storedPage) && storedPage > 0 && page !== storedPage) {
+      setPage(storedPage);
+    }
+
+    setFiltersReady(true);
+  }, [categories, forcedCategory, searchParams, persistKey]);
+
+  useEffect(() => {
+    if (!filtersReady) return;
+    const normalizedCats = normalizeList(selectedCategories);
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (normalizedCats.length) {
+      params.set("categories", normalizedCats.join(","));
+    } else {
+      // explicit prázdná hodnota značí „žádné kategorie“
+      params.set("categories", "");
+    }
+
+    if (searchTerm) {
+      params.set("q", searchTerm);
+    } else {
+      params.delete("q");
+    }
+
+    if (sortBy) {
+      params.set("sort", sortBy);
+    } else {
+      params.delete("sort");
+    }
+
+    if (wristFilter) {
+      params.set("wrist", wristFilter);
+    } else {
+      params.delete("wrist");
+    }
+
+    if (page > 1) {
+      params.set("page", String(page));
+    } else {
+      params.delete("page");
+    }
+
+    setSearchParams(params, { replace: true });
+    localStorage.setItem(
+      persistKey,
+      JSON.stringify({
+        categories: normalizedCats,
+        searchTerm: searchTerm || "",
+        sortBy,
+        wristFilter,
+        page,
       })
-      .catch((err) => console.error("Chyba načítání produktů:", err));
-  }, []);
+    );
+  }, [
+    selectedCategories,
+    searchTerm,
+    sortBy,
+    wristFilter,
+    page,
+    filtersReady,
+    persistKey,
+    searchParams,
+    forcedCategory,
+  ]);
+
+  useEffect(() => {
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      return;
+    }
+    setPage(1);
+  }, [searchTerm, selectedCategories, wristFilter, sortBy]);
 
   const toggleCat = (cat) =>
     setSelectedCategories((prev) =>
@@ -146,44 +319,85 @@ const Shop = forwardRef(function Shop(_, ref) {
     );
 
   const selectAll = () => {
-    const all = categories.map((cat) => toAlias((cat.name || "").toLowerCase()));
+    const all = categories.map((cat) => cat.key);
     setSelectedCategories(all);
   };
 
-  const deselectAll = () => setSelectedCategories([]);
+  const deselectAll = () => {
+    setSelectedCategories([]);
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.set("categories", "");
+      params.delete("page");
+      return params;
+    }, { replace: true });
+  };
+
+  const allWristSizes = useMemo(() => {
+    const sizes = [];
+    products.forEach((p) => {
+      (p.variants || []).forEach((v) => {
+        if (v.wrist_size) {
+          sizes.push(v.wrist_size);
+        }
+      });
+    });
+    return Array.from(new Set(sizes.filter(Boolean))).sort();
+  }, [products]);
 
   // groupy kategorií (podpora group z backendu)
   const groupedCategories = categories.reduce((acc, cat) => {
-    const aliased = toAlias((cat.name || "").toLowerCase());
     const grp = cat.group || "Ostatní";
     if (!acc[grp]) acc[grp] = [];
-    acc[grp].push({ ...cat, alias: aliased });
+    acc[grp].push(cat);
     return acc;
   }, {});
 
   const filteredProducts = products.filter((p) => {
-    const raw = p?.category?.name?.toLowerCase().trim() || "";
-    const cat = toAlias(raw);
-    const matchesCat = selectedCategories.includes(cat);
-    const matchesText = (p.name || "")
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    return matchesCat && matchesText;
+    const catKey = p.category_key || "";
+    const matchesCat =
+      !selectedCategories.length || selectedCategories.includes(catKey) || !categories.length;
+    const matchesText = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesWrist =
+      !wristFilter ||
+      (Array.isArray(p.variants) &&
+        p.variants.some(
+          (v) => (v.wrist_size || "").toLowerCase() === wristFilter.toLowerCase()
+        ));
+    return matchesCat && matchesText && matchesWrist;
   });
 
-  // reset stránkování při změně filtru/hladání
-  useEffect(() => {
-    setPage(1);
-  }, [searchTerm, selectedCategories]);
+  const sortedProducts = useMemo(() => {
+    const list = [...filteredProducts];
+    switch (sortBy) {
+      case "price_asc":
+        return list.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+      case "price_desc":
+        return list.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+      case "name_asc":
+        return list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+      case "name_desc":
+        return list.sort((a, b) => String(b.name || "").localeCompare(String(a.name || "")));
+      default:
+        return list;
+    }
+  }, [filteredProducts, sortBy]);
 
-  const total = filteredProducts.length;
+  // reset stránkování při změně filtru/hledání
+  const total = sortedProducts.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
-  const pageItems = filteredProducts.slice(start, start + PAGE_SIZE);
+  const pageItems = sortedProducts.slice(start, start + PAGE_SIZE);
 
   // pro status v patičce stránkování
   const shownFrom = total === 0 ? 0 : start + 1;
   const shownTo = Math.min(start + PAGE_SIZE, total);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   return (
     <section
@@ -211,25 +425,21 @@ const Shop = forwardRef(function Shop(_, ref) {
                     <strong>{groupName.toUpperCase()}</strong>
                     <button
                       onClick={() => {
-                        const allAliases = cats.map((c) => c.alias);
-                        const allSelected = cats.every((c) =>
-                          selectedCategories.includes(c.alias)
-                        );
+                        const allKeys = cats.map((c) => c.key);
+                        const allSelected = cats.every((c) => selectedCategories.includes(c.key));
                         if (allSelected) {
                           setSelectedCategories((prev) =>
-                            prev.filter((c) => !allAliases.includes(c)
-                          ));
+                            prev.filter((c) => !allKeys.includes(c))
+                          );
                         } else {
                           setSelectedCategories((prev) => [
-                            ...new Set([...prev, ...allAliases]),
+                            ...new Set([...prev, ...allKeys]),
                           ]);
                         }
                       }}
                       className="text-sm text-pink-200 hover:underline"
                     >
-                      {cats.every((c) => selectedCategories.includes(c.alias))
-                        ? "Odebrat"
-                        : "Vybrat"}
+                      {cats.every((c) => selectedCategories.includes(c.key)) ? "Odebrat" : "Vybrat"}
                     </button>
                   </div>
                   <ul className="ml-4 mt-1 space-y-1">
@@ -238,8 +448,8 @@ const Shop = forwardRef(function Shop(_, ref) {
                         <label className="flex items-center space-x-2">
                           <input
                             type="checkbox"
-                            checked={selectedCategories.includes(cat.alias)}
-                            onChange={() => toggleCat(cat.alias)}
+                            checked={selectedCategories.includes(cat.key)}
+                            onChange={() => toggleCat(cat.key)}
                           />
                           <span>{cat.name}</span>
                         </label>
@@ -262,6 +472,37 @@ const Shop = forwardRef(function Shop(_, ref) {
               >
                 Odebrat vše
               </button>
+              {allWristSizes.length > 0 && (
+                <div className="pt-2 space-y-1">
+                  <label className="block text-sm font-semibold">Obvod</label>
+                  <select
+                    value={wristFilter}
+                    onChange={(e) => setWristFilter(e.target.value)}
+                    className="w-full px-3 py-2 border rounded text-black"
+                  >
+                    <option value="">Všechny obvody</option>
+                    {allWristSizes.map((w) => (
+                      <option key={w} value={w}>
+                        {w}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="pt-2 space-y-1">
+                <label className="block text-sm font-semibold">Řazení</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full px-3 py-2 border rounded text-black"
+                >
+                  <option value="">Dle výchozího</option>
+                  <option value="price_asc">Cena: od nejnižší</option>
+                  <option value="price_desc">Cena: od nejvyšší</option>
+                  <option value="name_asc">Název: A -> Z</option>
+                  <option value="name_desc">Název: Z -> A</option>
+                </select>
+              </div>
             </div>
           </aside>
 
@@ -296,9 +537,13 @@ const Shop = forwardRef(function Shop(_, ref) {
                     />
                     <div className="p-4 flex flex-col flex-grow">
                       <div className="flex items-start justify-between gap-2">
-                        {/* ✅ Sjednocení s Galerií: používáme slug */}
+                        {/* ✅ Sjednoceno s Galerií: používáme slug */}
                         <Link
-                          to={`/shop/${slugify(product.name)}`}
+                          to={{
+                            pathname: `/shop/${slugify(product.name)}`,
+                            search: location.search || undefined,
+                            state: { from: `${location.pathname}${location.search}` || "/shop" },
+                          }}
                           className="text-lg font-semibold mb-2 hover:underline text-white"
                         >
                           {emojify(product.name)}
@@ -353,7 +598,7 @@ const Shop = forwardRef(function Shop(_, ref) {
                   {/* status řádku */}
                   <div className="text-sm text-pink-100/90">
                     Zobrazeno <span className="font-semibold">{shownFrom}</span>
-                    {"–"}
+                    {" "}
                     <span className="font-semibold">{shownTo}</span> z{" "}
                     <span className="font-semibold">{total}</span>
                   </div>

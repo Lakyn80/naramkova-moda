@@ -7,6 +7,7 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=True)
+    slug = db.Column(db.String(150), unique=True, nullable=True)
     group = db.Column(db.String(100), nullable=True)
 
     products = db.relationship("Product", back_populates="category", lazy=True)

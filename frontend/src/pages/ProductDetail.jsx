@@ -4,14 +4,14 @@ import "yet-another-react-lightbox/styles.css";
 import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails";
 import "yet-another-react-lightbox/plugins/thumbnails.css";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
-import { useParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { slugify } from "../utils/slugify";
 import { emojify } from "../utils/emojify";
+import { absoluteUploadUrl } from "../utils/image";
 
-const API_BASE = `${window.location.origin}/api`;
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.origin}/api`;
 
-// ✅ emoji vykreslí mimo gradient
 function renderEmojiSafe(text) {
   const s = String(text ?? "");
   const parts = s.split(/([\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}])/gu);
@@ -23,19 +23,56 @@ function renderEmojiSafe(text) {
 
 export default function ProductDetail() {
   const { slug } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const { addToCart } = useCart();
+  const backTarget = location.state?.from || "/shop";
 
   const [product, setProduct] = useState(null);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState(null);
+  const variantParam = searchParams.get("variant");
+  const wristParam = searchParams.get("wrist") || searchParams.get("wrist_size");
+
+  const variantOptions = useMemo(() => {
+    if (!product) return [];
+
+    const baseImage =
+      (Array.isArray(product.images) ? product.images[0] : null) || product.image_url;
+    const baseVariant = {
+      id: "__base__",
+      variant_name: product.name || "Puvodni varianta",
+      wrist_size: "",
+      image_url: baseImage,
+      image: baseImage,
+      media: Array.isArray(product.media) ? product.media : [],
+      isBase: true,
+    };
+
+    const normalizedVariants = Array.isArray(product.variants)
+      ? product.variants.map((v) => ({
+          ...v,
+          image_url: v.image_url || v.image,
+        }))
+      : [];
+
+    return [baseVariant, ...normalizedVariants];
+  }, [product]);
 
   useEffect(() => {
+    let isMounted = true;
+
     (async () => {
       try {
         const res = await fetch(`${API_BASE}/products/`);
         const data = await res.json();
 
-        const found = (data || []).find((p) => slugify(p?.name || "") === slug);
+        if (!isMounted) return;
+
+        const found = (data || []).find(
+          (p) => slugify(p?.name || "").replace(/-+/g, "-") === slug
+        );
         if (!found) {
           setProduct(null);
           return;
@@ -48,37 +85,175 @@ export default function ProductDetail() {
             ? found.price_czk
             : Number(found.price) || 0;
 
-        const mediaUrls = Array.isArray(found.media) ? found.media.filter(Boolean) : [];
-        const images = [found.image_url, ...mediaUrls]
+        const normalizeImageUrl = (u) => {
+          if (!u) return null;
+          return absoluteUploadUrl(u);
+        };
+
+        const mapMediaEntry = (m) => {
+          if (!m) return null;
+          if (typeof m === "string") return normalizeImageUrl(m);
+          return normalizeImageUrl(m.image_url || m.image);
+        };
+
+        const variants = Array.isArray(found.variants)
+          ? found.variants.map((v) => ({
+              ...v,
+              image_url: normalizeImageUrl(v.image_url || v.image),
+              image: normalizeImageUrl(v.image || v.image_url),
+              media: Array.isArray(v.media)
+                ? v.media.map((m) => ({
+                    ...m,
+                    image_url: mapMediaEntry(m),
+                    image: mapMediaEntry(m),
+                  }))
+                : [],
+            }))
+          : [];
+
+        const baseMediaRaw = Array.isArray(found.media)
+          ? found.media
+          : Array.isArray(found.images)
+          ? found.images
+          : [];
+
+        const baseMedia = baseMediaRaw.map(mapMediaEntry).filter(Boolean);
+
+        const baseImages = [
+          normalizeImageUrl(found.image_url || found.image),
+          ...baseMedia,
+        ]
           .filter(Boolean)
           .filter((v, i, a) => a.indexOf(v) === i);
 
-        // 💡 doplněn stock (default 1 pokud BE neposlal)
         const stockNumber = Number(found.stock ?? 1);
 
         setProduct({
           ...found,
           stock: Number.isFinite(stockNumber) && stockNumber >= 0 ? stockNumber : 1,
           price,
-          image_url: found.image_url,
-          images,
+          image_url: baseImages[0] || null,
+          images: baseImages,
+          media: baseMedia,
+          variants,
         });
+
         setPhotoIndex(0);
         setIsOpen(false);
       } catch (err) {
         console.error("Chyba při načítání produktu:", err);
       }
     })();
+
+    return () => {
+      isMounted = false;
+    };
   }, [slug]);
+
+  useEffect(() => {
+    if (!variantOptions.length) return;
+
+    const next =
+      variantOptions.find((v) => String(v.id) === String(variantParam)) ||
+      variantOptions.find(
+        (v) =>
+          wristParam &&
+          v.wrist_size &&
+          v.wrist_size.toLowerCase() === String(wristParam).toLowerCase()
+      ) ||
+      variantOptions[0];
+
+    if (next && String(next.id) !== String(selectedVariantId)) {
+      setSelectedVariantId(String(next.id));
+    }
+  }, [variantOptions, variantParam, wristParam, selectedVariantId]);
+
+  const selectedVariant = useMemo(
+    () =>
+      variantOptions.find((v) => String(v.id) === String(selectedVariantId)) ||
+      null,
+    [variantOptions, selectedVariantId]
+  );
+
+  const baseImages = useMemo(() => {
+    if (!product) return [];
+    const baseList = Array.isArray(product.images) ? product.images : [];
+    const fallback = product.image_url ? [product.image_url] : [];
+    return Array.from(new Set([...fallback, ...baseList].filter(Boolean)));
+  }, [product]);
+
+  const displayImages = useMemo(() => {
+    if (!product) return [];
+    const variantImages = [];
+
+    if (selectedVariant) {
+      const preferred = selectedVariant.image_url || selectedVariant.image;
+      if (preferred) variantImages.push(preferred);
+
+      if (Array.isArray(selectedVariant.media)) {
+        selectedVariant.media.forEach((m) => {
+          const img = m?.image_url || m?.image;
+          if (img) variantImages.push(img);
+        });
+      }
+    }
+
+    const uniqueVariantImages = Array.from(new Set(variantImages.filter(Boolean)));
+    if (uniqueVariantImages.length) {
+      const merged = [...uniqueVariantImages];
+      baseImages.forEach((img) => {
+        if (!merged.includes(img)) merged.push(img);
+      });
+      return merged;
+    }
+
+    return baseImages;
+  }, [product, selectedVariant, baseImages]);
+
+  useEffect(() => {
+    if (!displayImages.length) {
+      setPhotoIndex(0);
+      return;
+    }
+
+    const preferred =
+      selectedVariant?.image_url || selectedVariant?.image;
+
+    if (preferred) {
+      const idx = displayImages.indexOf(preferred);
+      if (idx !== -1) {
+        setPhotoIndex(idx);
+        return;
+      }
+    }
+
+    setPhotoIndex((idx) => Math.min(idx, displayImages.length - 1));
+  }, [displayImages, selectedVariant]);
 
   const handleAddToCart = () => {
     if (!product || Number(product.stock) === 0) return;
+
+    const activeVariant = selectedVariant || variantOptions[0] || null;
+    const isBase = activeVariant?.id === "__base__";
+
+    const variantPayload =
+      activeVariant && !isBase
+        ? {
+            variantId: activeVariant.id,
+            variantName: activeVariant.variant_name,
+            wristSize: activeVariant.wrist_size,
+            image: activeVariant.image_url || activeVariant.image,
+          }
+        : {};
+
     addToCart({
       id: product.id,
       name: product.name,
       price: product.price,
       quantity: 1,
-      image: product.image_url,
+      image: variantPayload.image || product.image_url,
+      stock: product.stock,
+      ...variantPayload,
     });
   };
 
@@ -92,17 +267,26 @@ export default function ProductDetail() {
     );
   }
 
-  const slides = product.images.map((src) => ({ src }));
+  const slides = displayImages.map((src) => ({ src }));
   const out = Number(product.stock) === 0;
 
   return (
     <section className="pt-28 pb-12 bg-gradient-to-br from-pink-300 to-pink-200 min-h-screen">
       <div className="container mx-auto max-w-4xl px-4">
+        <div className="mb-4">
+          <Link
+            to={backTarget}
+            className="inline-flex items-center gap-2 text-pink-800 font-semibold hover:underline"
+          >
+            Zpět do obchodu
+          </Link>
+        </div>
+
         <div className="bg-white/20 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-white/40">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+
             {/* Obrázky */}
             <div className="space-y-4 relative">
-              {/* Odznak skladu v detailu */}
               <div className="absolute top-2 left-2 z-10">
                 {out ? (
                   <span className="px-2 py-1 text-xs font-semibold rounded bg-red-600/90 text-white">
@@ -116,13 +300,14 @@ export default function ProductDetail() {
               </div>
 
               <img
-                src={product.images[photoIndex]}
+                src={displayImages[photoIndex] || "/placeholder.png"}
                 alt={product.name}
                 className="w-full h-[260px] sm:h-[300px] md:h-[360px] object-cover rounded-xl shadow-lg cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
-                onClick={() => setIsOpen(true)}
+                onClick={() => displayImages.length && setIsOpen(true)}
               />
+
               <div className="flex gap-2 flex-wrap justify-center sm:justify-start">
-                {product.images.map((img, i) => (
+                {displayImages.map((img, i) => (
                   <img
                     key={i}
                     src={img}
@@ -141,10 +326,65 @@ export default function ProductDetail() {
               <h2 className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent drop-shadow-lg">
                 {renderEmojiSafe(emojify(product.name))}
               </h2>
+
               <p className="text-xl font-semibold text-pink-700 mt-2 drop-shadow-sm">
                 {product.price.toFixed(2)} Kč
               </p>
-              <p className="mt-3 text-base sm:text-lg text-gray-800 leading-relaxed">
+
+              {/* --- ZDE NOVÉ VARIANTY --- */}
+              {variantOptions.length > 1 && (
+                <div className="mt-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Vyberte variantu
+                  </label>
+
+                  <div className="flex flex-col gap-2">
+                    {variantOptions.map((v) => {
+                      const active = String(v.id) === String(selectedVariantId);
+
+                      return (
+                        <label
+                          key={v.id}
+                          className={`cursor-pointer border rounded-lg px-3 py-2 flex items-center gap-3 shadow-sm transition ${
+                            active
+                              ? "border-pink-500 bg-pink-50"
+                              : "border-gray-300 hover:bg-gray-100"
+                          }`}
+                          onClick={() => setSelectedVariantId(String(v.id))}
+                        >
+                          <input
+                            type="radio"
+                            name="variant"
+                            value={v.id}
+                            className="h-4 w-4 text-pink-600 focus:ring-pink-500"
+                            checked={active}
+                            onChange={() => setSelectedVariantId(String(v.id))}
+                          />
+
+                          {v.image_url && (
+                            <img
+                              src={v.image_url}
+                              alt={v.variant_name}
+                              className="w-10 h-10 object-cover rounded-md"
+                            />
+                          )}
+
+                          <div className="text-sm font-medium text-gray-800">
+                            {v.variant_name || "Varianta"}
+                            {v.wrist_size && (
+                              <span className="text-xs text-gray-500 block">
+                                {v.wrist_size}
+                              </span>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <p className="mt-3 text-base sm:text-lg text-gray-800 leading-relaxed" style={{ whiteSpace: "pre-line" }}>
                 {emojify(product.description || "Detail produktu zde.")}
               </p>
 
@@ -160,12 +400,13 @@ export default function ProductDetail() {
               >
                 {out ? "Vyprodáno" : "Přidat do košíku"}
               </button>
+
             </div>
           </div>
         </div>
       </div>
 
-      {isOpen && (
+      {isOpen && slides.length > 0 && (
         <Lightbox
           open={isOpen}
           close={() => setIsOpen(false)}

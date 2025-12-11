@@ -7,6 +7,7 @@ import Categories from "./components/Categories";
 import Gallery from "./components/Gallery";
 import Footer from "./components/Footer";
 import Shop from "./pages/Shop";
+import Category from "./pages/Category";
 import ProductDetail from "./pages/ProductDetail";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
@@ -39,6 +40,7 @@ export default function App() {
               }
             />
             <Route path="/shop" element={<Shop ref={shopRef} />} />
+            <Route path="/category/:slug" element={<Category />} />
             <Route path="/shop/:slug" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />

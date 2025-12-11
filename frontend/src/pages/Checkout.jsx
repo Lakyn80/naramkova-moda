@@ -96,7 +96,10 @@ export default function Checkout() {
         shippingMode,
         items: cartItems.map((item) => ({
           id: item.id,
-          name: item.name,
+          variantId: item.variantId,
+          name: item.variantName
+            ? `${item.name} (${item.variantName}${item.wristSize ? ` / ${item.wristSize}` : ""})`
+            : item.name,
           quantity: Number(item.quantity) || 0,
           price: Number(item.price) || 0,
         })),
@@ -205,12 +208,18 @@ export default function Checkout() {
             <div>
               <h3 className="text-xl font-semibold mb-4">Vaše objednávka:</h3>
               <ul className="space-y-2 text-pink-800 text-sm">
-                {cartItems.map((item, index) => (
-                  <li key={index} className="flex justify-between">
-                    <span>{Number(item.quantity)}× {item.name}</span>
-                    <span>{toMoney(Number(item.quantity) * Number(item.price)).toFixed(2)} Kč</span>
-                  </li>
-                ))}
+                {cartItems.map((item) => {
+                  const lineName = item.variantName
+                    ? `${item.name} (${item.variantName}${item.wristSize ? ` / ${item.wristSize}` : ""})`
+                    : item.name;
+                  const key = item.lineKey || `${item.id}-${lineName}`;
+                  return (
+                    <li key={key} className="flex justify-between">
+                      <span>{Number(item.quantity)}× {lineName}</span>
+                      <span>{toMoney(Number(item.quantity) * Number(item.price)).toFixed(2)} Kč</span>
+                    </li>
+                  );
+                })}
               </ul>
               <div className="mt-4 text-right text-sm">Mezisoučet: {toMoney(subtotal).toFixed(2)} Kč</div>
               <div className="text-right text-sm">
