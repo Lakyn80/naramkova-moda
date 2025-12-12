@@ -125,6 +125,14 @@ def product_edit(product_id):
         product.price_czk = price_val
         product.category_id = request.form.get("category_id")
 
+        if request.form.get("delete_image") == "1":
+          if product.image:
+            try:
+              os.remove(os.path.join(current_app.root_path, "static", "uploads", product.image))
+            except Exception:
+              pass
+          product.image = None
+
         image_file = request.files.get("image")
         if image_file and image_file.filename:
             old_image = product.image

@@ -18,15 +18,14 @@
   }
   .thumb-wrap:hover .bubble{ display:block; }
   .thumb-wrap .bubble img{ width:360px; height:360px; object-fit:cover; border-radius:8px; display:block; }
-  .thumb-wrap .bubble::after{
-    content:""; position:absolute; left:-10px; top:34px;
-    border-width:10px; border-style:solid;
-    border-color:transparent #fff transparent transparent;
-    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.10));
-  }
   .thumbs-grid{ display:flex; flex-wrap:wrap; gap:12px; }
   .thumb-cell{ display:flex; flex-direction:column; align-items:center; gap:6px; }
   .thumb-label{ font-size:.8rem; color:#6c757d; max-width:80px; text-align:center; }
+  .thumb-del{
+    position:absolute; top:4px; right:4px;
+    background:#dc3545; color:#fff; border:none; border-radius:50%;
+    width:20px; height:20px; line-height:18px; font-size:12px; cursor:pointer;
+  }
   @media (max-width:576px){
     .thumb-wrap .bubble{ left:84px; top:-6px; }
     .thumb-wrap .bubble img{ width:260px; height:260px; }
@@ -68,6 +67,7 @@
 
   <div class="mb-3">
     <label class="form-label">Úvodní obrázek</label>
+    <input type="hidden" name="delete_image" value="0" id="delete-main-flag">
     {% if product.image %}
       <div class="mb-2 thumbs-grid">
         <div class="thumb-cell">
@@ -80,6 +80,9 @@
             </div>
           </div>
           <div class="thumb-label">Aktuální</div>
+          <div class="mt-1">
+            <button type="button" class="btn btn-sm btn-outline-danger" id="delete-main-image-btn">🗑️ Smazat úvodní fotku</button>
+          </div>
         </div>
       </div>
     {% endif %}
@@ -87,6 +90,7 @@
     <div class="mt-2 thumbs-grid" id="image-preview" style="display:none;">
       <div class="thumb-cell">
         <div class="thumb-wrap">
+          <button type="button" class="thumb-del" id="image-preview-del">×</button>
           <img class="thumb" id="image-thumb" alt="náhled">
           <div class="bubble"><img id="image-bubble" alt="náhled velký"></div>
         </div>
@@ -115,16 +119,13 @@
               </div>
               <div class="thumb-label">Obrázek</div>
             {% endif %}
-
             <div class="mt-1">
               <button type="submit"
                       class="btn btn-sm btn-outline-danger"
                       form="product-edit-form"
                       formaction="{{ url_for('admin.delete_product_media', media_id=m.id) }}"
                       formmethod="post"
-                      formnovalidate>
-                🗑️ Smazat
-              </button>
+                      formnovalidate>🗑️ Smazat</button>
             </div>
           </div>
         {% endfor %}
@@ -147,28 +148,26 @@
           <div class="row g-2">
             <div class="col-12 col-md-4">
               <label class="form-label">Název varianty</label>
-              <input type="text" name="variant_name[]" class="form-control" value="{{ v.variant_name or '' }}" placeholder="Např. Růžová">
+              <input type="text" name="variant_name[]" class="form-control" value="{{ v.variant_name or '' }}">
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label">Obvod / velikost</label>
-              <input type="text" name="variant_wrist_size[]" class="form-control" value="{{ v.wrist_size or '' }}" placeholder="16 cm">
+              <input type="text" name="variant_wrist_size[]" class="form-control" value="{{ v.wrist_size or '' }}">
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label">Sklad varianty</label>
-              <input type="number" min="0" name="variant_stock[]" class="form-control" value="{{ v.stock or 0 }}" placeholder="0">
+              <input type="number" min="0" name="variant_stock[]" class="form-control" value="{{ v.stock or 0 }}">
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label d-flex justify-content-between align-items-center">
-                <span>Obrázek varianty</span>
-                <small class="text-muted">Nový nahradí stávající</small>
-              </label>
+              <label class="form-label">Obrázek varianty</label>
               <input type="file" name="variant_image[]" class="form-control variant-main-input" accept="image/*">
               <input type="hidden" name="variant_image_existing[]" value="{{ v.image }}">
               <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
                 {% if v.image %}
                   <div class="thumb-wrap">
-                    <img src="{{ url_for('static', filename='uploads/' ~ v.image) }}" alt="variant image" class="thumb">
-                    <div class="bubble"><img src="{{ url_for('static', filename='uploads/' ~ v.image) }}" alt="variant image"></div>
+                    <button type="button" class="thumb-del remove-main-image-btn">×</button>
+                    <img src="{{ url_for('static', filename='uploads/' ~ v.image) }}" class="thumb">
+                    <div class="bubble"><img src="{{ url_for('static', filename='uploads/' ~ v.image) }}"></div>
                   </div>
                 {% endif %}
                 <div class="variant-main-preview" style="display:none;"></div>
@@ -178,59 +177,22 @@
                 <input type="file" class="form-control variant-extra-input" accept="image/*" multiple data-extra-input>
                 <div class="mt-2 d-flex flex-wrap gap-2" data-extra-preview>
                   {% for m in v.media %}
-                    {% if m.filename %}
+                    <div class="thumb-wrap" data-existing-extra>
                       <input type="hidden" name="variant_image_existing_multi_{{ variant_idx }}[]" value="{{ m.filename }}" data-extra-existing>
-                      <div class="thumb-wrap">
-                        <img src="{{ url_for('static', filename='uploads/' ~ m.filename) }}" class="thumb" alt="variant media">
-                        <div class="bubble"><img src="{{ url_for('static', filename='uploads/' ~ m.filename) }}" alt="variant media"></div>
-                      </div>
-                    {% endif %}
+                      <button type="button" class="thumb-del remove-extra-existing-btn">×</button>
+                      <img src="{{ url_for('static', filename='uploads/' ~ m.filename) }}" class="thumb">
+                      <div class="bubble"><img src="{{ url_for('static', filename='uploads/' ~ m.filename) }}"></div>
+                    </div>
                   {% endfor %}
                 </div>
-              </div>
-            </div>
-          </div>
-            <div class="mt-2 text-end">
-              <button type="button" class="btn btn-sm btn-outline-danger remove-variant-btn">Odstranit</button>
-            </div>
-          </div>
-        {% endfor %}
-      {% else %}
-        <div class="border rounded p-3 variant-row">
-          <div class="row g-2">
-            <div class="col-12 col-md-4">
-              <label class="form-label">Název varianty</label>
-              <input type="text" name="variant_name[]" class="form-control" placeholder="Např. Modrá">
-            </div>
-            <div class="col-12 col-md-4">
-              <label class="form-label">Obvod / velikost</label>
-              <input type="text" name="variant_wrist_size[]" class="form-control" placeholder="17 cm">
-            </div>
-            <div class="col-12 col-md-4">
-              <label class="form-label">Sklad varianty</label>
-              <input type="number" min="0" name="variant_stock[]" class="form-control" value="0" placeholder="0">
-            </div>
-            <div class="col-12 col-md-4">
-              <label class="form-label d-flex justify-content-between align-items-center">
-                <span>Obrázek varianty</span>
-                <small class="text-muted">Nový nahradí stávající</small>
-              </label>
-              <input type="file" name="variant_image[]" class="form-control variant-main-input" accept="image/*">
-              <input type="hidden" name="variant_image_existing[]" value="">
-              <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
-                <div class="variant-main-preview" style="display:none;"></div>
-              </div>
-              <div class="mt-3">
-                <label class="form-label">Další fotky</label>
-                <input type="file" class="form-control variant-extra-input" accept="image/*" multiple data-extra-input>
-                <div class="mt-2 d-flex flex-wrap gap-2" data-extra-preview></div>
               </div>
             </div>
           </div>
           <div class="mt-2 text-end">
             <button type="button" class="btn btn-sm btn-outline-danger remove-variant-btn">Odstranit</button>
           </div>
-        </div>
+          </div>
+        {% endfor %}
       {% endif %}
     </div>
   </div>
@@ -249,9 +211,14 @@
 
   imageInput?.addEventListener('change', (e) => {
     const f = e.target.files && e.target.files[0];
-    if (!f || !f.type.startsWith('image/')) { imagePreview.style.display='none'; return; }
+    if (!f) { imagePreview.style.display='none'; return; }
     const url = URL.createObjectURL(f);
     imageThumb.src = url; imageBubble.src = url; imagePreview.style.display = 'flex';
+  });
+
+  document.getElementById('image-preview-del')?.addEventListener('click', ()=>{
+    imageInput.value = '';
+    imagePreview.style.display='none';
   });
 
   const mediaInput = document.getElementById('media-input');
@@ -261,32 +228,32 @@
     const files = Array.from(e.target.files || []);
     mediaPreview.innerHTML = '';
     if (!files.length) { mediaPreview.style.display='none'; return; }
+    const dt = new DataTransfer();
     files.forEach((f, idx) => {
       const cell = document.createElement('div');
       cell.className = 'thumb-cell';
-      if (f.type.startsWith('image/')) {
-        const url = URL.createObjectURL(f);
-        cell.innerHTML = `
-          <div class="thumb-wrap">
-            <img class="thumb" src="${url}" alt="media">
-            <div class="bubble"><img src="${url}" alt="media velký"></div>
-          </div>
-          <div class="thumb-label">Nové #${idx+1}</div>`;
-      } else if (f.type.startsWith('video/')) {
-        const url = URL.createObjectURL(f);
-        cell.innerHTML = `
-          <div style="width:80px; height:80px; border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.15); background:#000;">
-            <video src="${url}" style="width:100%; height:100%; object-fit:cover;" muted></video>
-          </div>
-          <div class="thumb-label">Video #${idx+1}</div>`;
-      }
+      const url = URL.createObjectURL(f);
+      cell.innerHTML = `
+        <div class="thumb-wrap">
+          <button type="button" class="thumb-del">×</button>
+          <img class="thumb" src="${url}">
+        </div>`;
+      cell.querySelector('.thumb-del').onclick = () => {
+        cell.remove();
+        [...mediaPreview.children].forEach((c,i)=>dt.items.add(files[i]));
+        mediaInput.files = dt.files;
+      };
       mediaPreview.appendChild(cell);
+      dt.items.add(f);
     });
-    mediaPreview.style.display = 'flex';
+    mediaInput.files = dt.files;
+    mediaPreview.style.display='flex';
   });
-</script>
 
-<script>
+  document.getElementById('delete-main-image-btn')?.addEventListener('click', () => {
+    document.getElementById('delete-main-flag').value = '1';
+  });
+
   const variantsContainer = document.getElementById('variants-container');
   const addVariantBtn = document.getElementById('add-variant-btn');
 
@@ -301,7 +268,7 @@
     });
   };
 
-  const bindVariantPreview = (row) => {
+  const bindVariantRow = (row) => {
     const mainInput = row.querySelector('.variant-main-input');
     const mainPreview = row.querySelector('.variant-main-preview');
     mainInput?.addEventListener('change', (e) => {
@@ -310,6 +277,7 @@
       const url = URL.createObjectURL(f);
       mainPreview.innerHTML = `
         <div class="thumb-wrap">
+          <button type="button" class="thumb-del remove-main-image-btn">×</button>
           <img class="thumb" src="${url}" alt="variant new">
           <div class="bubble"><img src="${url}" alt="variant new"></div>
         </div>`;
@@ -326,13 +294,13 @@
         const url = URL.createObjectURL(f);
         const cell = document.createElement('div');
         cell.className = 'thumb-wrap';
-        cell.innerHTML = `<img class="thumb" src="${url}" alt="variant extra"><div class="bubble"><img src="${url}" alt="variant extra big"></div>`;
+        cell.innerHTML = `<button type="button" class="thumb-del remove-extra-new-btn">×</button><img class="thumb" src="${url}"><div class="bubble"><img src="${url}"></div>`;
         extraPreview.appendChild(cell);
       });
     });
   };
 
-  addVariantBtn?.addEventListener('click', () => {
+  const addEmptyVariantRow = () => {
     const tpl = document.createElement('div');
     tpl.className = 'border rounded p-3 variant-row';
     tpl.innerHTML = `
@@ -347,13 +315,10 @@
         </div>
         <div class="col-12 col-md-4">
           <label class="form-label">Sklad varianty</label>
-          <input type="number" min="0" name="variant_stock[]" class="form-control" value="0" placeholder="0">
+          <input type="number" min="0" name="variant_stock[]" class="form-control" value="0">
         </div>
         <div class="col-12 col-md-4">
-          <label class="form-label d-flex justify-content-between align-items-center">
-            <span>Obrázek varianty</span>
-            <small class="text-muted">Nový nahradí stávající</small>
-          </label>
+          <label class="form-label">Obrázek varianty</label>
           <input type="file" name="variant_image[]" class="form-control variant-main-input" accept="image/*">
           <input type="hidden" name="variant_image_existing[]" value="">
           <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
@@ -370,22 +335,37 @@
         <button type="button" class="btn btn-sm btn-outline-danger remove-variant-btn">Odstranit</button>
       </div>`;
     variantsContainer.appendChild(tpl);
-    bindVariantPreview(tpl);
+    bindVariantRow(tpl);
     reindexVariantRows();
-  });
+  };
 
-  variantsContainer?.addEventListener('click', (e) => {
-    if (e.target.classList.contains('remove-variant-btn')) {
-      const row = e.target.closest('.variant-row');
-      if (row && variantsContainer.children.length > 1) {
-        row.remove();
+  addVariantBtn?.addEventListener('click', addEmptyVariantRow);
+
+  variantsContainer?.querySelectorAll('.variant-row').forEach(bindVariantRow);
+  reindexVariantRows();
+
+  document.addEventListener('click', (e)=>{
+    if(e.target.classList.contains('remove-main-image-btn')){
+      const row=e.target.closest('.variant-row');
+      const hidden=row.querySelector('input[name="variant_image_existing[]"]');
+      if(hidden) hidden.value='';
+      e.target.closest('.thumb-wrap')?.remove();
+    }
+    if(e.target.classList.contains('remove-variant-btn')){
+      const row=e.target.closest('.variant-row');
+      row?.remove();
+      if(!variantsContainer.querySelector('.variant-row')){
+        addEmptyVariantRow();
+      } else {
         reindexVariantRows();
       }
     }
+    if(e.target.classList.contains('remove-extra-new-btn')){
+      e.target.closest('.thumb-wrap')?.remove();
+    }
+    if(e.target.classList.contains('remove-extra-existing-btn')){
+      e.target.closest('[data-existing-extra]')?.remove();
+    }
   });
-
-  // init previews + indexes
-  variantsContainer?.querySelectorAll('.variant-row').forEach((row) => bindVariantPreview(row));
-  reindexVariantRows();
 </script>
 {% endblock %}
