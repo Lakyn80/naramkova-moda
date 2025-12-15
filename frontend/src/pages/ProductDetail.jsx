@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+﻿import React, { useEffect, useState, useMemo } from "react";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails";
@@ -151,7 +151,7 @@ export default function ProductDetail() {
         setPhotoIndex(0);
         setIsOpen(false);
       } catch (err) {
-        console.error("Chyba při načítání produktu:", err);
+        console.error("Chyba pri nacitani produktu:", err);
       }
     })();
 
@@ -303,27 +303,34 @@ export default function ProductDetail() {
     : Number(product.stock);
   const out = Number(activeStock) === 0;
 
+  const handleBack = () => {
+    const lastShop = sessionStorage.getItem("lastShopUrl");
+    const target = location.state?.from || lastShop || backTarget || "/shop";
+    navigate(target, { replace: false });
+  };
+
   return (
     <section className="pt-28 pb-12 bg-gradient-to-br from-pink-300 to-pink-200 min-h-screen">
       <div className="container mx-auto max-w-4xl px-4">
         <div className="mb-4">
-          <Link
-            to={backTarget}
+          <button
+            type="button"
+            onClick={handleBack}
             className="inline-flex items-center gap-2 text-pink-800 font-semibold hover:underline"
           >
-            Zpět do obchodu
-          </Link>
+            Zpet do obchodu
+          </button>
         </div>
 
         <div className="bg-white/20 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-white/40">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 
-            {/* Obrázky */}
+              {/* Obrazky */}
             <div className="space-y-4 relative">
               <div className="absolute top-2 left-2 z-10">
                 {out ? (
                   <span className="px-2 py-1 text-xs font-semibold rounded bg-red-600/90 text-white">
-                    Vyprodáno
+                    Vyprodano
                   </span>
                 ) : (
                   <span className="px-2 py-1 text-xs font-semibold rounded bg-emerald-600/90 text-white">
@@ -366,13 +373,13 @@ export default function ProductDetail() {
 
               <button
                 type="button"
-                onClick={() => navigate(backTarget)}
+                onClick={handleBack}
                 className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-pink-800 hover:text-pink-900 underline decoration-2"
               >
-                ← Zpět do obchodu
+                Zpet do obchodu
               </button>
 
-              {/* --- ZDE NOVÉ VARIANTY --- */}
+              {/* --- ZDE NOVE VARIANTY --- */}
               {variantOptions.length > 1 && (
                 <div className="mt-4 relative">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -471,9 +478,9 @@ export default function ProductDetail() {
                     ? "bg-gray-400 cursor-not-allowed text-white"
                     : "bg-gradient-to-r from-pink-600 to-pink-700 hover:from-pink-700 hover:to-pink-800 text-white"
                 }`}
-                title={out ? "Produkt je vyprodaný" : "Přidat do košíku"}
+                title={out ? "Produkt je vyprodany" : "Pridat do kosiku"}
               >
-                {out ? "Vyprodáno" : "Přidat do košíku"}
+                {out ? "Vyprodano" : "Pridat do kosiku"}
               </button>
 
             </div>

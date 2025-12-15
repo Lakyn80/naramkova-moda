@@ -71,12 +71,19 @@ export default function Navbar() {
         </div>
 
         {/* Hamburger */}
-        <button
-          className="sm:hidden text-pink-900 text-3xl focus:outline-none"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          ☰
-        </button>
+        <div className="sm:hidden relative">
+          <button
+            className="text-pink-900 text-3xl focus:outline-none relative"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            ☰
+            {cartCount > 0 && (
+              <span className="absolute -top-2 -right-3 bg-pink-600 text-white text-xs rounded-full px-1.5 py-0.5">
+                {cartCount}
+              </span>
+            )}
+          </button>
+        </div>
 
         {/* Navigace (desktop) */}
         <ul className="hidden sm:flex space-x-6 text-lg font-semibold items-center">

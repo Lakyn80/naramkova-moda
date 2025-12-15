@@ -135,7 +135,8 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
           ? p.price_czk
           : Number(p.price) || 0;
 
-      const categoryKey = p.category_slug || toAlias((p.category_name || "").toLowerCase());
+      const categorySlug = p.category_slug || slugify(p.category_name || "");
+      const categoryKey = categorySlug || toAlias((p.category_name || "").toLowerCase());
       const variants = Array.isArray(p.variants)
         ? p.variants.map((v) => ({
             ...v,
@@ -154,7 +155,7 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
         image: absoluteUploadUrl(p.image_url || p.image),
         price: priceNumber,
         stock: Number(p.stock ?? 0),
-        category: { name: p.category_name || "", slug: p.category_slug || categoryKey },
+        category: { name: p.category_name || "", slug: categorySlug || categoryKey },
         category_key: categoryKey,
         media: Array.isArray(p.media) ? p.media.map((m) => absoluteUploadUrl(m)) : [],
         variants,
@@ -235,6 +236,11 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
 
   const deselectAll = () =>
     applyFilters({ categories: [], searchTerm: "", wristFilter: "", page: 1 });
+
+  useEffect(() => {
+    const url = `${location.pathname}${location.search || ""}` || "/shop";
+    sessionStorage.setItem("lastShopUrl", url);
+  }, [location.pathname, location.search]);
 
   const allWristSizes = useMemo(() => {
     const sizes = [];
@@ -372,12 +378,6 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
               >
                 Vybrat vše
               </button>
-              <button
-                onClick={deselectAll}
-                className="w-full bg-pink-200 text-pink-800 py-2 rounded"
-              >
-                Odebrat vše
-              </button>
               {allWristSizes.length > 0 && (
                 <div className="pt-2 space-y-1">
                   <label className="block text-sm font-semibold">Obvod</label>
@@ -405,8 +405,8 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
                   <option value="">Dle výchozího</option>
                   <option value="price_asc">Cena: od nejnižší</option>
                   <option value="price_desc">Cena: od nejvyšší</option>
-                  <option value="name_asc">Název: A -> Z</option>
-                  <option value="name_desc">Název: Z -> A</option>
+                  <option value="name_asc">Název: A -&gt; Z</option>
+                  <option value="name_desc">Název: Z -&gt; A</option>
                 </select>
               </div>
             </div>
@@ -444,15 +444,19 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
                     <div className="p-4 flex flex-col flex-grow">
                       <div className="flex items-start justify-between gap-2">
                         {/* ✅ Sjednoceno s Galerií: používáme slug */}
-                        <Link
-                          to={{
-                            pathname: `/shop/${slugify(product.name)}`,
-                            search: location.search || undefined,
-                            state: { from: `${location.pathname}${location.search}` || "/shop" },
-                          }}
-                          className="text-lg font-semibold mb-2 hover:underline text-white"
-                        >
-                          {emojify(product.name)}
+                    <Link
+                      to={{
+                        pathname: `/shop/${slugify(product.name)}`,
+                        search: location.search || undefined,
+                        state: { from: `${location.pathname}${location.search}` || "/shop" },
+                      }}
+                      onClick={() => {
+                        const url = `${location.pathname}${location.search || ""}` || "/shop";
+                        sessionStorage.setItem("lastShopUrl", url);
+                      }}
+                      className="text-lg font-semibold mb-2 hover:underline text-white"
+                    >
+                      {emojify(product.name)}
                         </Link>
 
                         {/* ✅ jen vizuální úprava badge */}
