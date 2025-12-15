@@ -220,13 +220,14 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
 
       setSelectedCategories(cats);
       setSearchTerm(qVal);
-      setSortBy(sortVal);
-      setWristFilter(wristVal);
-      setPage(pageVal);
-      setSearchParams(params, { replace: true });
-    },
-    [normalizeList, page, searchTerm, selectedCategories, setSearchParams, sortBy, wristFilter]
-  );
+    setSortBy(sortVal);
+    setWristFilter(wristVal);
+    setPage(pageVal);
+    setSearchParams(params, { replace: true });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  },
+  [normalizeList, page, searchTerm, selectedCategories, setSearchParams, sortBy, wristFilter]
+);
 
   const toggleCat = (cat) => {
     const next = selectedCategories.includes(cat)
