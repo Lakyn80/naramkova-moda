@@ -119,7 +119,8 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
         const mapped = (data || []).map((cat) => {
           const alias = toAlias((cat.name || "").toLowerCase());
           const slug = cat.slug || slugify(cat.name || "");
-          return { ...cat, alias, slug, key: slug || alias };
+          const key = slug ? `${slug}-${cat.id || ""}` : `${alias}-${cat.id || ""}`;
+          return { ...cat, alias, slug, key };
         });
         setCategories(mapped);
       })
@@ -136,7 +137,9 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
           : Number(p.price) || 0;
 
       const categorySlug = p.category_slug || slugify(p.category_name || "");
-      const categoryKey = categorySlug || toAlias((p.category_name || "").toLowerCase());
+      const categoryKeyRaw =
+        categorySlug || toAlias((p.category_name || "").toLowerCase());
+      const categoryKey = `${categoryKeyRaw}-${p.category_id || p.id || ""}`;
       const variants = Array.isArray(p.variants)
         ? p.variants.map((v) => ({
             ...v,
@@ -339,15 +342,10 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
                       onClick={() => {
                         const allKeys = cats.map((c) => c.key);
                         const allSelected = cats.every((c) => selectedCategories.includes(c.key));
-                        if (allSelected) {
-                          setSelectedCategories((prev) =>
-                            prev.filter((c) => !allKeys.includes(c))
-                          );
-                        } else {
-                          setSelectedCategories((prev) => [
-                            ...new Set([...prev, ...allKeys]),
-                          ]);
-                        }
+                        const next = allSelected
+                          ? selectedCategories.filter((c) => !allKeys.includes(c))
+                          : Array.from(new Set([...selectedCategories, ...allKeys]));
+                        applyFilters({ categories: next, page: 1 });
                       }}
                       className="text-sm text-pink-200 hover:underline"
                     >
