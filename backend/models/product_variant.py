@@ -12,6 +12,8 @@ class ProductVariant(db.Model):
     )
     variant_name = db.Column(db.String(150), nullable=True)
     wrist_size = db.Column(db.String(50), nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    price_czk = db.Column(db.Numeric(10, 2), nullable=True)
     image = db.Column(db.String(255), nullable=True)
     stock = db.Column(db.Integer, nullable=False, default=0)
 

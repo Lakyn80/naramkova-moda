@@ -122,6 +122,11 @@ def _parse_variants_from_request():
             return int(val)
         except (TypeError, ValueError):
             return default
+    def _to_price(val):
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return None
 
     payload_json = request.get_json(silent=True) if request.is_json else None
     if isinstance(payload_json, dict) and "variants" in payload_json:
@@ -135,6 +140,8 @@ def _parse_variants_from_request():
                     {
                         "variant_name": (v.get("variant_name") or v.get("name") or "").strip() or None,
                         "wrist_size": (v.get("wrist_size") or "").strip() or None,
+                        "description": (v.get("description") or "").strip() or None,
+                        "price_czk": _to_price(v.get("price_czk") or v.get("price")),
                         "stock": _to_int(v.get("stock"), default=0),
                         "image": (v.get("image") or "").strip() or None,
                     }
@@ -153,6 +160,8 @@ def _parse_variants_from_request():
                         {
                         "variant_name": (v.get("variant_name") or v.get("name") or "").strip() or None,
                         "wrist_size": (v.get("wrist_size") or "").strip() or None,
+                        "description": (v.get("description") or "").strip() or None,
+                        "price_czk": _to_price(v.get("price_czk") or v.get("price")),
                         "stock": _to_int(v.get("stock"), default=0),
                         "image": (v.get("image") or "").strip() or None,
                     }
@@ -165,15 +174,19 @@ def _parse_variants_from_request():
     wrists = request.form.getlist("variant_wrist_size[]")
     stocks = request.form.getlist("variant_stock[]")
     files = request.files.getlist("variant_image[]")
+    descriptions = request.form.getlist("variant_description[]")
+    prices = request.form.getlist("variant_price[]")
     if names or wrists or files:
         explicit = True
-    max_len = max(len(names), len(wrists), len(files), len(stocks))
+    max_len = max(len(names), len(wrists), len(files), len(stocks), len(descriptions), len(prices))
     existing_main_list = request.form.getlist("variant_image_existing[]")
     for i in range(max_len):
         n = names[i] if i < len(names) else ""
         w = wrists[i] if i < len(wrists) else ""
         s_raw = stocks[i] if i < len(stocks) else None
         s_val = _to_int(s_raw, default=0)
+        desc = descriptions[i] if i < len(descriptions) else None
+        price_val = prices[i] if i < len(prices) else None
         f = files[i] if i < len(files) else None
         has_file = bool(f and getattr(f, "filename", None))
         existing_main = existing_main_list[i] if i < len(existing_main_list) else None
@@ -185,6 +198,8 @@ def _parse_variants_from_request():
             {
                 "variant_name": (n or None),
                 "wrist_size": (w or None),
+                "description": (desc or None),
+                "price_czk": _to_price(price_val),
                 "stock": s_val if s_val is not None else 0,
                 "image_file": f if has_file else None,
                 "existing_image": (existing_main or None),
@@ -209,6 +224,8 @@ def _variant_dict(variant: ProductVariant):
         "id": variant.id,
         "variant_name": variant.variant_name,
         "wrist_size": variant.wrist_size,
+        "description": variant.description,
+        "price_czk": float(variant.price_czk) if variant.price_czk is not None else None,
         "stock": variant.stock,
         "image": variant.image,
         "image_url": f"/static/uploads/{variant.image}" if variant.image else None,
@@ -331,6 +348,8 @@ def add_product():
             product_id=p.id,
             variant_name=variant.get("variant_name"),
             wrist_size=variant.get("wrist_size"),
+            description=variant.get("description"),
+            price_czk=variant.get("price_czk"),
             stock=variant.get("stock") or 0,
             image=img_name,
         )
@@ -427,6 +446,8 @@ def update_product(product_id: int):
                 product_id=p.id,
                 variant_name=variant.get("variant_name"),
                 wrist_size=variant.get("wrist_size"),
+                description=variant.get("description"),
+                price_czk=variant.get("price_czk"),
                 stock=variant.get("stock") or 0,
                 image=img_name,
             )

@@ -159,6 +159,14 @@
               <input type="number" min="0" name="variant_stock[]" class="form-control" value="{{ v.stock or 0 }}">
             </div>
             <div class="col-12 col-md-4">
+              <label class="form-label">Cena varianty</label>
+              <input type="number" step="0.01" name="variant_price[]" class="form-control" value="{{ v.price_czk if v.price_czk is not none else '' }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Popis varianty</label>
+              <textarea name="variant_description[]" class="form-control" rows="2">{{ v.description or '' }}</textarea>
+            </div>
+            <div class="col-12 col-md-4">
               <label class="form-label">Obrázek varianty</label>
               <input type="file" name="variant_image[]" class="form-control variant-main-input" accept="image/*">
               <input type="hidden" name="variant_image_existing[]" value="{{ v.image }}">
@@ -197,9 +205,16 @@
     </div>
   </div>
 
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 align-items-center flex-wrap">
     <button type="submit" class="btn btn-primary">💾 Uložit</button>
     <a href="{{ url_for('admin.products') }}" class="btn btn-secondary">Zpět</a>
+    <button type="submit"
+            class="btn btn-danger"
+            formaction="{{ url_for('admin.delete_product', product_id=product.id) }}"
+            formmethod="post"
+            onclick="return confirm('Opravdu smazat tento produkt?');">
+      🗑️ Smazat produkt
+    </button>
   </div>
 </form>
 
@@ -314,8 +329,16 @@
           <input type="text" name="variant_wrist_size[]" class="form-control" placeholder="17 cm">
         </div>
         <div class="col-12 col-md-4">
+          <label class="form-label">Cena varianty</label>
+          <input type="number" step="0.01" name="variant_price[]" class="form-control" value="">
+        </div>
+        <div class="col-12 col-md-4">
           <label class="form-label">Sklad varianty</label>
           <input type="number" min="0" name="variant_stock[]" class="form-control" value="0">
+        </div>
+        <div class="col-12">
+          <label class="form-label">Popis varianty</label>
+          <textarea name="variant_description[]" class="form-control" rows="2"></textarea>
         </div>
         <div class="col-12 col-md-4">
           <label class="form-label">Obrázek varianty</label>

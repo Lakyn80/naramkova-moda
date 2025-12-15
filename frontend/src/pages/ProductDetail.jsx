@@ -40,6 +40,8 @@ export default function ProductDetail() {
   const variantOptions = useMemo(() => {
     if (!product) return [];
 
+    const basePrice = Number(product.price ?? product.price_czk ?? 0);
+
     const baseImage =
       (Array.isArray(product.images) ? product.images[0] : null) || product.image_url;
     const baseVariant = {
@@ -51,6 +53,8 @@ export default function ProductDetail() {
       media: Array.isArray(product.media) ? product.media : [],
       stock: Number(product.stock ?? 0),
       isBase: true,
+      price_czk: basePrice,
+      description: product.description || "",
     };
 
     const normalizedVariants = Array.isArray(product.variants)
@@ -58,6 +62,8 @@ export default function ProductDetail() {
           ...v,
           image_url: v.image_url || v.image,
           stock: Number(v.stock ?? 0),
+          price_czk: Number(v.price_czk ?? v.price ?? product.price ?? product.price_czk ?? 0),
+          description: v.description || "",
         }))
       : [];
 
@@ -180,6 +186,21 @@ export default function ProductDetail() {
     [variantOptions, selectedVariantId]
   );
 
+  const activePrice = useMemo(() => {
+    if (selectedVariant) {
+      const priceVal = selectedVariant.price_czk ?? selectedVariant.price;
+      const parsed = Number(priceVal);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    const fallback = Number(product?.price ?? product?.price_czk);
+    return Number.isFinite(fallback) ? fallback : 0;
+  }, [selectedVariant, product]);
+
+  const activeDescription = useMemo(
+    () => (selectedVariant?.description || product?.description || "").trim(),
+    [selectedVariant, product]
+  );
+
   const baseImages = useMemo(() => {
     if (!product) return [];
     const baseList = Array.isArray(product.images) ? product.images : [];
@@ -258,7 +279,7 @@ export default function ProductDetail() {
     addToCart({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: activePrice,
       quantity: 1,
       image: variantPayload.image || product.image_url,
       stock: activeStock,
@@ -340,7 +361,7 @@ export default function ProductDetail() {
               </h2>
 
               <p className="text-xl font-semibold text-pink-700 mt-2 drop-shadow-sm">
-                {product.price.toFixed(2)} Kč
+                {Number.isFinite(activePrice) ? activePrice.toFixed(2) : product.price} Kč
               </p>
 
               <button
@@ -439,7 +460,7 @@ export default function ProductDetail() {
               )}
 
               <p className="mt-3 text-base sm:text-lg text-gray-800 leading-relaxed" style={{ whiteSpace: "pre-line" }}>
-                {emojify(product.description || "Detail produktu zde.")}
+                {emojify(activeDescription || "Detail produktu zde.")}
               </p>
 
               <button

@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  backend:
+    image: lakyn80/naramkova-backend:${BACKEND_TAG}
+    container_name: nmm-backend
+    ports:
+      - "5050:5050"
+    volumes:
+      - ./backend/instance:/app/backend/instance
+      - ./backend/static/uploads:/app/backend/static/uploads
+    environment:
+      - FLASK_ENV=production
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    networks:
+      - nmm-net
+
+  frontend:
+    image: lakyn80/naramkova-frontend:${FRONTEND_TAG}
+    container_name: nmm-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - nmm-net
+
+networks:
+  nmm-net:

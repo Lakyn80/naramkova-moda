@@ -1,7 +1,6 @@
 {% extends "shared/layout.html" %}
 {% block title %}Admin – Dashboard{% endblock %}
 
-{# Volitelné drobné styly pro moderní vzhled karet #}
 {% block styles %}
 <style>
   :root{
@@ -11,11 +10,7 @@
     --nm-shadow: 0 6px 18px rgba(0,0,0,.06);
     --nm-shadow-hover: 0 10px 28px rgba(0,0,0,.10);
   }
-
-  /* drobné zúžení kontejneru na velkých displejích, na mobilu full-width */
   .dash-container { max-width: 1200px; }
-
-  /* KARTY – jemný glass efekt + animace */
   .dash-card {
     transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
     background: var(--nm-bg-glass);
@@ -29,8 +24,6 @@
     border-color: var(--nm-border-hover)!important;
     background: rgba(255,255,255,.92);
   }
-
-  /* IKONY – subtilní badge vzhled */
   .dash-icon {
     width: 42px; height: 42px; display:inline-flex; align-items:center; justify-content:center;
     border-radius: 12px; font-size: 1.1rem; opacity: .95;
@@ -44,8 +37,6 @@
   .text-warning      { color: #d97706!important; }
   .bg-success-subtle { background: rgba(34,197,94,.12)!important; }
   .text-success      { color: #16a34a!important; }
-
-  /* TLAČÍTKA – trochu kulatější a s lehkým hover stínem */
   .btn { border-radius: .75rem; }
   .btn-primary, .btn-info, .btn-warning, .btn-success {
     box-shadow: 0 2px 8px rgba(0,0,0,.05);
@@ -60,12 +51,10 @@
 
 {% block content %}
 <div class="container dash-container py-3">
-  <h1 class="mb-4 fw-semibold">🏠 Dashboard</h1>
+  <h1 class="mb-4 fw-semibold">📦 Dashboard</h1>
 
-  {# Rovnoměrné karty: každá col obsahuje .card.h-100 a uvnitř d-flex tak, aby tlačítko bylo dole #}
   <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3">
 
-    <!-- Produkty -->
     <div class="col">
       <div class="card h-100 shadow-sm border-0 rounded-3 dash-card">
         <div class="card-body d-flex flex-column">
@@ -79,7 +68,6 @@
       </div>
     </div>
 
-    <!-- Kategorie -->
     <div class="col">
       <div class="card h-100 shadow-sm border-0 rounded-3 dash-card">
         <div class="card-body d-flex flex-column">
@@ -93,7 +81,6 @@
       </div>
     </div>
 
-    <!-- Prodané -->
     <div class="col">
       <div class="card h-100 shadow-sm border-0 rounded-3 dash-card">
         <div class="card-body d-flex flex-column">
@@ -101,13 +88,13 @@
             <span class="dash-icon bg-warning-subtle text-warning">📊</span>
             <h5 class="card-title mb-0">Prodané</h5>
           </div>
+          <p class="text-muted mb-1">Počet: <span class="fw-semibold">{{ sold_count }}</span></p>
           <p class="text-muted mb-3">Přehled prodaných položek a reporty</p>
           <a href="{{ url_for('admin.sold_products') }}" class="btn btn-warning mt-auto w-100">Zobrazit</a>
         </div>
       </div>
     </div>
 
-    <!-- Platby -->
     <div class="col">
       <div class="card h-100 shadow-sm border-0 rounded-3 dash-card">
         <div class="card-body d-flex flex-column">
@@ -115,6 +102,7 @@
             <span class="dash-icon bg-success-subtle text-success">💳</span>
             <h5 class="card-title mb-0">Platby</h5>
           </div>
+          <p class="text-muted mb-1">Počet: <span class="fw-semibold">{{ payment_count }}</span></p>
           <p class="text-muted mb-3">Přehled plateb a exporty</p>
           <a href="{{ url_for('admin.admin_payments_index') }}" class="btn btn-success mt-auto w-100">Zobrazit</a>
         </div>

@@ -3,8 +3,8 @@ import React, {
   useEffect,
   forwardRef,
   useImperativeHandle,
-  useRef,
   useMemo,
+  useCallback,
 } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
@@ -32,9 +32,7 @@ const categoryAliases = {
 
 const toAlias = (name) => categoryAliases[name] || name;
 
-// === API base (LOCK na 5050) ===
-// const API_BASE = `${window.location.protocol}//${window.location.hostname}:5050`;
-const API_BASE = import.meta.env.VITE_API_BASE; // ✅ jen z env, žádný host/port
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.origin}/api`;
 
 function absoluteUploadUrl(u) {
   if (!u) return null;
@@ -91,7 +89,6 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
   const routeCategorySlug = params?.slug;
   const forcedCategory = categorySlug || routeCategorySlug || null;
   const wristSizeParam = searchParams.get("wrist_size") || searchParams.get("wrist") || "";
-  const persistKey = forcedCategory ? `filters-${forcedCategory}` : "filters-shop";
 
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
@@ -102,16 +99,11 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
 
   // pagination
   const [page, setPage] = useState(1);
-  const [filtersReady, setFiltersReady] = useState(false);
-  const hydratedRef = useRef(false);
 
-  const normalizeList = (arr = []) => Array.from(new Set((arr || []).filter(Boolean)));
-  const arraysEqual = (a = [], b = []) => {
-    const na = normalizeList(a).sort();
-    const nb = normalizeList(b).sort();
-    if (na.length !== nb.length) return false;
-    return na.every((v, idx) => v === nb[idx]);
-  };
+  const normalizeList = useCallback(
+    (arr = []) => Array.from(new Set((arr || []).filter(Boolean))),
+    []
+  );
 
   useImperativeHandle(ref, () => ({
     scrollIntoView: () => {
@@ -177,151 +169,72 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
   }, [wristSizeParam]);
 
   useEffect(() => {
-    const storedRaw = localStorage.getItem(persistKey);
-    const stored = storedRaw ? JSON.parse(storedRaw) : null;
-    const hasParamCategories = searchParams.has("categories");
-    const rawParamCategories = searchParams.get("categories");
-    const legacyCategory = searchParams.get("category");
+    const rawCats = searchParams.get("categories");
     const parsedCats =
-      hasParamCategories && rawParamCategories !== null
-        ? rawParamCategories
+      rawCats !== null
+        ? rawCats
             .split(",")
             .map((v) => v.trim())
             .filter(Boolean)
         : null;
-    const allKeys = categories.map((cat) => cat.key);
-    const storedPage = parseInt(searchParams.get("page") || stored?.page || "1", 10);
-    const storedSort = searchParams.get("sort") || stored?.sortBy || "";
-    const storedWrist =
-      searchParams.get("wrist") ||
-      searchParams.get("wrist_size") ||
-      stored?.wristFilter ||
-      "";
+    const nextCats =
+      parsedCats !== null
+        ? parsedCats
+        : forcedCategory
+        ? [forcedCategory]
+        : [];
 
-    let nextCats;
-    if (parsedCats !== null) {
-      nextCats = parsedCats;
-    } else {
-      nextCats = (legacyCategory ? [legacyCategory] : null) || stored?.categories || null;
-      if (!nextCats || !nextCats.length) {
-        nextCats = forcedCategory ? [forcedCategory] : allKeys;
+    setSelectedCategories(normalizeList(nextCats));
+    setSearchTerm(searchParams.get("q") || "");
+    setSortBy(searchParams.get("sort") || "");
+    setWristFilter(searchParams.get("wrist") || searchParams.get("wrist_size") || "");
+    const pageParam = parseInt(searchParams.get("page") || "1", 10);
+    setPage(Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1);
+  }, [forcedCategory, normalizeList, searchParams]);
+
+  const applyFilters = useCallback(
+    (opts = {}) => {
+      const cats =
+        opts.categories !== undefined
+          ? normalizeList(opts.categories)
+          : normalizeList(selectedCategories);
+      const qVal = opts.searchTerm !== undefined ? opts.searchTerm : searchTerm;
+      const sortVal = opts.sortBy !== undefined ? opts.sortBy : sortBy;
+      const wristVal = opts.wristFilter !== undefined ? opts.wristFilter : wristFilter;
+      const pageVal = opts.page !== undefined ? opts.page : page;
+
+      const params = new URLSearchParams();
+      if (cats.length) {
+        params.set("categories", cats.join(","));
+      } else {
+        params.set("categories", "");
       }
-      if (forcedCategory && nextCats && !nextCats.includes(forcedCategory)) {
-        nextCats = [forcedCategory, ...nextCats];
-      }
-    }
+      if (qVal) params.set("q", qVal);
+      if (sortVal) params.set("sort", sortVal);
+      if (wristVal) params.set("wrist", wristVal);
+      if (pageVal > 1) params.set("page", String(pageVal));
 
-    if (!arraysEqual(selectedCategories, nextCats)) {
-      setSelectedCategories(normalizeList(nextCats));
-    }
+      setSelectedCategories(cats);
+      setSearchTerm(qVal);
+      setSortBy(sortVal);
+      setWristFilter(wristVal);
+      setPage(pageVal);
+      setSearchParams(params, { replace: true });
+    },
+    [normalizeList, page, searchTerm, selectedCategories, setSearchParams, sortBy, wristFilter]
+  );
 
-    const urlSearch = searchParams.get("q");
-    const nextSearch = urlSearch !== null ? urlSearch : stored?.searchTerm || "";
-    if (searchTerm !== nextSearch) {
-      setSearchTerm(nextSearch);
-    }
-
-    if (sortBy !== storedSort) {
-      setSortBy(storedSort);
-    }
-
-    if (wristFilter !== storedWrist) {
-      setWristFilter(storedWrist);
-    }
-
-    if (!Number.isNaN(storedPage) && storedPage > 0 && page !== storedPage) {
-      setPage(storedPage);
-    }
-
-    setFiltersReady(true);
-  }, [categories, forcedCategory, searchParams, persistKey]);
-
-  useEffect(() => {
-    if (!filtersReady) return;
-    const normalizedCats = normalizeList(selectedCategories);
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (normalizedCats.length) {
-      params.set("categories", normalizedCats.join(","));
-    } else {
-      // explicit prázdná hodnota značí „žádné kategorie“
-      params.set("categories", "");
-    }
-
-    if (searchTerm) {
-      params.set("q", searchTerm);
-    } else {
-      params.delete("q");
-    }
-
-    if (sortBy) {
-      params.set("sort", sortBy);
-    } else {
-      params.delete("sort");
-    }
-
-    if (wristFilter) {
-      params.set("wrist", wristFilter);
-    } else {
-      params.delete("wrist");
-    }
-
-    if (page > 1) {
-      params.set("page", String(page));
-    } else {
-      params.delete("page");
-    }
-
-    setSearchParams(params, { replace: true });
-    localStorage.setItem(
-      persistKey,
-      JSON.stringify({
-        categories: normalizedCats,
-        searchTerm: searchTerm || "",
-        sortBy,
-        wristFilter,
-        page,
-      })
-    );
-  }, [
-    selectedCategories,
-    searchTerm,
-    sortBy,
-    wristFilter,
-    page,
-    filtersReady,
-    persistKey,
-    searchParams,
-    forcedCategory,
-  ]);
-
-  useEffect(() => {
-    if (!hydratedRef.current) {
-      hydratedRef.current = true;
-      return;
-    }
-    setPage(1);
-  }, [searchTerm, selectedCategories, wristFilter, sortBy]);
-
-  const toggleCat = (cat) =>
-    setSelectedCategories((prev) =>
-      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
-    );
-
-  const selectAll = () => {
-    const all = categories.map((cat) => cat.key);
-    setSelectedCategories(all);
+  const toggleCat = (cat) => {
+    const next = selectedCategories.includes(cat)
+      ? selectedCategories.filter((c) => c !== cat)
+      : [...selectedCategories, cat];
+    applyFilters({ categories: next, page: 1 });
   };
 
-  const deselectAll = () => {
-    setSelectedCategories([]);
-    setSearchParams((prev) => {
-      const params = new URLSearchParams(prev);
-      params.set("categories", "");
-      params.delete("page");
-      return params;
-    }, { replace: true });
-  };
+  const selectAll = () => applyFilters({ categories: [], searchTerm: "", wristFilter: "", page: 1 });
+
+  const deselectAll = () =>
+    applyFilters({ categories: [], searchTerm: "", wristFilter: "", page: 1 });
 
   const allWristSizes = useMemo(() => {
     const sizes = [];
@@ -346,7 +259,10 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
   const filteredProducts = products.filter((p) => {
     const catKey = p.category_key || "";
     const matchesCat =
-      !selectedCategories.length || selectedCategories.includes(catKey) || !categories.length;
+      !selectedCategories.length ||
+      !catKey ||
+      selectedCategories.includes(catKey) ||
+      !categories.length;
     const matchesText = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesWrist =
       !wristFilter ||
@@ -385,9 +301,9 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
 
   useEffect(() => {
     if (page > totalPages) {
-      setPage(totalPages);
+      applyFilters({ page: totalPages });
     }
-  }, [page, totalPages]);
+  }, [applyFilters, page, totalPages]);
 
   return (
     <section
@@ -406,7 +322,7 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
               placeholder="Hledat produkt..."
               className="w-full mb-4 px-3 py-2 border rounded text-black"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => applyFilters({ searchTerm: e.target.value, page: 1 })}
             />
             <ul className="space-y-4 text-sm">
               {Object.entries(groupedCategories).map(([groupName, cats]) => (
@@ -467,7 +383,7 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
                   <label className="block text-sm font-semibold">Obvod</label>
                   <select
                     value={wristFilter}
-                    onChange={(e) => setWristFilter(e.target.value)}
+                    onChange={(e) => applyFilters({ wristFilter: e.target.value, page: 1 })}
                     className="w-full px-3 py-2 border rounded text-black"
                   >
                     <option value="">Všechny obvody</option>
@@ -483,7 +399,7 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
                 <label className="block text-sm font-semibold">Řazení</label>
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
+                  onChange={(e) => applyFilters({ sortBy: e.target.value, page: 1 })}
                   className="w-full px-3 py-2 border rounded text-black"
                 >
                   <option value="">Dle výchozího</option>
@@ -597,7 +513,7 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
                   <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-2 py-1 shadow-lg">
                     <button
                       disabled={page === 1}
-                      onClick={() => setPage(1)}
+                      onClick={() => applyFilters({ page: 1 })}
                       className="px-3 py-2 rounded-full bg-white/0 hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-transparent transition"
                       aria-label="První stránka"
                       title="První stránka"
@@ -606,7 +522,7 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
                     </button>
                     <button
                       disabled={page === 1}
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      onClick={() => applyFilters({ page: Math.max(1, page - 1) })}
                       className="px-3 py-2 rounded-full bg-white/0 hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-transparent transition"
                       aria-label="Předchozí"
                       title="Předchozí"
@@ -625,7 +541,7 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
                       ) : (
                         <button
                           key={n}
-                          onClick={() => setPage(n)}
+                          onClick={() => applyFilters({ page: n })}
                           className={`px-3 py-2 rounded-full transition ${
                             n === page
                               ? "bg-pink-600 text-white shadow-md"
@@ -641,7 +557,7 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
 
                     <button
                       disabled={page === totalPages}
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      onClick={() => applyFilters({ page: Math.min(totalPages, page + 1) })}
                       className="px-3 py-2 rounded-full bg-white/0 hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-transparent transition"
                       aria-label="Další"
                       title="Další"
@@ -650,7 +566,7 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
                     </button>
                     <button
                       disabled={page === totalPages}
-                      onClick={() => setPage(totalPages)}
+                      onClick={() => applyFilters({ page: totalPages })}
                       className="px-3 py-2 rounded-full bg-white/0 hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-transparent transition"
                       aria-label="Poslední stránka"
                       title="Poslední stránka"
