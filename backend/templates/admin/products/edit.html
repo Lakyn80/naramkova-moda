@@ -139,7 +139,9 @@
     <label class="form-label d-flex align-items-center gap-2">
       Varianty
       <button type="button" class="btn btn-sm btn-outline-primary" id="add-variant-btn">+ Přidat variantu</button>
+      <button type="button" class="btn btn-sm btn-outline-danger" id="clear-variants-btn">Vymazat všechny varianty</button>
     </label>
+    <input type="hidden" name="clear_variants" id="clear-variants-flag" value="0">
     <div id="variants-container" class="d-flex flex-column gap-3">
       {% if product.variants %}
         {% for v in product.variants %}
@@ -271,6 +273,8 @@
 
   const variantsContainer = document.getElementById('variants-container');
   const addVariantBtn = document.getElementById('add-variant-btn');
+  const clearVariantsBtn = document.getElementById('clear-variants-btn');
+  const clearVariantsFlag = document.getElementById('clear-variants-flag');
 
   const reindexVariantRows = () => {
     variantsContainer?.querySelectorAll('.variant-row').forEach((row, idx) => {
@@ -363,6 +367,11 @@
   };
 
   addVariantBtn?.addEventListener('click', addEmptyVariantRow);
+  clearVariantsBtn?.addEventListener('click', () => {
+    variantsContainer.innerHTML = '';
+    clearVariantsFlag.value = '1';
+    addEmptyVariantRow();
+  });
 
   variantsContainer?.querySelectorAll('.variant-row').forEach(bindVariantRow);
   reindexVariantRows();

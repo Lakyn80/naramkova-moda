@@ -117,6 +117,13 @@ def _parse_variants_from_request():
     variants: list[dict] = []
     explicit = False
 
+    # --- ADD PRODUCT: ignoruj všechny existing_* (Chrome posílá starý multipart bordel) ---
+    if request.path.endswith("/products/add"):
+        form = request.form.to_dict(flat=False)
+        for key in list(form.keys()):
+            if key.startswith("variant_image_existing"):
+                form[key] = []
+
     def _to_int(val, default=None):
         try:
             return int(val)
@@ -128,27 +135,32 @@ def _parse_variants_from_request():
         except (TypeError, ValueError):
             return None
 
-    payload_json = request.get_json(silent=True) if request.is_json else None
-    if isinstance(payload_json, dict) and "variants" in payload_json:
-        explicit = True
-        raw_list = payload_json.get("variants") or []
-        if isinstance(raw_list, list):
-            for v in raw_list:
-                if not isinstance(v, dict):
-                    continue
-                variants.append(
-                    {
-                        "variant_name": (v.get("variant_name") or v.get("name") or "").strip() or None,
-                        "wrist_size": (v.get("wrist_size") or "").strip() or None,
-                        "description": (v.get("description") or "").strip() or None,
-                        "price_czk": _to_price(v.get("price_czk") or v.get("price")),
-                        "stock": _to_int(v.get("stock"), default=0),
-                        "image": (v.get("image") or "").strip() or None,
-                    }
-                )
+    is_multipart = (request.content_type or "").lower().startswith("multipart/form-data")
+
+    # Pokud jde o multipart (admin formulář), ignoruj JSON payload,
+    # abychom se vyhnuli zdvojení variant z více zdrojů.
+    if not is_multipart:
+        payload_json = request.get_json(silent=True) if request.is_json else None
+        if isinstance(payload_json, dict) and "variants" in payload_json:
+            explicit = True
+            raw_list = payload_json.get("variants") or []
+            if isinstance(raw_list, list):
+                for v in raw_list:
+                    if not isinstance(v, dict):
+                        continue
+                    variants.append(
+                        {
+                            "variant_name": (v.get("variant_name") or v.get("name") or "").strip() or None,
+                            "wrist_size": (v.get("wrist_size") or "").strip() or None,
+                            "description": (v.get("description") or "").strip() or None,
+                            "price_czk": _to_price(v.get("price_czk") or v.get("price")),
+                            "stock": _to_int(v.get("stock"), default=0),
+                            "image": (v.get("image") or "").strip() or None,
+                        }
+                    )
 
     raw_form_variants = request.form.get("variants")
-    if raw_form_variants is not None:
+    if not is_multipart and raw_form_variants is not None:
         explicit = True
         try:
             parsed = json.loads(raw_form_variants) or []
@@ -158,14 +170,14 @@ def _parse_variants_from_request():
                         continue
                     variants.append(
                         {
-                        "variant_name": (v.get("variant_name") or v.get("name") or "").strip() or None,
-                        "wrist_size": (v.get("wrist_size") or "").strip() or None,
-                        "description": (v.get("description") or "").strip() or None,
-                        "price_czk": _to_price(v.get("price_czk") or v.get("price")),
-                        "stock": _to_int(v.get("stock"), default=0),
-                        "image": (v.get("image") or "").strip() or None,
-                    }
-                )
+                            "variant_name": (v.get("variant_name") or v.get("name") or "").strip() or None,
+                            "wrist_size": (v.get("wrist_size") or "").strip() or None,
+                            "description": (v.get("description") or "").strip() or None,
+                            "price_czk": _to_price(v.get("price_czk") or v.get("price")),
+                            "stock": _to_int(v.get("stock"), default=0),
+                            "image": (v.get("image") or "").strip() or None,
+                        }
+                    )
         except Exception:
             # pokud JSON parsování selže, prostě ignoruj
             pass
@@ -178,7 +190,18 @@ def _parse_variants_from_request():
     prices = request.form.getlist("variant_price[]")
     if names or wrists or files:
         explicit = True
-    max_len = max(len(names), len(wrists), len(files), len(stocks), len(descriptions), len(prices))
+
+    # Pokud dorazí pole z formuláře, ignoruj předchozí JSON/form "variants" a začni čistě,
+    # aby se nenačetly duplicitní varianty ze dvou zdrojů.
+    if names or wrists or stocks or descriptions or prices or files:
+        variants = []
+
+    # Počet řádků odvozujeme primárně z textových polí (řádky formuláře),
+    # aby se nevytvářely duplicitní varianty jen kvůli počtu file-inputů.
+    max_len = max(len(names), len(wrists), len(stocks), len(descriptions), len(prices))
+    # Pokud nejsou textová pole, ale přišly soubory (okrajový případ), vezmi počet souborů.
+    if max_len == 0 and files:
+        max_len = len(files)
     existing_main_list = request.form.getlist("variant_image_existing[]")
     for i in range(max_len):
         n = names[i] if i < len(names) else ""
@@ -192,7 +215,9 @@ def _parse_variants_from_request():
         existing_main = existing_main_list[i] if i < len(existing_main_list) else None
         extra_files = request.files.getlist(f"variant_image_multi_{i}[]")
         extra_existing = request.form.getlist(f"variant_image_existing_multi_{i}[]")
-        if not (n or w or has_file or existing_main or extra_files or extra_existing):
+        # Variantu vytvoříme jen pokud má nějaká hlavní data (název/velikost/hlavní foto/cena)
+        # Samotné "další fotky" ji už nespustí.
+        if not (n or w or has_file or existing_main or price_val):
             continue
         variants.append(
             {
@@ -336,8 +361,44 @@ def add_product():
     db.session.flush()
 
     variants_payload, _ = _parse_variants_from_request()
+
+    def _has_variant_data(v: dict) -> bool:
+        core_filled = any(
+            [
+                bool((v.get("variant_name") or "").strip()),
+                bool((v.get("wrist_size") or "").strip()),
+                bool(v.get("image") or v.get("existing_image") or v.get("image_file")),
+                v.get("price_czk") is not None,
+            ]
+        )
+        if not core_filled:
+            return False
+        # U nového produktu ignoruj varianty, které nesou jen existing_image (pozůstatek starých dat)
+        if v.get("existing_image") and not v.get("image_file"):
+            return False
+        return True
+
+    def _dedupe_variants(items: list[dict]) -> list[dict]:
+        seen = set()
+        result = []
+        for v in items:
+            key = (
+                (v.get("variant_name") or "").strip().lower(),
+                (v.get("wrist_size") or "").strip().lower(),
+                (v.get("description") or "").strip().lower(),
+                float(v["price_czk"]) if v.get("price_czk") is not None else None,
+                int(v.get("stock")) if v.get("stock") is not None else None,
+                (v.get("existing_image") or v.get("image") or "").strip().lower(),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            result.append(v)
+        return result
+
+    variants_payload = _dedupe_variants([v for v in variants_payload if _has_variant_data(v)])
     for idx, variant in enumerate(variants_payload):
-        img_name = variant.get("image") or variant.get("existing_image") or None
+        img_name = variant.get("image") or None
         if variant.get("image_file"):
             img_name = _process_and_save_image(variant["image_file"])
 
@@ -379,6 +440,7 @@ def update_product(product_id: int):
     p = Product.query.get_or_404(product_id)
 
     data = request.form if request.form else (request.get_json(silent=True) or {})
+    clear_variants_flag = request.form.get("clear_variants") == "1"
 
     name = (data.get("name") or "").strip()
     description = (data.get("description") or "").strip()
@@ -386,6 +448,56 @@ def update_product(product_id: int):
     stock_raw = str(data.get("stock") or "").strip()
     category_id = data.get("category_id")
     variants_payload, variants_explicit = _parse_variants_from_request()
+
+    if clear_variants_flag:
+        variants_payload = []
+        variants_explicit = True
+
+    def _has_variant_data(v: dict) -> bool:
+        core_filled = any(
+            [
+                bool((v.get("variant_name") or "").strip()),
+                bool((v.get("wrist_size") or "").strip()),
+                bool(v.get("image") or v.get("existing_image") or v.get("image_file")),
+                v.get("price_czk") is not None,
+            ]
+        )
+        if not core_filled:
+            return False
+        return True
+
+    def _dedupe_variants(items: list[dict]) -> list[dict]:
+        seen = set()
+        result = []
+        for v in items:
+            key = (
+                (v.get("variant_name") or "").strip().lower(),
+                (v.get("wrist_size") or "").strip().lower(),
+                (v.get("description") or "").strip().lower(),
+                float(v["price_czk"]) if v.get("price_czk") is not None else None,
+                int(v.get("stock")) if v.get("stock") is not None else None,
+                (v.get("existing_image") or v.get("image") or "").strip().lower(),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            result.append(v)
+        return result
+
+    variants_payload = _dedupe_variants([v for v in variants_payload if _has_variant_data(v)])
+
+    def _has_variant_data(v: dict) -> bool:
+        return any(
+            [
+                bool((v.get("variant_name") or "").strip()),
+                bool((v.get("wrist_size") or "").strip()),
+                bool(v.get("image") or v.get("existing_image") or v.get("image_file")),
+                bool((v.get("description") or "").strip()),
+                v.get("price_czk") is not None,
+            ]
+        )
+
+    variants_payload = [v for v in variants_payload if _has_variant_data(v)]
 
     if name:
         p.name = name

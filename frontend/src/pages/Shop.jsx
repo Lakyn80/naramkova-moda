@@ -246,6 +246,24 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
     sessionStorage.setItem("lastShopUrl", url);
   }, [location.pathname, location.search]);
 
+  // pokud URL nebo home sekce pošle jen slug bez ID, přemapuj na interní klíče kategorií
+  useEffect(() => {
+    if (!categories.length || !selectedCategories.length) return;
+    const remapped = selectedCategories.map((sel) => {
+      const found = categories.find(
+        (cat) => cat.key === sel || cat.slug === sel || cat.alias === sel
+      );
+      return found ? found.key : sel;
+    });
+    const uniq = Array.from(new Set(remapped));
+    const same =
+      uniq.length === selectedCategories.length &&
+      uniq.every((v, idx) => v === selectedCategories[idx]);
+    if (!same) {
+      setSelectedCategories(uniq);
+    }
+  }, [categories, selectedCategories]);
+
   const allWristSizes = useMemo(() => {
     const sizes = [];
     products.forEach((p) => {
@@ -268,10 +286,12 @@ const Shop = forwardRef(function Shop({ categorySlug }, ref) {
 
   const filteredProducts = products.filter((p) => {
     const catKey = p.category_key || "";
+    const catSlug = catKey.split("-")[0] || "";
     const matchesCat =
       !selectedCategories.length ||
       !catKey ||
       selectedCategories.includes(catKey) ||
+      selectedCategories.includes(catSlug) ||
       !categories.length;
     const matchesText = (p.name || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesWrist =

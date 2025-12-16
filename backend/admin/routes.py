@@ -144,8 +144,45 @@ def product_add():
             db.session.add(ProductMedia(product_id=product.id, filename=saved_name, media_type=media_type))
 
         variants_payload, _ = _parse_variants_from_request()
-        for variant in variants_payload:
-            img_name = variant.get("image") or variant.get("existing_image") or None
+
+        def _has_variant_data(v: dict) -> bool:
+            core_filled = any(
+                [
+                    bool((v.get("variant_name") or "").strip()),
+                    bool((v.get("wrist_size") or "").strip()),
+                    bool(v.get("image") or v.get("existing_image") or v.get("image_file")),
+                    v.get("price_czk") is not None,
+                ]
+            )
+            if not core_filled:
+                return False
+            # U nového produktu ignoruj varianty, které přijdou jen s existing_image (pozůstatek starých dat)
+            if v.get("existing_image") and not v.get("image_file"):
+                return False
+            return True
+
+        def _dedupe_variants(items: list[dict]) -> list[dict]:
+            seen = set()
+            result = []
+            for v in items:
+                key = (
+                    (v.get("variant_name") or "").strip().lower(),
+                    (v.get("wrist_size") or "").strip().lower(),
+                    (v.get("description") or "").strip().lower(),
+                    float(v["price_czk"]) if v.get("price_czk") is not None else None,
+                    int(v.get("stock")) if v.get("stock") is not None else None,
+                    (v.get("existing_image") or v.get("image") or "").strip().lower(),
+                )
+                if key in seen:
+                    continue
+                seen.add(key)
+                result.append(v)
+            return result
+
+        variants_clean = _dedupe_variants([v for v in variants_payload if _has_variant_data(v)])
+
+        for variant in variants_clean:
+            img_name = variant.get("image") or None
             if variant.get("image_file"):
                 img_name = _process_and_save_image(variant["image_file"])
 
@@ -172,7 +209,7 @@ def product_add():
         db.session.commit()
 
         flash("Produkt byl pridan.", "success")
-        return redirect(url_for("admin.products"))
+        return redirect(url_for("admin.edit_product", product_id=product.id))
 
     categories = Category.query.all()
     return render_template("admin/products/add.html", categories=categories)
@@ -184,6 +221,7 @@ def product_edit(product_id):
     product = Product.query.get_or_404(product_id)
 
     if request.method == "POST":
+        clear_variants_flag = request.form.get("clear_variants") == "1"
         product.name = request.form.get("name")
         price_val = request.form.get("price") or request.form.get("price_czk")
         description = request.form.get("description")
@@ -225,6 +263,43 @@ def product_edit(product_id):
             db.session.add(ProductMedia(product_id=product.id, filename=saved_name, media_type=media_type))
 
         variants_payload, variants_explicit = _parse_variants_from_request()
+
+        if clear_variants_flag:
+            variants_payload = []
+            variants_explicit = True
+
+        def _has_variant_data(v: dict) -> bool:
+            core_filled = any(
+                [
+                    bool((v.get("variant_name") or "").strip()),
+                    bool((v.get("wrist_size") or "").strip()),
+                    bool(v.get("image") or v.get("existing_image") or v.get("image_file")),
+                    v.get("price_czk") is not None,
+                ]
+            )
+            if not core_filled:
+                return False
+            return True
+
+        def _dedupe_variants(items: list[dict]) -> list[dict]:
+            seen = set()
+            result = []
+            for v in items:
+                key = (
+                    (v.get("variant_name") or "").strip().lower(),
+                    (v.get("wrist_size") or "").strip().lower(),
+                    (v.get("description") or "").strip().lower(),
+                    float(v["price_czk"]) if v.get("price_czk") is not None else None,
+                    int(v.get("stock")) if v.get("stock") is not None else None,
+                    (v.get("existing_image") or v.get("image") or "").strip().lower(),
+                )
+                if key in seen:
+                    continue
+                seen.add(key)
+                result.append(v)
+            return result
+
+        variants_payload = _dedupe_variants([v for v in variants_payload if _has_variant_data(v)])
 
         if variants_explicit:
             old_variants = list(product.variants or [])
@@ -293,10 +368,50 @@ def product_edit(product_id):
 def product_delete(product_id):
     product = Product.query.get_or_404(product_id)
 
-    db.session.delete(product)
-    db.session.commit()
+    try:
+        # smaž soubory variant
+        for variant in list(product.variants or []):
+            if variant.image:
+                try:
+                    path = os.path.join(current_app.root_path, "static", "uploads", variant.image)
+                    if os.path.exists(path):
+                        os.remove(path)
+                except Exception:
+                    current_app.logger.exception("Chyba při mazání obrázku varianty %s", variant.id)
+            for mv in list(variant.media or []):
+                try:
+                    path = os.path.join(current_app.root_path, "static", "uploads", mv.filename)
+                    if os.path.exists(path):
+                        os.remove(path)
+                except Exception:
+                    current_app.logger.exception("Chyba při mazání média varianty %s", variant.id)
 
-    flash("Produkt odstraněn.", "warning")
+        # smaž soubory médií produktu
+        for media in list(product.media or []):
+            try:
+                path = os.path.join(current_app.root_path, "static", "uploads", media.filename)
+                if os.path.exists(path):
+                    os.remove(path)
+            except Exception:
+                current_app.logger.exception("Chyba při mazání média produktu %s", media.id)
+
+        # smaž hlavní obrázek produktu
+        if product.image:
+            try:
+                path = os.path.join(current_app.root_path, "static", "uploads", product.image)
+                if os.path.exists(path):
+                    os.remove(path)
+            except Exception:
+                current_app.logger.exception("Chyba při mazání hlavního obrázku produktu %s", product.id)
+
+        db.session.delete(product)
+        db.session.commit()
+        flash("Produkt byl úspěšně odstraněn.", "success")
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Chyba při odstraňování produktu %s", product_id)
+        flash("Došlo k chybě při odstraňování produktu. Zkuste to znovu.", "danger")
+
     return redirect(url_for("admin.products"))
 
 
