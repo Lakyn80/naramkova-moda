@@ -218,7 +218,10 @@ export default function ProductDetail() {
 
       if (Array.isArray(selectedVariant.media)) {
         selectedVariant.media.forEach((m) => {
-          const img = m?.image_url || m?.image;
+          const img =
+            typeof m === "string"
+              ? m
+              : m?.image_url || m?.image;
           if (img) variantImages.push(img);
         });
       }
@@ -226,11 +229,7 @@ export default function ProductDetail() {
 
     const uniqueVariantImages = Array.from(new Set(variantImages.filter(Boolean)));
     if (uniqueVariantImages.length) {
-      const merged = [...uniqueVariantImages];
-      baseImages.forEach((img) => {
-        if (!merged.includes(img)) merged.push(img);
-      });
-      return merged;
+      return uniqueVariantImages;
     }
 
     return baseImages;
@@ -318,7 +317,7 @@ export default function ProductDetail() {
             onClick={handleBack}
             className="inline-flex items-center gap-2 text-pink-800 font-semibold hover:underline"
           >
-            Zpet do obchodu
+            Zpět do obchodu
           </button>
         </div>
 
@@ -370,14 +369,6 @@ export default function ProductDetail() {
               <p className="text-xl font-semibold text-pink-700 mt-2 drop-shadow-sm">
                 {Number.isFinite(activePrice) ? activePrice.toFixed(2) : product.price} Kč
               </p>
-
-              <button
-                type="button"
-                onClick={handleBack}
-                className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-pink-800 hover:text-pink-900 underline decoration-2"
-              >
-                Zpet do obchodu
-              </button>
 
               {/* --- ZDE NOVE VARIANTY --- */}
               {variantOptions.length > 1 && (
@@ -478,9 +469,9 @@ export default function ProductDetail() {
                     ? "bg-gray-400 cursor-not-allowed text-white"
                     : "bg-gradient-to-r from-pink-600 to-pink-700 hover:from-pink-700 hover:to-pink-800 text-white"
                 }`}
-                title={out ? "Produkt je vyprodany" : "Pridat do kosiku"}
+                title={out ? "Produkt je vyprodany" : "Přidat do košíku"}
               >
-                {out ? "Vyprodano" : "Pridat do kosiku"}
+                {out ? "Vyprodano" : "Přidat do košíku"}
               </button>
 
             </div>
