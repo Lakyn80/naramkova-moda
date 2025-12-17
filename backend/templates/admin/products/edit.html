@@ -49,6 +49,11 @@
   </div>
 
   <div class="mb-3">
+    <label class="form-label">Obvod / velikost produktu</label>
+    <input type="text" name="wrist_size" value="{{ product.wrist_size or '' }}" class="form-control" placeholder="Např. 16 cm nebo 15-17 cm">
+  </div>
+
+  <div class="mb-3">
     <label class="form-label">Počet kusů (stock)</label>
     <input type="number" name="stock" min="0" value="{{ product.stock }}" class="form-control" required>
   </div>

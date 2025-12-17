@@ -1,15 +1,38 @@
-# backend/api/utils/email.py
 from flask_mail import Message
 from backend.extensions import mail
-from email.header import Header  # ✅ kvůli emoji v Subjectu
 
-def send_email(subject, recipients, body):
-    # ✅ Subject s emoji/diakritikou správně zakódujeme
+
+def send_email(subject, recipients, body, attachments=None, sender=None):
+    """
+    Odeslání textového e-mailu v UTF-8 s volitelnými přílohami.
+    Flask-Mail si MIME + charset sestaví správně sám.
+    """
+    if isinstance(recipients, str):
+        recipients = [recipients]
+
     msg = Message(
-        subject=str(Header(subject or "", "utf-8")),
-        recipients=recipients,
-        body=body,
+        subject=subject or "",
+        recipients=list(recipients or []),
+        body=body or "",
+        sender=sender,
     )
-    # ✅ pro jistotu vynutíme UTF-8
+
+    # 🔑 DŮLEŽITÉ: jen toto – žádné Header(), žádné extra_headers
     msg.charset = "utf-8"
+
+    for att in attachments or []:
+        if not isinstance(att, dict):
+            continue
+        filename = att.get("filename") or "attachment"
+        data = att.get("content", att.get("data"))
+        mimetype = att.get("mimetype") or att.get("content_type") or "application/octet-stream"
+        if data is None:
+            continue
+        msg.attach(
+            filename=filename,
+            content_type=mimetype,
+            data=data,
+        )
+
     mail.send(msg)
+    return msg

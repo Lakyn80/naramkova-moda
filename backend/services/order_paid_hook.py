@@ -62,25 +62,63 @@ def _sum_order_items(order: Order) -> tuple[Decimal, int]:
 
 def _ensure_sold_rows(order: Order) -> int:
     """Vytvoří chybějící SoldProduct řádky za položky objednávky, idempotentně."""
-    created = 0
-    existing = {(s.product_id, s.order_id) for s in SoldProduct.query.filter_by(order_id=order.id).all()}
+    marker = f"order-{order.id}"
+    try:
+        existing_rows = SoldProduct.query.filter_by(payment_type=marker).all()
+    except Exception:
+        existing_rows = []
+
+    existing_keys = {
+        (
+            (getattr(sp, "name", "") or "").strip().lower(),
+            int(getattr(sp, "quantity", 0) or 0),
+            str(_to_dec(getattr(sp, "price", 0))),
+        )
+        for sp in existing_rows
+    }
+
     items: list[OrderItem] = OrderItem.query.filter_by(order_id=order.id).all()
+    created = 0
+
+    note_parts = [f"Objednávka #{order.id}"]
+    if getattr(order, "vs", None):
+        note_parts.append(f"VS {order.vs}")
+    if getattr(order, "note", None):
+        note_parts.append(str(order.note))
+    base_note = " | ".join(note_parts)
 
     for it in items:
-        key = (it.product_id, order.id)
-        if key in existing:
-            continue
-        s = SoldProduct(
-            product_id=it.product_id,
-            order_id=order.id,
-            quantity=it.quantity,
-            price=it.price,
-            sold_at=datetime.utcnow(),
-            buyer_name=order.name,
-            buyer_email=order.email,
-            vs=getattr(order, "vs", None),
+        key = (
+            (getattr(it, "product_name", "") or "").strip().lower(),
+            int(getattr(it, "quantity", 0) or 0),
+            str(_to_dec(getattr(it, "price", 0))),
         )
-        db.session.add(s)
+        if key in existing_keys:
+            continue
+
+        price_dec = _to_dec(getattr(it, "price", 0))
+        if price_dec < Decimal("1.00"):
+            current_app.logger.warning(
+                "SoldProduct skip: abnormally low price %.4f for order #%s item '%s'",
+                float(price_dec),
+                order.id,
+                getattr(it, "product_name", None),
+            )
+            continue
+
+        sp = SoldProduct(
+            original_product_id=getattr(it, "product_id", None),
+            name=getattr(it, "product_name", None) or getattr(it, "name", None) or "Položka",
+            price=f"{price_dec:.2f}",
+            quantity=int(getattr(it, "quantity", 1) or 1),
+            customer_name=getattr(order, "customer_name", None),
+            customer_email=getattr(order, "customer_email", None),
+            customer_address=getattr(order, "customer_address", None),
+            note=base_note,
+            payment_type=marker,
+            sold_at=datetime.utcnow(),
+        )
+        db.session.add(sp)
         created += 1
 
     if created:
@@ -93,15 +131,15 @@ def _make_invoice_proxy(order: Order) -> _SoldProxy:
     # pokud máš shipping v modelu Order, vem ho; jinak ho nech na invoicing (má fix 89 Kč)
     # shipping = _to_dec(getattr(order, "shipping_czk", 0))  # <- kdybys chtěl
 
-    name = f"Objednávka #{order.id} — {items_count} položek"
+    name = f"Objednávka #{order.id} – {items_count} položek"
     return _SoldProxy(
         id=order.id,
         order_id=order.id,
         created_at=getattr(order, "created_at", None),
         sold_at=datetime.utcnow(),
-        buyer_name=order.name,
-        email=order.email,
-        address=order.address,
+        buyer_name=getattr(order, "customer_name", None),
+        email=getattr(order, "customer_email", None),
+        address=getattr(order, "customer_address", None),
         note=getattr(order, "note", None),
         name=name,
         quantity=1.0,
@@ -111,9 +149,13 @@ def _make_invoice_proxy(order: Order) -> _SoldProxy:
     )
 
 def _send_invoice_email(order: Order, pdf_bytes: bytes, filename: str) -> None:
+    recipient = getattr(order, "customer_email", None)
+    if not recipient:
+        return
+
     subject = f"Faktura k objednávce #{order.id}"
     body = (
-        f"Dobrý den {order.name or ''},\n\n"
+        f"Dobrý den {getattr(order, 'customer_name', '')},\n\n"
         "děkujeme za Vaši objednávku. V příloze posíláme fakturu (PDF).\n"
         "V případě nesrovnalostí odpovězte prosím na tento e-mail.\n\n"
         "Hezký den,\nNáramková Móda"
@@ -123,7 +165,7 @@ def _send_invoice_email(order: Order, pdf_bytes: bytes, filename: str) -> None:
         "content": pdf_bytes,
         "mimetype": "application/pdf",
     }]
-    send_email(to=order.email, subject=subject, body=body, attachments=attachments)
+    send_email(subject=subject, recipients=[recipient], body=body, attachments=attachments)
 
 def _notify_telegram(order: Order) -> None:
     """
@@ -154,18 +196,28 @@ def on_order_marked_paid(order_id: int) -> dict:
     # 1) SoldProduct
     created_rows = _ensure_sold_rows(order)
 
+    try:
+        if created_rows:
+            db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.exception("Commit po vytvoření sold_product selhal")
+        return {"ok": False, "error": f"DB commit failed: {exc}"}
+
     # 2) PDF (souhrn celé objednávky do 1 dokladu)
     proxy = _make_invoice_proxy(order)
     pdf_bytes = build_invoice_pdf_bytes(proxy)
     filename = f"Invoice-Order-{order.id}.pdf"
 
     # 3) E-mail
+    emailed = False
     try:
         _send_invoice_email(order, pdf_bytes, filename)
+        emailed = True
     except Exception:
         current_app.logger.exception("Odeslání e-mailu s fakturou selhalo")
 
     # 4) Telegram (pokud máš)
     _notify_telegram(order)
 
-    return {"ok": True, "sold_rows_created": created_rows, "emailed": bool(order.email)}
+    return {"ok": True, "sold_rows_created": created_rows, "emailed": emailed}

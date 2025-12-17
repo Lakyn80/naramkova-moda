@@ -201,7 +201,7 @@ def sold_export_xlsx():
         import openpyxl
         from openpyxl.utils import get_column_letter
     except ImportError:
-        flash("ChybĂ­ balĂ­k openpyxl. Nainstaluj: pip install openpyxl", "danger")
+        flash("Chybí balík openpyxl. Nainstaluj: pip install openpyxl", "danger")
         return redirect(url_for("admin.sold_products", **request.args))
 
     filters = {
@@ -328,15 +328,15 @@ def sold_export_pdf():
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
     except ImportError:
-        flash("ChybĂ­ balĂ­k reportlab. Nainstaluj: pip install reportlab", "danger")
+        flash("Chybí balík reportlab. Nainstaluj: pip install reportlab", "danger")
         return redirect(url_for("admin.sold_products", **request.args))
 
     # Registrace CZ fontu
     regular_font, bold_font = _register_cz_fonts(pdfmetrics, TTFont)
     if not regular_font:
         flash(
-            "Pro korektnĂ­ ÄŤeĹˇtinu v PDF vloĹľ TTF font do backend/static/fonts/ "
-            "(napĹ™. DejaVuSans.ttf a DejaVuSans-Bold.ttf). ZatĂ­m pouĹľĂ­vĂˇm Helvetica.",
+            "Pro korektní češtinu v PDF vlož TTF font do backend/static/fonts/ "
+            "(např. DejaVuSans.ttf a DejaVuSans-Bold.ttf). Zatím používám Helvetica.",
             "warning",
         )
     title_font = bold_font or "Helvetica-Bold"
@@ -461,7 +461,7 @@ def invoice_send_email(sold_id: int):
     to_addr = getattr(sp, "customer_email", None)
 
     if not to_addr:
-        flash("U zĂˇznamu nenĂ­ vyplnÄ›n e-mail zĂˇkaznĂ­ka.", "warning")
+        flash("U záznamu není vyplněn e-mail zákazníka.", "warning")
         return redirect(url_for("admin.sold_products"))
 
     pdf_bytes = build_invoice_pdf_bytes(sp)
@@ -481,10 +481,10 @@ def invoice_send_email(sold_id: int):
             data=pdf_bytes,
         )
         mail.send(msg)
-        flash(f"E-mail s fakturou byl odeslĂˇn na {to_addr}.", "success")
+        flash(f"E-mail s fakturou byl odeslán na {to_addr}.", "success")
     except Exception as e:
         db.session.rollback()
-        flash(f"NepodaĹ™ilo se odeslat e-mail: {e}", "danger")
+        flash(f"Nepodařilo se odeslat e-mail: {e}", "danger")
 
     return redirect(url_for("admin.sold_products"))
 
@@ -502,10 +502,16 @@ def send_invoice_for_order(order_id: int) -> dict:
       - pokud uĹľ je invoice oznaÄŤenĂˇ jako odeslanĂˇ (invoice_sent_at), NIC neposĂ­lĂˇ (idempotentnĂ­),
       - jinak poĹˇle e-mail, uloĹľĂ­ PDF na disk a zapĂ­Ĺˇe info do DB (pokud mĂˇ model pole).
     """
-    sp = (SoldProduct.query
-          .filter(SoldProduct.order_id == order_id)
-          .order_by(SoldProduct.id.asc())
-          .first())
+    marker = f"order-{order_id}"
+    q = SoldProduct.query.order_by(SoldProduct.id.asc())
+    try:
+        q = q.filter(SoldProduct.payment_type == marker)
+    except Exception:
+        try:
+            q = q.filter(SoldProduct.note.ilike(f"%Objednávka #{order_id}%"))
+        except Exception:
+            pass
+    sp = q.first()
 
     if not sp:
         return {"ok": False, "error": "No SoldProduct for this order_id."}
@@ -522,7 +528,7 @@ def send_invoice_for_order(order_id: int) -> dict:
     try:
         inv_dir = os.path.join(current_app.root_path, "static", "invoices")
         os.makedirs(inv_dir, exist_ok=True)
-        filename = f"invoice_order_{getattr(sp, 'order_id', 'x')}_sold_{sp.id}.pdf"
+        filename = f"invoice_order_{order_id}_sold_{sp.id}.pdf"
         file_path = os.path.join(inv_dir, filename)
         with open(file_path, "wb") as f:
             f.write(pdf_bytes)
@@ -546,6 +552,8 @@ def send_invoice_for_order(order_id: int) -> dict:
     to_addr = getattr(sp, "customer_email", None) or getattr(sp, "email", None)
     if not to_addr:
         return result
+
+    result["to"] = to_addr
 
     try:
         subject = f"Faktura #{getattr(sp, 'id', '')} â€“ NĂˇramkovĂˇ MĂłda"
@@ -599,17 +607,14 @@ def invoice_send_email_for_order(order_id: int):
     """
     res = send_invoice_for_order(order_id)
     if res.get("ok") and res.get("emailed"):
-        flash(f"Faktura byla odeslĂˇna na {res.get('to')}.", "success")
+        flash(f"Faktura byla odeslána na {res.get('to')}.", "success")
     elif res.get("ok") and not res.get("emailed"):
-        flash("Faktura nebyla odeslĂˇna â€“ u objednĂˇvky nenĂ­ e-mail zĂˇkaznĂ­ka.", "warning")
+        flash("Faktura nebyla odeslána – u objednávky není e-mail zákazníka.", "warning")
     else:
-        flash(f"Fakturu se nepodaĹ™ilo odeslat: {res.get('error', 'neznĂˇmĂˇ chyba')}", "danger")
+        flash(f"Fakturu se nepodařilo odeslat: {res.get('error', 'neznámá chyba')}", "danger")
 
     # zpÄ›t kamkoliv â€“ ideĂˇlnÄ› na detail objednĂˇvky, pokud mĂˇĹˇ
     return redirect(request.referrer or url_for("admin.sold_products"))
-
-
-
 
 
 

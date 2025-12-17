@@ -1,9 +1,8 @@
 ﻿from flask import Blueprint, request, jsonify, current_app
 from decimal import Decimal, InvalidOperation
-from backend.extensions import db, mail
-from backend.models import Order, OrderItem, Payment
-from backend.models import Product  # kvĹŻli skladu
-from flask_mail import Message
+from backend.extensions import db
+from backend.models import Order, OrderItem, Payment, Product
+from backend.api.utils.email import send_email
 import os
 
 order_bp = Blueprint("order_bp", __name__, url_prefix="/api/orders")
@@ -13,24 +12,11 @@ def _to_decimal(val, field: str = "") -> Decimal:
     try:
         return Decimal(str(val))
     except Exception:
-        raise InvalidOperation(f"NeplatnĂˇ hodnota {field or 'ÄŤĂ­sla'}")
+        raise InvalidOperation(f"Neplatná hodnota {field or 'čísla'}")
 
 
 @order_bp.post("")
 def create_order():
-    """
-    Body (JSON):
-    {
-      "vs": "123456",
-      "name": "...",
-      "email": "...",
-      "address": "...",
-      "note": "...",
-      "items": [
-        {"id": 1, "name": "NĂˇramek A", "quantity": 2, "price": 199.0}
-      ]
-    }
-    """
     try:
         data = request.get_json(force=True) or {}
 
@@ -41,22 +27,22 @@ def create_order():
         note = str(data.get("note", "") or "")
 
         if not (vs and name and email and address):
-            return jsonify({"ok": False, "error": "ChybĂ­ povinnĂˇ pole (vs, name, email, address)."}), 400
+            return jsonify({"ok": False, "error": "Chybí povinná pole (vs, name, email, address)."}), 400
 
         if Order.query.filter_by(vs=vs).first():
-            return jsonify({"ok": False, "error": "ObjednĂˇvka s tĂ­mto VS uĹľ existuje."}), 409
+            return jsonify({"ok": False, "error": "Objednávka s tímto VS už existuje."}), 409
 
         items_in = data.get("items") or []
         if not isinstance(items_in, list) or not items_in:
-            return jsonify({"ok": False, "error": "ChybĂ­ poloĹľky objednĂˇvky (items)."}), 400
+            return jsonify({"ok": False, "error": "Chybí položky objednávky (items)."}), 400
 
         subtotal = Decimal("0.00")
         for it in items_in:
             qty = int(it.get("quantity", 1))
             price = _to_decimal(it.get("price", "0"), "price")
             if qty <= 0 or price <= 0:
-                return jsonify({"ok": False, "error": "PoloĹľka musĂ­ mĂ­t quantity>0 a price>0."}), 400
-            subtotal += (price * qty)
+                return jsonify({"ok": False, "error": "Položka musí mít quantity>0 a price>0."}), 400
+            subtotal += price * qty
 
         fee_raw = os.getenv("SHIPPING_FEE_CZK") or current_app.config.get("SHIPPING_FEE_CZK", "89.00")
         try:
@@ -66,9 +52,9 @@ def create_order():
 
         total_czk = (subtotal + shipping_fee).quantize(Decimal("0.01"))
         if total_czk <= 0:
-            return jsonify({"ok": False, "error": "ÄŚĂˇstka musĂ­ bĂ˝t > 0."}), 400
+            return jsonify({"ok": False, "error": "Částka musí být > 0."}), 400
 
-        # --- ATOMICKĂť ODEÄŚET SKLADU ---
+        # --- ATOMICKÝ ODEČET SKLADU ---
         decremented = []
         for it in items_in:
             pid = int(it.get("id"))
@@ -80,7 +66,7 @@ def create_order():
 
             current_stock = int(product.stock or 0)
             if current_stock < qty:
-                return jsonify({"ok": False, "error": f"Na skladÄ› zbĂ˝vĂˇ jen {current_stock} ks pro {product.name}"}), 400
+                return jsonify({"ok": False, "error": f"Na skladě zbývá jen {current_stock} ks pro {product.name}"}), 400
 
             updated = db.session.execute(
                 db.text("UPDATE product SET stock = stock - :qty WHERE id = :pid AND stock >= :qty"),
@@ -89,7 +75,7 @@ def create_order():
             if updated.rowcount == 0:
                 latest = Product.query.get(pid)
                 left = int(latest.stock or 0) if latest else 0
-                return jsonify({"ok": False, "error": f"Na skladÄ› zbĂ˝vĂˇ jen {left} ks pro {product.name}"}), 400
+                return jsonify({"ok": False, "error": f"Na skladě zbývá jen {left} ks pro {product.name}"}), 400
 
             latest = Product.query.get(pid)
             decremented.append({
@@ -118,88 +104,83 @@ def create_order():
                 price=_to_decimal(it.get("price"), "price"),
             ))
 
-        existing_p = Payment.query.filter_by(vs=vs).first()
-        if not existing_p:
+        if not Payment.query.filter_by(vs=vs).first():
             db.session.add(Payment(
                 vs=vs,
                 amount_czk=total_czk,
                 status="pending",
-                reference=f"Order #{order.id} created"
+                reference=f"Objednávka #{order.id}"
             ))
 
         db.session.commit()
 
-        # --- NOVÄš: potvrzovacĂ­ e-mail zĂˇkaznĂ­kovi (nic jinĂ©ho se nemÄ›nĂ­) ---
+        # =========================
+        # POTVRZOVACÍ E-MAIL ZÁKAZNÍK
+        # =========================
         try:
-            subject = "PotvrzenĂ­ objednĂˇvky â€“ NĂˇramkovĂˇ MĂłda"
-            lines = []
-            lines.append(f"DobrĂ˝ den {name},")
-            lines.append("")
-            lines.append("dÄ›kujeme za VaĹˇi objednĂˇvku. NĂ­Ĺľe je jejĂ­ rekapitulace:")
-            lines.append(f"- VS: {vs}")
-            lines.append(f"- DodacĂ­ adresa: {address}")
+            lines = [
+                f"Dobrý den {name},",
+                "",
+                "děkujeme za Vaši objednávku. Níže je její rekapitulace:",
+                f"VS: {vs}",
+                f"Dodací adresa: {address}",
+            ]
             if note:
-                lines.append(f"- PoznĂˇmka: {note}")
+                lines.append(f"Poznámka: {note}")
+
             lines.append("")
-            lines.append("PoloĹľky:")
+            lines.append("Položky:")
             for it in items_in:
                 nm = str(it.get("name") or "").strip()
                 qty = int(it.get("quantity", 1))
                 price = _to_decimal(it.get("price", "0"), "price")
-                lines.append(f"  â€˘ {nm} Ă— {qty} â€“ {price:.2f} KÄŤ/ks")
-            lines.append("")
-            lines.append(f"PoĹˇtovnĂ©: {shipping_fee:.2f} KÄŤ")
-            lines.append(f"Celkem k ĂşhradÄ›: {total_czk:.2f} KÄŤ")
-            lines.append("")
-            lines.append("Pokyny k platbÄ›:")
-            lines.append("â€” BankovnĂ­ pĹ™evod v CZK")
-            iban = (os.getenv("MERCHANT_IBAN") or current_app.config.get("MERCHANT_IBAN") or "").replace(" ", "")
-            if iban:
-                lines.append(f"â€” IBAN: {iban}")
-            lines.append(f"â€” VariabilnĂ­ symbol: {vs}")
-            lines.append("")
-            lines.append("Po pĹ™ipsĂˇnĂ­ platby VĂˇm automaticky zaĹˇleme fakturu v PDF a nĂˇkup se zobrazĂ­ v sekci ProdanĂ©.")
-            lines.append("")
-            lines.append("DÄ›kujeme za nĂˇkup.")
-            lines.append("NĂˇramkovĂˇ MĂłda")
+                lines.append(f"• {nm} × {qty} – {price:.2f} Kč/ks")
 
-            msg = Message(subject=subject, recipients=[email], body="\n".join(lines))
-            mail.send(msg)
+            lines += [
+                "",
+                f"Poštovné: {shipping_fee:.2f} Kč",
+                f"Celkem k úhradě: {total_czk:.2f} Kč",
+                "",
+                "Pokyny k platbě:",
+                "— Bankovní převod v CZK",
+                f"— Variabilní symbol: {vs}",
+                "",
+                "Po připsání platby Vám automaticky zašleme fakturu v PDF.",
+                "",
+                "Děkujeme za nákup.",
+                "Náramková Móda",
+            ]
+
+            send_email(
+                subject="Potvrzení objednávky – Náramková Móda",
+                recipients=[email],
+                body="\n".join(lines),
+            )
         except Exception:
-            # nechceme ohrozit vytvoĹ™enĂ­ objednĂˇvky, pĹ™Ă­padnĂ© chyby jen zalogujeme
-            current_app.logger.exception("PotvrzovacĂ­ e-mail po create_order selhal")
+            current_app.logger.exception("Potvrzovací e-mail selhal")
 
-        # --- NOVÄš: notifikace majiteli o novĂ© objednĂˇvce ---
+        # =========================
+        # NOTIFIKACE MAJITELI
+        # =========================
         try:
-            owner_rcpt = (
+            owner = (
                 current_app.config.get("ORDER_NOTIFY_EMAIL")
                 or os.getenv("ORDER_NOTIFY_EMAIL")
-                or current_app.config.get("MAIL_DEFAULT_SENDER")
-                or os.getenv("MAIL_DEFAULT_SENDER")
             )
-            if owner_rcpt:
-                subject_owner = f"NovĂˇ objednĂˇvka #{order.id} (VS {vs})"
-                items_lines = []
-                for it in items_in:
-                    q = int(it.get("quantity", 1))
-                    p = _to_decimal(it.get("price", "0"), "price")
-                    items_lines.append(f"- {str(it.get('name','?')).strip()} Ă— {q} @ {float(p):.2f} KÄŤ")
-                body_owner = (
-                    f"NovĂˇ objednĂˇvka #{order.id}\n"
-                    f"VS: {vs}\n"
-                    f"ZĂˇkaznĂ­k: {name} <{email}>\n"
-                    f"Adresa: {address}\n"
-                    f"PoznĂˇmka: {note or '-'}\n\n"
-                    f"PoloĹľky:\n" + "\n".join(items_lines) + "\n\n"
-                    f"PoĹˇtovnĂ©: {float(shipping_fee):.2f} KÄŤ\n"
-                    f"Celkem: {float(total_czk):.2f} KÄŤ\n"
+            if owner:
+                send_email(
+                    subject=f"Nová objednávka #{order.id} (VS {vs})",
+                    recipients=[owner],
+                    body=(
+                        f"Objednávka #{order.id}\n"
+                        f"VS: {vs}\n"
+                        f"Zákazník: {name} <{email}>\n"
+                        f"Adresa: {address}\n"
+                        f"Celkem: {total_czk:.2f} Kč"
+                    ),
                 )
-                msg_owner = Message(subject=subject_owner, recipients=[owner_rcpt], body=body_owner)
-                mail.send(msg_owner)
-            else:
-                current_app.logger.warning("ORDER_NOTIFY_EMAIL/MAIL_DEFAULT_SENDER not set; owner notification skipped")
         except Exception:
-            current_app.logger.exception("Order email to owner failed")
+            current_app.logger.exception("Owner e-mail selhal")
 
         return jsonify({
             "ok": True,
@@ -210,8 +191,8 @@ def create_order():
         }), 201
 
     except Exception as e:
-        current_app.logger.exception("create_order failed")
         db.session.rollback()
+        current_app.logger.exception("create_order failed")
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
@@ -247,7 +228,7 @@ def get_order(order_id: int):
 def get_order_by_vs(vs: str):
     o = Order.query.filter_by(vs=str(vs).strip()).first()
     if not o:
-        return jsonify({"ok": False, "error": "ObjednĂˇvka s tĂ­mto VS neexistuje."}), 404
+        return jsonify({"ok": False, "error": "Objednávka s tímto VS neexistuje."}), 404
     return jsonify({
         "ok": True,
         "order": {
@@ -271,5 +252,3 @@ def get_order_by_vs(vs: str):
             ]
         }
     }), 200
-
-

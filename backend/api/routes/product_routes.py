@@ -117,12 +117,7 @@ def _parse_variants_from_request():
     variants: list[dict] = []
     explicit = False
 
-    # --- ADD PRODUCT: ignoruj všechny existing_* (Chrome posílá starý multipart bordel) ---
-    if request.path.endswith("/products/add"):
-        form = request.form.to_dict(flat=False)
-        for key in list(form.keys()):
-            if key.startswith("variant_image_existing"):
-                form[key] = []
+    is_add_request = request.path.endswith("/products/add") or request.path.rstrip("/").endswith("/api/products")
 
     def _to_int(val, default=None):
         try:
@@ -202,7 +197,7 @@ def _parse_variants_from_request():
     # Pokud nejsou textová pole, ale přišly soubory (okrajový případ), vezmi počet souborů.
     if max_len == 0 and files:
         max_len = len(files)
-    existing_main_list = request.form.getlist("variant_image_existing[]")
+    existing_main_list = [] if is_add_request else request.form.getlist("variant_image_existing[]")
     for i in range(max_len):
         n = names[i] if i < len(names) else ""
         w = wrists[i] if i < len(wrists) else ""
@@ -214,7 +209,7 @@ def _parse_variants_from_request():
         has_file = bool(f and getattr(f, "filename", None))
         existing_main = existing_main_list[i] if i < len(existing_main_list) else None
         extra_files = request.files.getlist(f"variant_image_multi_{i}[]")
-        extra_existing = request.form.getlist(f"variant_image_existing_multi_{i}[]")
+        extra_existing = [] if is_add_request else request.form.getlist(f"variant_image_existing_multi_{i}[]")
         # Variantu vytvoříme jen pokud má nějaká hlavní data (název/velikost/hlavní foto/cena)
         # Samotné "další fotky" ji už nespustí.
         if not (n or w or has_file or existing_main or price_val):
@@ -227,9 +222,9 @@ def _parse_variants_from_request():
                 "price_czk": _to_price(price_val),
                 "stock": s_val if s_val is not None else 0,
                 "image_file": f if has_file else None,
-                "existing_image": (existing_main or None),
+                "existing_image": None if is_add_request else (existing_main or None),
                 "extra_files": [ef for ef in extra_files if getattr(ef, "filename", None)],
-                "existing_extra": [ee for ee in extra_existing if ee],
+                "existing_extra": [] if is_add_request else [ee for ee in extra_existing if ee],
             }
         )
 
@@ -271,6 +266,7 @@ def _product_dict(product: Product):
         "category_id": product.category_id,
         "category_name": category_name,
         "category_slug": getattr(product.category, "slug", None),
+        "wrist_size": product.wrist_size,
         # Use relative URLs so frontend can prefix with its own origin/port
         "image_url": f"/static/uploads/{product.image}" if product.image else None,
         "media": [f"/static/uploads/{m.filename}" for m in (product.media or [])],
@@ -321,6 +317,7 @@ def add_product():
     price_raw = str(data.get("price") or data.get("price_czk") or "").strip()
     stock_raw = str(data.get("stock") or "").strip()
     category_id = data.get("category_id")
+    wrist_size_raw = (data.get("wrist_size") or data.get("wrist_sizes") or "").strip()
 
     if not name or not price_raw or not category_id:
         return jsonify({"error": "Missing required fields"}), 400
@@ -348,6 +345,7 @@ def add_product():
         price_czk=price,
         stock=stock,  # ✅ uložíme počet kusů
         category_id=category_id_int,
+        wrist_size=wrist_size_raw or None,
     )
 
     # --- Hlavní obrázek: vždy normalizujeme do WebP ---
@@ -447,6 +445,8 @@ def update_product(product_id: int):
     price_raw = str(data.get("price") or data.get("price_czk") or "").strip()
     stock_raw = str(data.get("stock") or "").strip()
     category_id = data.get("category_id")
+    wrist_size_raw = (data.get("wrist_size") or data.get("wrist_sizes") or "").strip()
+    wrist_size_present = ("wrist_size" in data) or ("wrist_sizes" in data)
     variants_payload, variants_explicit = _parse_variants_from_request()
 
     if clear_variants_flag:
@@ -502,6 +502,8 @@ def update_product(product_id: int):
     if name:
         p.name = name
     p.description = (description or None)
+    if wrist_size_present:
+        p.wrist_size = wrist_size_raw or None
     if price_raw:
         try:
             p.price_czk = float(price_raw)

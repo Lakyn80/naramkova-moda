@@ -12,6 +12,7 @@ class Product(db.Model):
     description = db.Column(db.Text, nullable=True)
     price_czk = db.Column(db.Numeric(10, 2), nullable=False)
     image = db.Column(db.String(255), nullable=True)
+    wrist_size = db.Column(db.String(50), nullable=True)
 
     # âś… NovĂ˝ sloupec â€“ poÄŤet kusĹŻ na skladÄ›
     stock = db.Column(db.Integer, nullable=False, default=1)
@@ -48,4 +49,3 @@ class Product(db.Model):
 
     def __repr__(self) -> str:
         return f"<Product {self.name}>"
-

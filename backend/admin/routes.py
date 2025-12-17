@@ -113,6 +113,7 @@ def product_add():
         name = request.form.get("name")
         price = request.form.get("price") or request.form.get("price_czk")
         description = request.form.get("description")
+        wrist_size = (request.form.get("wrist_size") or "").strip() or None
         stock_val = request.form.get("stock")
         category_id = request.form.get("category_id")
 
@@ -120,6 +121,7 @@ def product_add():
         product.name = name
         product.price_czk = price
         product.description = description
+        product.wrist_size = wrist_size
         try:
             product.stock = int(stock_val)
         except Exception:
@@ -225,9 +227,11 @@ def product_edit(product_id):
         product.name = request.form.get("name")
         price_val = request.form.get("price") or request.form.get("price_czk")
         description = request.form.get("description")
+        wrist_size_val = (request.form.get("wrist_size") or "").strip() or None
         stock_val = request.form.get("stock")
         product.price_czk = price_val
         product.description = description
+        product.wrist_size = wrist_size_val
         try:
             product.stock = int(stock_val)
         except Exception:
